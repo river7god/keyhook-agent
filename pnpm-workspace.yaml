@@ -1,0 +1,4 @@
+# Explicit allowlist of dependencies permitted to run install scripts (pnpm 10 default-deny).
+onlyBuiltDependencies:
+  - esbuild
+  - unrs-resolver
