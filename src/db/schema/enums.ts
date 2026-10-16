@@ -1,0 +1,51 @@
+import { pgEnum } from 'drizzle-orm/pg-core';
+import { JOB_STATES } from '@/workflows/job-states';
+
+export const jobStateEnum = pgEnum('job_state', JOB_STATES);
+export const urgencyEnum = pgEnum('urgency', ['emergency', 'urgent', 'routine']);
+/** `other` = could not classify; triage routes these to a PM. `handyman` covers general repairs. */
+export const tradeEnum = pgEnum('trade', [
+  'plumbing',
+  'electrical',
+  'heating',
+  'handyman',
+  'locksmith',
+  'other',
+]);
+export const jobSourceEnum = pgEnum('job_source', [
+  'tenant_message',
+  'pm_created',
+  'agent_detected',
+  'inspection',
+]);
+export const actorTypeEnum = pgEnum('actor_type', [
+  'tenant',
+  'tradie',
+  'pm',
+  'owner',
+  'agent',
+  'system',
+]);
+export const messageDirectionEnum = pgEnum('message_direction', ['inbound', 'outbound']);
+export const messageChannelEnum = pgEnum('message_channel', ['simulator', 'sms', 'email']);
+export const messageStatusEnum = pgEnum('message_status', ['received', 'queued', 'sent', 'failed']);
+export const approvalStatusEnum = pgEnum('approval_status', [
+  'pending',
+  'approved',
+  'rejected',
+  'expired',
+]);
+export const followUpStatusEnum = pgEnum('follow_up_status', [
+  'scheduled',
+  'sent',
+  'satisfied',
+  'cancelled',
+]);
+export const auditOutcomeEnum = pgEnum('audit_outcome', ['ok', 'rejected', 'error']);
+
+export type Urgency = (typeof urgencyEnum.enumValues)[number];
+export type Trade = (typeof tradeEnum.enumValues)[number];
+export type JobSource = (typeof jobSourceEnum.enumValues)[number];
+export type ActorType = (typeof actorTypeEnum.enumValues)[number];
+export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
+export type AuditOutcome = (typeof auditOutcomeEnum.enumValues)[number];

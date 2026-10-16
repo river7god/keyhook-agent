@@ -1,0 +1,52 @@
+import { sql } from 'drizzle-orm';
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  text,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import { id, organizationId, timestamps, tstz } from './columns';
+import { approvalStatusEnum } from './enums';
+import { jobs } from './jobs';
+import { organizations } from './organizations';
+
+/** The stored manager approval record required before any `approval`-level tool runs (rule 2). */
+export const approvals = pgTable(
+  'approvals',
+  {
+    id: id(),
+    organizationId: organizationId().references(() => organizations.id),
+    jobId: uuid().notNull(),
+    amountCents: integer().notNull(),
+    reason: text().notNull(),
+    status: approvalStatusEnum().notNull().default('pending'),
+    /** Plain PM identifier until auth exists (decisions.md). */
+    decidedBy: text(),
+    decidedAt: tstz(),
+    decisionNote: text(),
+    idempotencyKey: text().notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    unique('approvals_org_idempotency_uq').on(t.organizationId, t.idempotencyKey),
+    index('approvals_org_status_idx').on(t.organizationId, t.status),
+    uniqueIndex('approvals_one_pending_per_job_uq')
+      .on(t.jobId)
+      .where(sql`${t.status} = 'pending'`),
+    check('approvals_amount_nonneg', sql`${t.amountCents} >= 0`),
+    check(
+      'approvals_decision_recorded',
+      sql`${t.status} NOT IN ('approved', 'rejected') OR (${t.decidedBy} IS NOT NULL AND ${t.decidedAt} IS NOT NULL)`,
+    ),
+    foreignKey({
+      name: 'approvals_job_fk',
+      columns: [t.organizationId, t.jobId],
+      foreignColumns: [jobs.organizationId, jobs.id],
+    }),
+  ],
+);
