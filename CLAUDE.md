@@ -21,10 +21,13 @@ It is a portfolio project targeting production-grade quality, not a demo.
 ```
 src/app/         Next.js routes (dashboard, simulator, API)
 src/agent/       prompts, LLM calls, decision logic per workflow step
+src/domain/      business rules + org-scoped data access; the only path to the DB for every caller
 src/tools/       agent tools (one file per tool, Zod schemas, permission level)
 src/workflows/   Inngest functions + job state machine
 src/db/          Drizzle schema, migrations, seed data
 src/adapters/    messaging adapters (mock outbox in dev; SMS/email later)
+src/lib/         env, money (cents/NZD), time (UTC ↔ Pacific/Auckland)
+src/test/        test DB helpers + fixtures (DB tests are *.db.test.ts)
 evals/           scenario files + promptfoo config
 docs/            spec, decisions log
 ```

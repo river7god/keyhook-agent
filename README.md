@@ -26,6 +26,26 @@ guardrails, audit trails, human escalation and an evaluation suite to prove it.
 ## Status
 🚧 In progress — see milestones in [`docs/spec.md`](docs/spec.md).
 
+## Development
+Requirements: Node 24 (`nvm use`), pnpm 10, Docker (Docker Desktop, OrbStack or colima).
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm db:up          # Postgres 17 on localhost:54329 (+ keyhook_test database)
+pnpm db:migrate
+pnpm db:seed        # fictional Wellington data
+pnpm dev            # Next.js on :3000 + Inngest dev server on :8288
+```
+
+| Script | |
+|---|---|
+| `pnpm typecheck` / `pnpm lint` / `pnpm test` | must pass before a change is done |
+| `pnpm db:generate` | create a migration after editing `src/db/schema/` |
+| `pnpm db:reset` | drop, migrate and re-seed the local database |
+| `pnpm db:studio` | browse the database |
+| `pnpm eval` | LLM eval scenarios (stub until M4) |
+
 ## Docs
 - [`docs/spec.md`](docs/spec.md) — product spec
 - [`docs/decisions.md`](docs/decisions.md) — architecture decisions
