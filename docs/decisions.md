@@ -53,7 +53,9 @@ rejected; TRUNCATE allowed for dev/test only — production roles must not hold 
 **Decision:** `src/workflows/state-machine.ts` owns transitions. ESCALATED is reachable from any
 non-terminal state; leaving it is PM-only and only back to `state_before_escalation`. CANCELLED is
 PM-only. CLOSED and CANCELLED are terminal. The model is only ever offered
-`allowedTransitions()`.
+`allowedTransitions()`. Confirmed with product owner 2026-10-17: terminal jobs cannot be
+escalated; a PM cannot close directly from ESCALATED (hand back or cancel); a rejected spend
+approval leads to escalation (implemented in M2).
 **Reason:** CLAUDE.md rule 1 / spec §5.
 
 ### 2026-10-17 — No auth in M0; plain-string PM identity
