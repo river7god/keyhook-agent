@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: keyhook
+          POSTGRES_PASSWORD: keyhook
+          POSTGRES_DB: keyhook
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U keyhook -d keyhook"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgres://keyhook:keyhook@localhost:5432/keyhook
+      DATABASE_URL_TEST: postgres://keyhook:keyhook@localhost:5432/keyhook_test
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create test database
+        run: psql "$DATABASE_URL" -c 'CREATE DATABASE keyhook_test'
+
+      - name: Migrations are up to date with the schema
+        run: |
+          pnpm exec drizzle-kit generate
+          if [ -n "$(git status --porcelain src/db/migrations)" ]; then
+            echo "::error::Schema changed without a migration. Run 'pnpm db:generate' and commit."
+            git status --porcelain src/db/migrations
+            exit 1
+          fi
+
+      - name: Migrate + seed (dev database)
+        run: |
+          pnpm exec tsx src/db/migrate.ts
+          pnpm exec tsx src/db/seed/index.ts
+
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
