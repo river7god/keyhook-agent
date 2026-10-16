@@ -1,4 +1,5 @@
 # Explicit allowlist of dependencies permitted to run install scripts (pnpm 10 default-deny).
 onlyBuiltDependencies:
   - esbuild
+  - inngest-cli # downloads the dev-server binary
   - unrs-resolver
