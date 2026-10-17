@@ -48,7 +48,7 @@ docs/            spec、agent 目录、决策日志（每份都有 .zh-CN.md 译
 8. 优先小而易审查的改动。添加依赖时必须说明原因。
 
 ## 宣布任务完成之前
-- `pnpm typecheck && pnpm lint && pnpm test` 全部通过
+- `pnpm check` 通过（format:check + typecheck + lint + test）
 - 如果改动了提示词、agent 逻辑或工具：运行 `pnpm eval` 并报告分数变化
 - 任何架构决策都记录到 `docs/decisions.md`（日期、决策、理由）
 - 文档是双语的：修改 `X.md` 时，在同一改动中更新 `X.zh-CN.md`（以英文版为准）

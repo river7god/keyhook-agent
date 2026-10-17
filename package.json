@@ -24,7 +24,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file=.env src/db/seed/index.ts",
     "db:reset": "tsx --env-file=.env src/db/reset.ts && pnpm db:migrate && pnpm db:seed",
-    "eval": "tsx evals/run.ts"
+    "eval": "tsx evals/run.ts",
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0",

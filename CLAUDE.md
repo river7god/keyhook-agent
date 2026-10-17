@@ -49,7 +49,7 @@ docs/            spec, agent catalog, decisions log (each with a .zh-CN.md trans
 8. Prefer small, reviewable changes. Don't add dependencies without saying why.
 
 ## Before you say a task is done
-- `pnpm typecheck && pnpm lint && pnpm test` pass
+- `pnpm check` passes (format:check + typecheck + lint + test)
 - If you touched prompts, agent logic or tools: `pnpm eval` and report the score change
 - Record any architecture decision in `docs/decisions.md` (date, decision, reason)
 - Docs are bilingual: when you change `X.md`, update `X.zh-CN.md` in the same change (English is canonical)

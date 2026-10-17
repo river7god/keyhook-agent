@@ -45,15 +45,13 @@ describe('simulator allowance', () => {
 
   it('stops new simulator traffic once the daily AI budget is spent', async () => {
     process.env.DAILY_LLM_BUDGET_USD = '1';
-    await db
-      .insert(llmCalls)
-      .values({
-        organizationId: org,
-        step: 'x',
-        requestedModel: 'm',
-        latencyMs: 1,
-        costUsdMicros: 1_000_001,
-      });
+    await db.insert(llmCalls).values({
+      organizationId: org,
+      step: 'x',
+      requestedModel: 'm',
+      latencyMs: 1,
+      costUsdMicros: 1_000_001,
+    });
     await expect(assertSimulatorAllowance(db, org, new Date())).rejects.toMatchObject({
       code: 'RATE_LIMITED',
     });
