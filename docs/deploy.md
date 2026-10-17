@@ -73,6 +73,10 @@ workflow then runs nightly and on demand.
 - Simulator: send "No hot water" as a tenant → the job should reach AWAITING_QUOTE within a
   minute; the run appears in Inngest.
 
+**After every deploy that adds a migration** (new file in `src/db/migrations/`), run step 2's
+migrate command again (not the seed). `/api/v1/health` returns **503** with `"pending": N` while
+the database is behind the code — check it first when a page shows a server error.
+
 **Troubleshooting:** `prepared statement … does not exist` → `DATABASE_URL` must be the pooled
 host (prepared statements are disabled automatically for `-pooler` hosts, or set
 `DATABASE_PREPARE=false`). 401 everywhere after sign-in → the site must be served over HTTPS

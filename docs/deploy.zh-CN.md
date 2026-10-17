@@ -72,6 +72,9 @@ owner 角色有权限创建）。
 - 用 `aroha@harbourcity.example.test` 和种子密码登录。
 - 模拟器：以租客身份发送 "No hot water" → 一分钟内工单应进入 AWAITING_QUOTE；Inngest 中能看到运行记录。
 
+**每次部署带有新迁移时**（`src/db/migrations/` 下出现新文件），都要再执行一次第 2 步的迁移命令（不要重跑种子数据）。数据库落后于代码时，
+`/api/v1/health` 会返回 **503**，并显示 `"pending": N`——页面出现服务器错误时，先检查这里。
+
 **排错：** 出现 `prepared statement … does not exist` → `DATABASE_URL` 必须是 pooled 主机（对 `-pooler` 主机会自动关闭
 预编译语句，也可设置 `DATABASE_PREPARE=false`）。登录后到处都是 401 → 站点必须通过 HTTPS 访问（生产环境的会话 cookie
 带 `Secure` 标志）。
