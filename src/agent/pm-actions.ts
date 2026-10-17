@@ -12,6 +12,7 @@ import {
 } from '@/db/schema';
 import { writeAudit } from '@/domain/audit';
 import { DomainError } from '@/domain/errors';
+import { recordHandBackCorrections } from '@/domain/feedback';
 import { getJob, transitionJob } from '@/domain/jobs';
 import { queueOutbound } from '@/domain/messages';
 import { formatNzd } from '@/lib/money';
@@ -167,6 +168,13 @@ export async function handBackJob(
     if (job.state !== 'ESCALATED' || !job.stateBeforeEscalation) {
       throw new DomainError('INVALID_TRANSITION', 'Only escalated jobs can be handed back');
     }
+    await recordHandBackCorrections(tx, {
+      job,
+      propertyManagerId: pm.id,
+      urgency: args.urgency ?? null,
+      trade: args.trade ?? null,
+      note: args.note,
+    });
     const after = await transitionJob(tx, {
       organizationId: args.organizationId,
       jobId: args.jobId,

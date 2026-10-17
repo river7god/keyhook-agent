@@ -37,6 +37,19 @@ expect:
 
 `messages: [...]` is shorthand for tenant-only steps. Time starts Monday 13:00 NZDT.
 
+## Learning from PM corrections
+
+PMs flag agent mistakes on a job page (*Agent quality → Flag an agent mistake*); a hand-back that
+changes urgency/trade is recorded automatically. Turn them into scenarios:
+
+```bash
+pnpm eval:harvest                              # local database
+pnpm eval:harvest --env-file .env.neon.local   # hosted demo database
+```
+
+Files land in `scenarios/harvested/` with `reviewed: false` (skipped by `pnpm eval` unless
+`--include-unreviewed`). Check the redaction, set `reviewed: true`, commit.
+
 ## What runs where
 
 - **Every push (`pnpm test`, free):** `scenarios.test.ts` validates all scenarios;

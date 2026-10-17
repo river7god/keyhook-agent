@@ -261,3 +261,15 @@ sets the model for organizations without `llm_routing`. The simulator's daily bu
 `UNKNOWN_LLM_CALL_COST_USD` (default 0.05) for each call whose cost is unknown.
 **Reason:** The product owner wants to start on Kimi before an Anthropic key; without a price
 table the spend guard would otherwise never trip.
+
+### 2026-10-17 — PM corrections become eval scenarios (the improvement loop)
+**Decision:** `agent_feedback` stores labelled corrections: a PM flags a mistake on the job page
+(urgency, trade, should / should not have escalated, other), and a hand-back that changes
+urgency/trade is recorded automatically. Each row snapshots what the agent decided. `pnpm
+eval:harvest` turns unharvested rows into YAML scenarios (the job's real messages as steps, the
+PM's answer as the expectation) under `evals/scenarios/harvested/`, redacting emails, phone
+numbers and known names, and marks them `reviewed: false`; the runner skips unreviewed scenarios
+unless `--include-unreviewed`. A person reviews, then sets `reviewed: true` and commits.
+**Reason:** The model doesn't learn from production; the system does — every correction becomes a
+regression test, so prompt/policy changes are proven against real past mistakes. Review stays
+human because production messages contain personal information.

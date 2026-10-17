@@ -216,3 +216,12 @@ Postgres 会过滤所有按组织划分的表，并拒绝跨组织写入；缺�
 **决策：** `LLM_DEFAULT_MODEL=provider:model`（DeepSeek/Kimi 还需 `LLM_ACKNOWLEDGE_OFFSHORE=true`）为没有配置 `llm_routing`
 的组织设定模型。模拟器的每日预算对每次成本未知的调用按 `UNKNOWN_LLM_CALL_COST_USD`（默认 0.05）计费。
 **理由：** 产品负责人希望在拿到 Anthropic key 之前先用 Kimi；没有价格表时，花费保护否则永远不会触发。
+
+### 2026-10-17 — PM 的纠正变成评测场景（改进闭环）
+**决策：** `agent_feedback` 存储带标注的纠正：PM 在工单页标记错误（紧急程度、工种、该升级 / 不该升级、其他），交还工单时
+修改了紧急程度/工种也会自动记录。每条记录都保存 agent 当时的判断快照。`pnpm eval:harvest` 把尚未收集的记录转换成
+YAML 场景（工单的真实消息作为步骤，PM 的答案作为预期），放在 `evals/scenarios/harvested/`，对邮箱、电话号码和已知姓名
+做脱敏，并标记为 `reviewed: false`；除非加 `--include-unreviewed`，否则评测会跳过未审核的场景。人工审核后改为
+`reviewed: true` 再提交。
+**理由：** 模型不会从生产数据中学习，但系统可以——每一次纠正都变成回归测试，提示词/规则的改动要在真实的历史错误上证明有效。
+审核保留人工环节，因为生产消息含有个人信息。

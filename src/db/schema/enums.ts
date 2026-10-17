@@ -50,6 +50,15 @@ export const followUpKindEnum = pgEnum('follow_up_kind', [
   'visit_check',
   'confirmation_chase',
 ]);
+/** What a PM says the agent got wrong (agent_feedback). */
+export const feedbackKindEnum = pgEnum('feedback_kind', [
+  'urgency',
+  'trade',
+  'should_have_escalated',
+  'should_not_have_escalated',
+  'other',
+]);
+export const feedbackSourceEnum = pgEnum('feedback_source', ['pm_flag', 'hand_back_override']);
 export const auditOutcomeEnum = pgEnum('audit_outcome', ['ok', 'rejected', 'error']);
 
 export type Urgency = (typeof urgencyEnum.enumValues)[number];
@@ -59,3 +68,4 @@ export type ActorType = (typeof actorTypeEnum.enumValues)[number];
 export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
 export type AuditOutcome = (typeof auditOutcomeEnum.enumValues)[number];
 export type FollowUpKind = (typeof followUpKindEnum.enumValues)[number];
+export type FeedbackKind = (typeof feedbackKindEnum.enumValues)[number];

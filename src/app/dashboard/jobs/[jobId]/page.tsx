@@ -14,6 +14,7 @@ import { getJobTimeline, type TimelineItem } from '@/domain/timeline';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 import { PmActions } from './pm-actions';
+import { FeedbackForm } from './feedback-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,6 +136,10 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
             hasTenant={Boolean(ctx.tenant)}
             hasTradie={Boolean(ctx.tradie)}
           />
+          <div className="card">
+            <h2>Agent quality</h2>
+            <FeedbackForm jobId={job.id} />
+          </div>
         </aside>
       </div>
     </main>

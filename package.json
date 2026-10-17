@@ -25,7 +25,8 @@
     "db:seed": "tsx --env-file=.env src/db/seed/index.ts",
     "db:reset": "tsx --env-file=.env src/db/reset.ts && pnpm db:migrate && pnpm db:seed",
     "eval": "tsx evals/run.ts",
-    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test"
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "eval:harvest": "tsx evals/harvest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0",

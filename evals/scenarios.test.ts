@@ -15,6 +15,7 @@ const KNOWN_ACTIONS = new Set([
   'add_note',
   'agent.triage',
   'agent.reassign',
+  'agent.feedback',
   'job.transition',
   'job.escalation_package',
 ]);
@@ -22,8 +23,8 @@ const KNOWN_ACTIONS = new Set([
 describe('eval scenarios', () => {
   const scenarios = loadScenarios();
 
-  it('meets the spec minimum of 50 scenarios (spec §4)', () => {
-    expect(scenarios.length).toBeGreaterThanOrEqual(50);
+  it('meets the spec minimum of 50 reviewed scenarios (spec §4)', () => {
+    expect(scenarios.filter((s) => s.reviewed).length).toBeGreaterThanOrEqual(50);
   });
 
   it('has unique ids', () => {

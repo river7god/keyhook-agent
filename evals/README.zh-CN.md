@@ -38,6 +38,19 @@ expect:
 
 `messages: [...]` 是只有租客消息时的简写。模拟时间从新西兰夏令时周一 13:00 开始。
 
+## 从 PM 的纠正中学习
+
+PM 在工单页标记 agent 的错误（*Agent quality → Flag an agent mistake*）；交还工单时修改了紧急程度/工种也会自动记录。
+把它们转换成场景：
+
+```bash
+pnpm eval:harvest                              # 本地数据库
+pnpm eval:harvest --env-file .env.neon.local   # 线上演示数据库
+```
+
+生成的文件放在 `scenarios/harvested/`，标记为 `reviewed: false`（除非加 `--include-unreviewed`，否则 `pnpm eval` 会跳过）。
+检查脱敏结果，改为 `reviewed: true` 后提交。
+
 ## 各自在哪里运行
 
 - **每次 push（`pnpm test`，免费）：** `scenarios.test.ts` 校验全部场景；`runner.db.test.ts` 用脚本化 LLM 运行

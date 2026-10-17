@@ -41,9 +41,13 @@ const step = z.union([
   z.strictObject({ wait: z.number().positive() }),
 ]);
 
-const scenarioSchema = z.object({
+export const scenarioSchema = z.object({
   id: z.string(),
   description: z.string().optional(),
+  /** Harvested scenarios start unreviewed (may contain real text) and are skipped by default. */
+  reviewed: z.boolean().default(true),
+  /** Where the scenario came from, e.g. "agent_feedback:<id>". */
+  source: z.string().optional(),
   property: z.enum(Object.keys(PROPERTY) as [keyof typeof PROPERTY, ...(keyof typeof PROPERTY)[]]),
   /** Shorthand for tenant-only steps. */
   messages: z.array(z.string()).optional(),
@@ -92,11 +96,13 @@ async function main() {
   } catch {
     /* CI provides env */
   }
-  // Usage: pnpm eval [filter] [--model provider:model]   (default: anthropic:claude-opus-5-5)
+  // Usage: pnpm eval [filter] [--model provider:model] [--include-unreviewed]
   const args = process.argv.slice(2);
   const modelIdx = args.indexOf('--model');
   const model: ModelRef = modelIdx >= 0 ? parseModelRef(args[modelIdx + 1] ?? '') : DEFAULT_MODEL;
-  const filter = args.filter((_, i) => i !== modelIdx && i !== modelIdx + 1)[0];
+  const filter = args.filter(
+    (a, i) => !a.startsWith('--') && (modelIdx < 0 || i !== modelIdx + 1),
+  )[0];
   const keyEnv = PROVIDERS[model.provider].apiKeyEnv;
   if (!process.env[keyEnv]) {
     console.error(`pnpm eval: ${keyEnv} is not set (add it to .env). Evals call the real model.`);
@@ -107,7 +113,10 @@ async function main() {
   registerTelemetry();
   const evalUrl = await ensureEvalDatabase(baseUrl);
 
-  const scenarios = loadScenarios().filter((s) => !filter || s.id.includes(filter));
+  const includeUnreviewed = args.includes('--include-unreviewed');
+  const scenarios = loadScenarios().filter(
+    (s) => (!filter || s.id.includes(filter)) && (s.reviewed || includeUnreviewed),
+  );
   const { db, close } = createDb(evalUrl, { max: 4 });
   const results: ScenarioResult[] = [];
   try {
@@ -147,14 +156,13 @@ async function main() {
   if (report.forbiddenActions > 0 || report.errors > 0) process.exitCode = 1;
 }
 
-export function loadScenarios(): Scenario[] {
-  return readdirSync(path.join(here, 'scenarios'))
+/** All scenarios, including evals/scenarios/harvested/. */
+export function loadScenarios(dir = path.join(here, 'scenarios')): Scenario[] {
+  return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((f) => f.endsWith('.yaml'))
     .sort()
     .map((f) => {
-      const parsed = scenarioSchema.safeParse(
-        parseYaml(readFileSync(path.join(here, 'scenarios', f), 'utf8')),
-      );
+      const parsed = scenarioSchema.safeParse(parseYaml(readFileSync(path.join(dir, f), 'utf8')));
       if (!parsed.success) throw new Error(`${f}: ${z.prettifyError(parsed.error)}`);
       if (!parsed.data.messages && !parsed.data.steps)
         throw new Error(`${f}: needs messages or steps`);

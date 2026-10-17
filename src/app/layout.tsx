@@ -22,6 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/dashboard">Jobs</Link>
               <Link href="/dashboard/approvals">Approvals</Link>
               <Link href="/dashboard/audit">Audit log</Link>
+              <Link href="/dashboard/feedback">Corrections</Link>
               <Link href="/simulator">Simulator</Link>
               <span style={{ flex: 1 }} />
               <span className="sub" style={{ margin: 0 }}>
