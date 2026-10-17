@@ -40,6 +40,9 @@ pnpm db:seed        # fictional Wellington data
 pnpm dev            # Next.js on :3000 + Inngest dev server on :8288
 ```
 
+Sign in at http://localhost:3000 as `aroha@harbourcity.example.test` / `keyhook-demo`
+(any seeded PM; password from `SEED_PM_PASSWORD`, dev only).
+
 | Script | |
 |---|---|
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | must pass before a change is done |

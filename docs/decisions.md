@@ -216,3 +216,28 @@ escalates so the PM can split them into jobs; several items for the same tradie 
 error is retried by Inngest and, once retries are exhausted, `onFailure` escalates the job. A run
 that finds its inbound message already processed by a concurrent run aborts its transaction.
 **Reason:** A stuck job is invisible to the PM; escalation makes every failure a visible task.
+
+### 2026-10-17 — Authentication: per-PM sessions, no auth library
+**Decision:** PMs sign in with email + password (scrypt via `node:crypto`). Sessions live in
+Postgres; the cookie carries a random token and only its SHA-256 is stored. `proxy.ts` makes the
+optimistic cookie check for pages; every page and API route does the authoritative lookup
+(`requirePageUser` / `requireApiUser`), enforced by a static test. Seeded PMs share the password
+`SEED_PM_PASSWORD` (default `keyhook-demo`, dev/demo only).
+**Reason:** RLS needs a real per-user organization; a shared password can't provide one. The
+implementation is small, dependency-free and fully tested; swap for an identity provider when
+real customers arrive.
+
+### 2026-10-17 — RLS for request-scoped access; workers keep the owner role
+**Decision:** Request handlers run inside `withOrg()` (one short transaction, `SET LOCAL ROLE
+keyhook_app`, `app.organization_id`), so Postgres filters every organization-scoped table and
+rejects cross-organization writes; no context is an error. Background workers (Inngest agent,
+follow-ups, evals, seed) use the owner role and pass `organizationId` explicitly, protected by
+composite FKs. `sessions` is outside RLS (read before the organization is known).
+**Reason:** Agent steps call the LLM and must not hold a transaction open for that long; the
+user-facing surface is where an auth or query bug would leak data, so that is where RLS sits.
+
+### 2026-10-17 — Simulator spend guard
+**Decision:** New simulator messages are refused (429) past `SIMULATOR_MAX_MESSAGES_PER_HOUR`
+(default 60) per organization or once the organization's 24h AI spend reaches
+`DAILY_LLM_BUDGET_USD` (default 5). Jobs already running continue.
+**Reason:** On a public demo the simulator is the one way an outsider can trigger paid model calls.

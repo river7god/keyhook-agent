@@ -39,6 +39,9 @@ pnpm db:seed        # 虚构的惠灵顿数据
 pnpm dev            # Next.js 于 :3000 + Inngest 开发服务器于 :8288
 ```
 
+在 http://localhost:3000 用 `aroha@harbourcity.example.test` / `keyhook-demo` 登录
+（任一种子数据中的 PM；密码来自 `SEED_PM_PASSWORD`，仅限开发环境）。
+
 | 脚本 | |
 |---|---|
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | 改动完成前必须通过 |
