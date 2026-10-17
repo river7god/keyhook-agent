@@ -1,3 +1,5 @@
+English | [简体中文](CLAUDE.zh-CN.md)
+
 # Keyhook-agent — Project Guide for Claude Code
 
 ## What this is
@@ -6,7 +8,8 @@ tenant's first message all the way to a closed job, escalating to a property man
 when a human is genuinely needed.
 
 It is a portfolio project targeting production-grade quality, not a demo.
-**Read `docs/spec.md` before starting any feature work.**
+**Read `docs/spec.md` before starting any feature work.** `docs/agents.md` defines the agent
+catalog and which actions need a human.
 
 ## Stack
 - TypeScript (strict mode), Node.js LTS, pnpm
@@ -29,7 +32,7 @@ src/adapters/    messaging adapters (mock outbox in dev; SMS/email later)
 src/lib/         env, money (cents/NZD), time (UTC ↔ Pacific/Auckland)
 src/test/        test DB helpers + fixtures (DB tests are *.db.test.ts)
 evals/           scenario files + promptfoo config
-docs/            spec, decisions log
+docs/            spec, agent catalog, decisions log (each with a .zh-CN.md translation)
 ```
 
 ## Non-negotiable rules
@@ -49,6 +52,7 @@ docs/            spec, decisions log
 - `pnpm typecheck && pnpm lint && pnpm test` pass
 - If you touched prompts, agent logic or tools: `pnpm eval` and report the score change
 - Record any architecture decision in `docs/decisions.md` (date, decision, reason)
+- Docs are bilingual: when you change `X.md`, update `X.zh-CN.md` in the same change (English is canonical)
 
 ## Commands (create these during scaffolding)
 - `pnpm dev` — app + Inngest dev server

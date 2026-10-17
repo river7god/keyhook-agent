@@ -1,3 +1,5 @@
+English | [简体中文](README.zh-CN.md)
+
 # Evals
 
 LLM evaluation scenarios (spec §10). Arrives in M4.

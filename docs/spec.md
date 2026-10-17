@@ -1,3 +1,5 @@
+English | [简体中文](spec.zh-CN.md)
+
 # Keyhook-agent — Product Spec (v0.1)
 
 ## 1. Problem

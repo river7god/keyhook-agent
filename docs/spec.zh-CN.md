@@ -1,0 +1,122 @@
+[English](spec.md) | 简体中文
+
+> 本文为 [`spec.md`](spec.md) 的中文译本，以英文版为准。
+
+# Keyhook-agent — 产品规格（v0.1）
+
+## 1. 问题
+一个维修请求（"热水不热了"）通常涉及租客、物业经理、业主和师傅，横跨消息、物业系统和日历，
+包含许多手工步骤：问清情况、核对租约、判断责任、找师傅、要报价、取得业主批准、排期、催办、
+确认完工、关单。
+
+Keyhook-agent 端到端地完成这些工作，只在需要判断或授权时才把人拉进来。
+
+## 2. 用户
+- **租客（Tenant）**——报告问题、回答追问、确认上门时间与完工。
+- **物业经理（PM）**——审批、干预、处理升级。主要的 UI 用户。
+- **业主（Owner）**——批准超出 PM 额度的花费（v1 中由 PM 模拟）。
+- **师傅（Tradesperson）**——接收工单、报价、排期、报告完工。
+
+## 3. Agent 循环（与岗位描述一一对应）
+| 能力 | 在 Keyhook-agent 中 |
+|---|---|
+| 理解 | 从租客消息中分类问题类型、紧急程度和可能的工种（之后加入照片） |
+| 收集信息 | 查询房产、租约、历史工单、师傅；必要时向租客追问 |
+| 决策 | 紧急程度、责任归属、选哪个师傅、是否需要审批 |
+| 行动 | 给师傅/租客发消息、请求报价、安排上门、更新工单 |
+| 自检 | 每个动作完成后，先对照预期验证结果再继续 |
+| 升级 | 按规则把工单交给 PM，并附摘要和建议操作 |
+| 持续推进 | 无回应时跟进、重新分配师傅、确认完工、关单 |
+
+## 4. 范围
+**v1（MVP）**
+- 租客消息接入（通过模拟器 UI）
+- 分诊：问题类型、紧急程度、工种、置信度
+- 追问循环
+- 选择师傅、请求报价、审批检查、排期
+- 跟进与超时
+- 与租客确认完工、关单
+- PM 看板：工单列表、时间线、审批队列、升级、审计日志
+- 不少于 50 个场景的评测集
+
+**后续**
+- 照片理解
+- 真实短信/邮件适配器
+- 主动监控（如同一房产重复出现的问题、Healthy Homes 缺口）
+- 第二个工作流（欠租），复用同一套工具与评测基础设施
+
+**不在范围内**
+- 支付、开票、会计系统集成
+
+## 5. 工单状态机
+```
+RECEIVED → TRIAGED → NEEDS_INFO ⇄ （租客回复）→ TRIAGED
+TRIAGED → AWAITING_QUOTE → AWAITING_APPROVAL → SCHEDULING → SCHEDULED
+SCHEDULED → IN_PROGRESS → AWAITING_CONFIRMATION → CLOSED
+任意状态 → ESCALATED（PM 接管或交还）
+任意状态 → CANCELLED（仅 PM）
+```
+- 当预估费用 ≤ PM 自动审批额度时，跳过审批。
+- 只允许上面列出的转换；在代码中强制执行，而不是靠提示词。
+
+## 6. 紧急程度策略（产品默认值——依赖前需对照新西兰官方指引核实）
+| 级别 | 示例 | 目标响应 |
+|---|---|---|
+| 紧急（Emergency） | 燃气味、裸露电线/触电危险、严重进水、房屋无法锁闭 | 立即升级给 PM + 紧急师傅 |
+| 急迫（Urgent） | 没有热水、寒冷天气无供暖、唯一的马桶堵塞、正在漏水 | 24 小时内联系上师傅 |
+| 常规（Routine） | 水龙头滴水、门卡住、配件损坏 | 约 5 个工作日内 |
+
+需要建模的新西兰背景（定稿前需对照 Tenancy Services 确认细节）：
+房东保持房屋合理维修状态的义务、租客告知损坏的义务、Healthy Homes 标准（供暖、保温、通风、
+防潮/排水、防风）。本文是产品策略，不构成法律意见。
+
+## 7. 升级规则（满足任一即触发）
+- 紧急级别
+- 预估费用 > 该房产的业主审批额度
+- 分诊置信度低于阈值（初始 0.7，用评测调优）
+- 租客提到受伤、法律行动、Tenancy Tribunal，或明显痛苦/愤怒
+- 师傅两次跟进后仍无回应，且没有可替代的师傅
+- 疑似提示词注入，或请求超出 agent 的工具能力
+- 责任不明（可能是租客造成的损坏）
+
+每次升级都包含：摘要、已完成的操作、建议的下一步、证据链接。
+
+## 8. 工具
+| 工具 | 权限 | 说明 |
+|---|---|---|
+| get_property, get_tenancy, list_jobs_for_property | read | |
+| search_tradies(trade, suburb) | read | 按空闲度、评分、距离排序 |
+| send_message(recipient, body) | auto | 经由适配器；幂等；记录日志 |
+| request_quote(tradieId, jobId, scope) | auto | |
+| schedule_visit(jobId, tradieId, window) | auto | 必须先确认租客可开门 |
+| update_job(jobId, transition, note) | auto | 不允许的转换会被拒绝 |
+| request_approval(jobId, amountCents, reason) | auto | 创建 PM 审批项 |
+| approve_spend(jobId) | approval | agent 永远不能直接调用 |
+| escalate(jobId, reason, summary, recommendation) | auto | |
+| add_note(jobId, text) | auto | |
+
+## 9. 数据模型（初版）
+properties、owners（approval_limit_cents）、tenancies、tenants、tradies（trades、suburbs、
+rating）、jobs（state、urgency、trade、confidence、estimate_cents）、messages、approvals、
+audit_log、follow_ups。
+
+种子数据：约 10 套惠灵顿各区的房产、约 15 份租约、约 8 位师傅，覆盖水管、电工、供暖、
+综合维修、锁匠。
+
+## 10. 评测
+场景格式（YAML，位于 `evals/scenarios/`）：输入对话 + 房产上下文 →
+预期紧急程度、工种、是否升级、禁止的操作。
+
+场景组合：常规、急迫、紧急、模糊消息、多问题消息、愤怒租客、租客造成的损坏、超预算、
+师傅无回应、提示词注入、非英语消息。
+
+指标：紧急程度准确率、工种准确率、升级的精确率/召回率、禁止操作次数（必须为 0）、
+每单成本、延迟。按提交记录结果。
+
+## 11. 里程碑
+- **M0** 脚手架：Next.js、Drizzle、Postgres、Inngest、种子数据、CI
+- **M1** 主流程：消息 → 分诊 → 师傅 → 排期 → 关单（mock 适配器）
+- **M2** 追问、跟进、超时、审批
+- **M3** 升级规则 + PM 看板（队列、时间线、审计日志）
+- **M4** 评测集（≥ 50 个场景）接入 CI；Langfuse 追踪
+- **M5** 部署、加固（注入测试、幂等测试）、录制演示视频

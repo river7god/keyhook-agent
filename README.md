@@ -1,3 +1,5 @@
+English | [简体中文](README.zh-CN.md)
+
 # Keyhook-agent
 
 An AI agent that takes a New Zealand residential maintenance request from the tenant's first
@@ -48,5 +50,8 @@ pnpm dev            # Next.js on :3000 + Inngest dev server on :8288
 
 ## Docs
 - [`docs/spec.md`](docs/spec.md) — product spec
+- [`docs/agents.md`](docs/agents.md) — agent catalog and human/agent boundaries
 - [`docs/decisions.md`](docs/decisions.md) — architecture decisions
 - [`CLAUDE.md`](CLAUDE.md) — engineering rules (also used by Claude Code)
+
+Every document has a Simplified Chinese version alongside it (`*.zh-CN.md`); English is canonical.

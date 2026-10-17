@@ -1,3 +1,5 @@
+English | [简体中文](decisions.zh-CN.md)
+
 # Architecture decisions
 
 Newest last. Each entry: date, decision, reason. Dates are NZ local.
@@ -80,3 +82,17 @@ against a dedicated `keyhook_test` database rebuilt from migrations each run.
 **Decision:** Fixed UUIDs (`src/db/seed/ids.ts`), no faker. A second one-property organization
 exists to test isolation. 15 Harbour City tenancies = 10 current + 5 ended (history).
 **Reason:** Tests, evals and the simulator reference fixtures by name; edge cases are deliberate.
+
+### 2026-10-17 — Bilingual docs: English canonical, Chinese alongside
+**Decision:** Every document has an English `X.md` and a Simplified Chinese `X.zh-CN.md` next to
+it, linked to each other on the first line. English is canonical; a change is not done until both
+versions are updated. `CLAUDE.zh-CN.md` is a reference translation — Claude Code loads `CLAUDE.md`.
+**Reason:** The product owner works in Chinese; the portfolio audience reads English.
+
+### 2026-10-17 — Agent catalog and human/agent boundaries
+**Decision:** `docs/agents.md` classifies agents by trigger (reactive / proactive / human-invoked)
+× autonomy (suggest / act with approval / act autonomously), refined per action via tool
+permission levels, and defines an autonomy matrix per domain. Rows outside maintenance are
+proposals until confirmed.
+**Reason:** Gives the roadmap (Portfolio Monitor next, arrears as the second workflow) and the
+escalation/approval rules a single reference.
