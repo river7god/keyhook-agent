@@ -245,3 +245,18 @@ export async function patchJob(
   });
   return updated;
 }
+
+/** Open jobs assigned to a tradie — what the simulator lets them reply to. */
+export async function listOpenJobsForTradie(db: DbOrTx, organizationId: string, tradieId: string) {
+  return db
+    .select({ id: jobs.id, title: jobs.title, state: jobs.state, createdAt: jobs.createdAt })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.organizationId, organizationId),
+        eq(jobs.assignedTradieId, tradieId),
+        notInArray(jobs.state, [...TERMINAL_STATES]),
+      ),
+    )
+    .orderBy(desc(jobs.createdAt));
+}
