@@ -10,7 +10,13 @@ import {
   type ToolTurnRequest,
 } from '../llm';
 import { OpenAICompatibleLlm } from './openai-compatible';
-import { llmRoutingSchema, PROVIDERS, type LlmRouting, type ModelRef } from './registry';
+import {
+  llmRoutingSchema,
+  parseModelRef,
+  PROVIDERS,
+  type LlmRouting,
+  type ModelRef,
+} from './registry';
 
 export const DEFAULT_MODEL: ModelRef = { provider: 'anthropic', model: AGENT_MODEL };
 
@@ -70,9 +76,28 @@ export async function llmForOrganization(
     .select({ llmRouting: organizations.llmRouting })
     .from(organizations)
     .where(eq(organizations.id, organizationId));
-  if (!org?.llmRouting) return new RoutingLlm(db, null, override);
+  if (!org?.llmRouting) return new RoutingLlm(db, envDefaultRouting(), override);
   const parsed = llmRoutingSchema.safeParse(org.llmRouting);
   if (!parsed.success)
     throw new LlmConfigError(`Invalid llm_routing for organization: ${parsed.error.message}`);
   return new RoutingLlm(db, parsed.data, override);
+}
+
+/**
+ * Deployment-wide default when an organization has no llm_routing:
+ *   LLM_DEFAULT_MODEL=moonshot:<model id>   (provider:model)
+ *   LLM_ACKNOWLEDGE_OFFSHORE=true            (required for deepseek / moonshot)
+ * Unset → Claude everywhere.
+ */
+export function envDefaultRouting(): LlmRouting | null {
+  const ref = process.env.LLM_DEFAULT_MODEL;
+  if (!ref) return null;
+  const parsed = llmRoutingSchema.safeParse({
+    default: parseModelRef(ref),
+    steps: {},
+    acknowledgeOffshoreProviders: process.env.LLM_ACKNOWLEDGE_OFFSHORE === 'true',
+  });
+  if (!parsed.success)
+    throw new LlmConfigError(`Invalid LLM_DEFAULT_MODEL: ${parsed.error.message}`);
+  return parsed.data;
 }

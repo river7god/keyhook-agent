@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { llmRoutingSchema, parseModelRef } from './registry';
 
 describe('llm routing config', () => {
+  it('reads a deployment default from env, requiring acknowledgement for Kimi', async () => {
+    const { envDefaultRouting } = await import('.');
+    process.env.LLM_DEFAULT_MODEL = 'moonshot:kimi-test';
+    expect(() => envDefaultRouting()).toThrow(/acknowledgeOffshoreProviders/);
+    process.env.LLM_ACKNOWLEDGE_OFFSHORE = 'true';
+    expect(envDefaultRouting()?.default).toEqual({ provider: 'moonshot', model: 'kimi-test' });
+    delete process.env.LLM_DEFAULT_MODEL;
+    delete process.env.LLM_ACKNOWLEDGE_OFFSHORE;
+    expect(envDefaultRouting()).toBeNull();
+  });
+
   it('accepts Claude-only and OpenAI routing without acknowledgement', () => {
     expect(
       llmRoutingSchema.safeParse({

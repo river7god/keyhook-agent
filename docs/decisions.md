@@ -254,3 +254,10 @@ Zod-validated with one repair attempt. Keys are environment-only. DeepSeek and K
 (null otherwise). A model is switched only after `pnpm eval --model provider:model` shows no loss.
 **Reason:** Product owner wants flexibility and cost options without forking agent logic; the
 privacy gate and eval gate keep the switch deliberate. New dependency: `openai` (official SDK).
+
+### 2026-10-17 — Deployment-wide model default; unpriced calls still count against the budget
+**Decision:** `LLM_DEFAULT_MODEL=provider:model` (+ `LLM_ACKNOWLEDGE_OFFSHORE=true` for DeepSeek/Kimi)
+sets the model for organizations without `llm_routing`. The simulator's daily budget charges
+`UNKNOWN_LLM_CALL_COST_USD` (default 0.05) for each call whose cost is unknown.
+**Reason:** The product owner wants to start on Kimi before an Anthropic key; without a price
+table the spend guard would otherwise never trip.

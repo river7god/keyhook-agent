@@ -57,4 +57,21 @@ describe('simulator allowance', () => {
     });
     await expect(assertSimulatorAllowance(db, ORG.aroValley, new Date())).resolves.toBeUndefined();
   });
+
+  it('counts calls with unknown cost (unpriced models) against the budget', async () => {
+    process.env.DAILY_LLM_BUDGET_USD = '0.1';
+    const unpriced = {
+      organizationId: org,
+      step: 'x',
+      requestedModel: 'moonshot:k',
+      latencyMs: 1,
+      costUsdMicros: null,
+    };
+    await db.insert(llmCalls).values(unpriced);
+    await expect(assertSimulatorAllowance(db, org, new Date())).resolves.toBeUndefined();
+    await db.insert(llmCalls).values(unpriced);
+    await expect(assertSimulatorAllowance(db, org, new Date())).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+    });
+  });
 });

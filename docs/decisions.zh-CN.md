@@ -211,3 +211,8 @@ Postgres 会过滤所有按组织划分的表，并拒绝跨组织写入；缺�
 修正重试。API key 只来自环境变量。DeepSeek 和 Kimi 需要 `acknowledgeOffshoreProviders: true`。非 Claude 模型的成本来自
 `LLM_PRICES_JSON`（否则为 null）。只有在 `pnpm eval --model provider:model` 证明质量不降后才切换模型。
 **理由：** 产品负责人需要灵活性和成本选择，同时不分叉 agent 逻辑；隐私门槛和评测门槛保证切换是有意为之。新增依赖：`openai`（官方 SDK）。
+
+### 2026-10-17 — 部署级的默认模型；价格未知的调用仍计入预算
+**决策：** `LLM_DEFAULT_MODEL=provider:model`（DeepSeek/Kimi 还需 `LLM_ACKNOWLEDGE_OFFSHORE=true`）为没有配置 `llm_routing`
+的组织设定模型。模拟器的每日预算对每次成本未知的调用按 `UNKNOWN_LLM_CALL_COST_USD`（默认 0.05）计费。
+**理由：** 产品负责人希望在拿到 Anthropic key 之前先用 Kimi；没有价格表时，花费保护否则永远不会触发。
