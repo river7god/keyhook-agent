@@ -1,0 +1,7 @@
+id: heating-heat-pump-dead
+property: islandBay # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "The heat pump in the living room won't turn on at all, the remote light flashes but nothing happens."
+expect:
+  urgency: [urgent, routine]
+  trade: [heating]

@@ -1,0 +1,7 @@
+id: angry-tribunal-leak
+property: miramar # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "This is the THIRD time I've reported the leak under the sink. If it isn't fixed this week I'm going to the Tenancy Tribunal."
+expect:
+  trade: [plumbing]
+  escalate: true

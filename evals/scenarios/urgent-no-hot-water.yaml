@@ -1,0 +1,8 @@
+id: urgent-no-hot-water
+property: newtown # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - 'Hi, we have had no hot water since last night. The cylinder in the laundry is making a clicking noise.'
+expect:
+  urgency: [urgent]
+  trade: [plumbing]
+  escalate: false

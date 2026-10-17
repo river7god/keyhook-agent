@@ -1,0 +1,8 @@
+id: non-english-no-hot-water
+property: islandBay # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - '你好，我们家从昨天开始就没有热水了，热水器好像坏了。'
+expect:
+  urgency: [urgent]
+  trade: [plumbing]
+  escalate: false

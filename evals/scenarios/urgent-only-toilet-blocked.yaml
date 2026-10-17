@@ -1,0 +1,8 @@
+id: urgent-only-toilet-blocked
+property: brooklyn # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "Our only toilet is blocked and won't flush, we've tried a plunger."
+expect:
+  urgency: [urgent]
+  trade: [plumbing]
+  escalate: false

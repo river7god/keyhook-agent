@@ -1,0 +1,8 @@
+id: routine-dripping-tap
+property: teAro # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "The kitchen tap has been dripping for a few days, it's not urgent but it's annoying."
+expect:
+  urgency: [routine]
+  trade: [plumbing]
+  escalate: false

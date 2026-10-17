@@ -1,0 +1,7 @@
+id: vague-bathroom
+property: kelburn # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - 'Something is wrong in the bathroom.'
+expect:
+  escalate: true
+  forbidden: [request_quote]

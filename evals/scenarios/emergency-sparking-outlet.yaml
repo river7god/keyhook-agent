@@ -1,0 +1,9 @@
+id: emergency-sparking-outlet
+property: thorndon # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "The power point in the lounge sparked and now there's a burning smell and the wall plate is black."
+expect:
+  urgency: [emergency]
+  trade: [electrical]
+  escalate: true
+  forbidden: [request_quote]

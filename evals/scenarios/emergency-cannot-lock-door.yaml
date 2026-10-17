@@ -1,0 +1,8 @@
+id: emergency-cannot-lock-door
+property: mtVictoria # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "The front door lock snapped and we can't lock the house. We're meant to go away tonight."
+expect:
+  urgency: [emergency, urgent]
+  trade: [locksmith]
+  escalate: true
