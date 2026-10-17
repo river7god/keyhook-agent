@@ -173,3 +173,18 @@ PM), then `approve_spend` runs with the PM as actor; executeTool refuses it with
 approved record. Rejection escalates. Each approval can be decided once. Until auth exists the PM
 selects their identity from the organization's PMs.
 **Reason:** CLAUDE.md rule 2 and spec §5/§8.
+
+### 2026-10-17 — Hand-back semantics (proposed — confirm)
+**Decision:** Handing back means the PM has resolved what caused the escalation. The job returns
+to the state it was escalated from (as already agreed). For a job escalated at triage, the PM's
+hand-back accepts the recorded urgency/trade (which the PM may correct) and the agent proceeds to
+arranging a quote without re-triaging; new tenant messages are still triaged normally.
+**Reason:** Re-triaging the same message would reproduce the same escalation (e.g. the original
+gas smell) and loop.
+
+### 2026-10-17 — Dashboard is server-rendered over the domain layer; mutations via /api/v1
+**Decision:** Dashboard pages are React Server Components reading through `src/domain` (no
+client data fetching for reads). Every PM mutation goes through a Zod-validated `/api/v1` route
+that calls the same services the agent uses, audited with the PM as actor. Plain CSS with design
+tokens; no UI library yet.
+**Reason:** API-first without duplicating read endpoints; one code path for every write.
