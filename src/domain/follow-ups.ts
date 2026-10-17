@@ -1,4 +1,4 @@
-import { and, asc, eq, lte } from 'drizzle-orm';
+import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import type { DbOrTx } from '@/db/client';
 import {
   followUps,
@@ -174,15 +174,28 @@ export async function ensureFollowUp(db: DbOrTx, job: Job, now: Date): Promise<F
     targetId = p?.pm ?? null;
   }
   if (!targetId) return null; // e.g. PM-created job with no tenant to chase
-  return scheduleFollowUp(db, {
-    job,
-    kind,
-    attempt: 1,
-    dueAt: wait.dueAt,
-    targetType: wait.targetType,
-    targetId,
-    policy,
-  });
+
+  // Concurrent advances may both get here; the partial unique index decides, the loser reuses
+  // the winner's row instead of failing.
+  const [row] = await db
+    .insert(followUps)
+    .values({
+      organizationId: job.organizationId,
+      jobId: job.id,
+      kind,
+      attempt: 1,
+      targetType: wait.targetType,
+      targetId,
+      dueAt: outsideQuietHours(wait.dueAt, policy.quietHours),
+    })
+    .onConflictDoNothing({ target: followUps.jobId, where: sql`${followUps.status} = 'scheduled'` })
+    .returning();
+  if (row) return row;
+  const [winner] = await db
+    .select()
+    .from(followUps)
+    .where(and(eq(followUps.jobId, job.id), eq(followUps.status, 'scheduled')));
+  return winner ?? null;
 }
 
 export async function listDueFollowUps(db: DbOrTx, now: Date, limit = 50) {
