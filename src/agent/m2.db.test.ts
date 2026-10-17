@@ -355,6 +355,29 @@ describe('messages the current state is not waiting for', () => {
     expect(await outbound(job.id, 'tenant')).toHaveLength(before + 1);
   });
 
+  it('handles several tenant messages in the same state (each gets its own reply)', async () => {
+    let n = 0;
+    const llm = happyLlm({
+      'interpret.general': () => ({
+        intent: 'status_request',
+        urgentSafetyIssue: false,
+        distressedOrAngry: false,
+        promptInjection: false,
+        summary: 'Asked for an update',
+      }),
+      // Different wording each time, as a real model would produce.
+      'compose.tenant': () => ({ body: `Update #${++n}` }),
+    });
+    const job = await jobAwaitingQuote(llm);
+    const before = (await outbound(job.id, 'tenant')).length;
+    for (const body of ['Any update?', 'Hello? Still waiting', 'Is someone coming today?']) {
+      const m = await say('tenant', tenantId, body, job.id);
+      await advanceJob(deps(llm), { organizationId: org, jobId: job.id, messageId: m.messageId });
+    }
+    expect((await getJob(db, org, job.id)).state).toBe('AWAITING_QUOTE');
+    expect(await outbound(job.id, 'tenant')).toHaveLength(before + 3);
+  });
+
   it('escalates a new safety issue reported mid-job', async () => {
     const llm = happyLlm({
       'interpret.general': () => ({

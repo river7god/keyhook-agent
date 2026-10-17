@@ -55,9 +55,13 @@ export async function handleGeneralMessage(
     await deps.db.transaction(async (tx) => {
       await markProcessed(tx, msg);
       must(
-        await executeTool(addNoteTool, toolCtx(tx, job, 'Message on PM-owned job', deps.now()), {
-          text: `New message from ${msg.senderType} while job is ${job.state}; PM to review.`,
-        }),
+        await executeTool(
+          addNoteTool,
+          toolCtx(tx, job, 'Message on PM-owned job', deps.now(), `:m${msg.id}`),
+          {
+            text: `New message from ${msg.senderType} while job is ${job.state}; PM to review.`,
+          },
+        ),
       );
     });
     return 'wait';
@@ -99,7 +103,7 @@ export async function handleGeneralMessage(
 
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
-    const tc = toolCtx(tx, job, 'Unexpected message', deps.now());
+    const tc = toolCtx(tx, job, 'Unexpected message', deps.now(), `:m${msg.id}`);
     must(
       await executeTool(addNoteTool, tc, {
         text: `${msg.senderType} (${out.intent}): ${out.summary}`,

@@ -84,7 +84,7 @@ async function triage(deps: AgentDeps, job: Job, msg: Message | null): Promise<S
 
   await deps.db.transaction(async (tx) => {
     if (msg) await markProcessed(tx, msg);
-    const tc = toolCtx(tx, job, 'Triage', deps.now());
+    const tc = toolCtx(tx, job, 'Triage', deps.now(), msg ? `:m${msg.id}` : '');
     await writeAudit(tx, {
       organizationId: job.organizationId,
       jobId: job.id,

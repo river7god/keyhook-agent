@@ -142,7 +142,7 @@ export async function handleSlotReply(
 
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
-    const tc = toolCtx(tx, job, 'Process tenant slot choice', deps.now());
+    const tc = toolCtx(tx, job, 'Process tenant slot choice', deps.now(), `:m${msg.id}`);
 
     if (chosen) {
       const booked = await executeTool(scheduleVisitTool, tc, {

@@ -1,0 +1,10 @@
+id: status-requests-repeated
+description: 'Several tenant follow-ups while waiting for a quote each get a reply (regression: same-state replies)'
+property: brooklyn
+steps:
+  - tenant: 'The kitchen tap is broken, water keeps dripping from the spout.'
+  - tenant: 'Any update on this?'
+  - tenant: 'Hello? Is someone coming?'
+expect:
+  escalate: false
+  state: [AWAITING_QUOTE]

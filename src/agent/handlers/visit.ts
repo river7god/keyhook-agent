@@ -62,7 +62,7 @@ export async function handleProgressReply(
 
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
-    const tc = toolCtx(tx, job, 'Process tradie update', deps.now());
+    const tc = toolCtx(tx, job, 'Process tradie update', deps.now(), `:m${msg.id}`);
     const move = (to: 'IN_PROGRESS' | 'AWAITING_CONFIRMATION', reason: string) =>
       transitionJob(tx, {
         organizationId: job.organizationId,
@@ -142,7 +142,7 @@ export async function handleConfirmationReply(
 
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
-    const tc = toolCtx(tx, job, 'Process tenant confirmation', deps.now());
+    const tc = toolCtx(tx, job, 'Process tenant confirmation', deps.now(), `:m${msg.id}`);
     if (!confirmed) {
       await escalate(tc, {
         reason: out.promptInjection

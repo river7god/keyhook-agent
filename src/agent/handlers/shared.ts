@@ -29,7 +29,11 @@ export function llmCtx(job: Job, step: string) {
   return { organizationId: job.organizationId, jobId: job.id, step };
 }
 
-/** Idempotency scope = job version, so a retried step reuses keys and a later step gets new ones. */
+/**
+ * Idempotency scope = job version (+ the triggering message or follow-up), so a retried step reuses
+ * its keys while a different message handled in the same job state gets its own — replies and
+ * notes don't change the job version.
+ */
 export function toolCtx(
   db: DbOrTx,
   job: Job,

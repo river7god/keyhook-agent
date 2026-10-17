@@ -142,7 +142,7 @@ export async function handleQuoteReply(
   let result: StepResult = 'wait';
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
-    const tc = toolCtx(tx, job, 'Process tradie quote', deps.now());
+    const tc = toolCtx(tx, job, 'Process tradie quote', deps.now(), `:m${msg.id}`);
 
     if (out.promptInjection) {
       await escalate(tc, {
@@ -160,6 +160,7 @@ export async function handleQuoteReply(
         job,
         `${tradieName} declined: ${out.notes || 'no reason given'}`,
         false,
+        `:m${msg.id}`,
       );
       return;
     }
