@@ -6,3 +6,4 @@ steps:
 expect:
   trade: [plumbing]
   state: [AWAITING_QUOTE, NEEDS_INFO]
+  replyScript: latin

@@ -1,0 +1,7 @@
+id: language-english-from-chinese-profile
+description: 'Profile says Chinese but the tenant writes English → reply in English'
+property: islandBay
+steps:
+  - tenant: 'Hi, the heat pump in the lounge is making a loud rattling noise when it starts.'
+expect:
+  replyScript: latin

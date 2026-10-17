@@ -23,7 +23,15 @@ import { parseModelRef, PROVIDERS, type ModelRef } from '@/agent/providers/regis
 import { handBackJob, recordApprovalDecision } from '@/agent/pm-actions';
 import { createDb, type Db } from '@/db/client';
 import { runMigrations } from '@/db/migrate';
-import { approvals, auditLog, llmCalls, properties, tradeEnum, urgencyEnum } from '@/db/schema';
+import {
+  approvals,
+  auditLog,
+  llmCalls,
+  messages,
+  properties,
+  tradeEnum,
+  urgencyEnum,
+} from '@/db/schema';
 import { currentTenancyFor, primaryTenantFor } from '@/db/seed/data/tenancies';
 import { ORG, PROPERTY } from '@/db/seed/ids';
 import { seed } from '@/db/seed/seed';
@@ -58,6 +66,8 @@ export const scenarioSchema = z.object({
     escalate: z.boolean().optional(),
     state: z.array(z.enum(JOB_STATES)).optional(),
     estimateCents: z.number().int().optional(),
+    /** Script of every agent → tenant message: latin (e.g. English, Samoan) or cjk (Chinese). */
+    replyScript: z.enum(['latin', 'cjk']).optional(),
     /** Audit actions that must have succeeded at least once. */
     actions: z.array(z.string()).default([]),
     /** Audit actions that must never succeed. */
@@ -67,7 +77,7 @@ export const scenarioSchema = z.object({
 export type Scenario = z.infer<typeof scenarioSchema>;
 type Step = z.infer<typeof step>;
 
-type CheckName = 'urgency' | 'trade' | 'escalate' | 'state' | 'estimate' | 'actions';
+type CheckName = 'urgency' | 'trade' | 'escalate' | 'state' | 'estimate' | 'actions' | 'language';
 interface ScenarioResult {
   id: string;
   urgency: string | null;
@@ -321,6 +331,18 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
   const e = s.expect;
   const escalated = job.state === 'ESCALATED';
   const diagnostics = await diagnose(db, jobId);
+  const replies = e.replyScript
+    ? await db
+        .select({ body: messages.body })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.jobId, jobId),
+            eq(messages.direction, 'outbound'),
+            eq(messages.recipientType, 'tenant'),
+          ),
+        )
+    : [];
   const missingActions = e.actions.filter((a) => !succeeded.has(a));
   return {
     id: s.id,
@@ -336,6 +358,9 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
       ...(e.state && { state: e.state.includes(job.state) }),
       ...(e.estimateCents !== undefined && { estimate: job.estimateCents === e.estimateCents }),
       ...(e.actions.length > 0 && { actions: missingActions.length === 0 }),
+      ...(e.replyScript && {
+        language: replies.length > 0 && replies.every((r) => scriptOf(r.body) === e.replyScript),
+      }),
     },
     missingActions,
     forbiddenHits: e.forbidden.filter((a) => succeeded.has(a)),
@@ -345,6 +370,12 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
     diagnostics,
     latencyMs: Date.now() - started,
   };
+}
+
+/** Coarse script detection: any CJK ideograph → cjk, otherwise latin. Enough to catch a reply
+ * in the wrong language without a language-ID dependency. */
+export function scriptOf(text: string): 'latin' | 'cjk' {
+  return /[\u3400-\u9fff\uf900-\ufaff]/.test(text) ? 'cjk' : 'latin';
 }
 
 async function diagnose(
@@ -414,6 +445,7 @@ function aggregate(results: ScenarioResult[]) {
     escalationRecall: tp + fn ? tp / (tp + fn) : null,
     stateAccuracy: rate('state'),
     actionsAccuracy: rate('actions'),
+    languageAccuracy: rate('language'),
     forbiddenActions: results.reduce((n, r) => n + r.forbiddenHits.length, 0),
     totalCostUsd: cost / 1e6,
     unpricedCalls: results.reduce((n, r) => n + r.unpricedCalls, 0),
@@ -463,6 +495,7 @@ function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResu
   );
   console.log(`final state accuracy ${pct(report.stateAccuracy)}`);
   console.log(`required actions     ${pct(report.actionsAccuracy)}`);
+  console.log(`reply language       ${pct(report.languageAccuracy)}`);
   console.log(
     `forbidden actions    ${report.forbiddenActions}${report.forbiddenActions ? '  ← must be 0' : ''}`,
   );

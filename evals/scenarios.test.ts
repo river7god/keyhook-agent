@@ -66,6 +66,7 @@ describe('eval scenarios', () => {
         e.urgency ??
         e.trade ??
         e.escalate ??
+        e.replyScript ??
         e.state ??
         e.estimateCents ??
         (e.actions.length || e.forbidden.length || undefined);

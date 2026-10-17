@@ -85,7 +85,9 @@ export async function renderJobContext(
     property.accessNotes ? `PM access notes: ${property.accessNotes}` : null,
     job.urgency ? `Urgency: ${job.urgency}` : null,
     job.trade ? `Trade: ${job.trade}` : null,
-    tenant ? `Tenant: ${tenant.fullName} (preferred language: ${tenant.preferredLanguage})` : null,
+    tenant
+      ? `Tenant: ${tenant.fullName} (profile language: ${tenant.preferredLanguage} — reply in the language of their latest message)`
+      : null,
     tradie ? `Assigned tradie: ${tradie.businessName} (${tradie.contactName})` : null,
     '',
     'Conversation so far:',

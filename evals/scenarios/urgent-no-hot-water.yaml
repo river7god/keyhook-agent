@@ -8,3 +8,4 @@ expect:
   trade: [plumbing]
   escalate: false
   state: [AWAITING_QUOTE]
+  replyScript: latin

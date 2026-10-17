@@ -1,0 +1,7 @@
+id: language-explicit-request
+description: 'Tenant writes English but asks for Chinese replies → reply in Chinese'
+property: islandBay
+steps:
+  - tenant: "The bathroom tap won't stop dripping. Please reply in Chinese, my English is not good."
+expect:
+  replyScript: cjk

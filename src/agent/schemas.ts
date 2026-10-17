@@ -41,7 +41,7 @@ export const triageOutput = z.object({
   tenantReply: z
     .string()
     .describe(
-      'Reply to the tenant in their preferred language. If needsMoreInfo: ask only for the missing information (at most 2 short questions). Otherwise acknowledge and say what happens next. For emergencies, lead with immediate safety guidance (e.g. leave the house and call 111 for gas/fire).',
+      'Reply to the tenant in the language of their latest message (or the language they asked for). If needsMoreInfo: ask only for the missing information (at most 2 short questions). Otherwise acknowledge and say what happens next. For emergencies, lead with immediate safety guidance (e.g. leave the house and call 111 for gas/fire).',
     ),
 });
 export type TriageOutput = z.infer<typeof triageOutput>;
