@@ -79,6 +79,9 @@ async function triage(deps: AgentDeps, job: Job, msg: Message | null): Promise<S
     urgency: out.urgency,
     trade: out.trade,
     triageConfidence: Math.min(1, Math.max(0, out.confidence)),
+    ...(out.askForMedia && out.mediaToCapture
+      ? { mediaRequest: out.mediaToCapture.slice(0, 300) }
+      : {}),
   };
   const agent = { type: 'agent' as const };
 

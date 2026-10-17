@@ -23,6 +23,8 @@ export interface ProviderInfo {
   reasoningEffort: boolean;
   maxTokensParam: 'max_tokens' | 'max_completion_tokens';
   requiresAcknowledgement: boolean;
+  /** Accepts image input. Model-dependent within a provider; this is the provider default. */
+  vision: boolean;
 }
 
 export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
@@ -35,6 +37,7 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
     reasoningEffort: true,
     maxTokensParam: 'max_tokens',
     requiresAcknowledgement: false,
+    vision: true,
   },
   openai: {
     id: 'openai',
@@ -46,6 +49,7 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
     reasoningEffort: true,
     maxTokensParam: 'max_completion_tokens',
     requiresAcknowledgement: false,
+    vision: true,
   },
   deepseek: {
     id: 'deepseek',
@@ -58,6 +62,7 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
     reasoningEffort: false,
     maxTokensParam: 'max_tokens',
     requiresAcknowledgement: true,
+    vision: false,
   },
   moonshot: {
     id: 'moonshot',
@@ -70,6 +75,8 @@ export const PROVIDERS: Record<ProviderId, ProviderInfo> = {
     reasoningEffort: false,
     maxTokensParam: 'max_tokens',
     requiresAcknowledgement: true,
+    // Some Kimi models accept images; set MOONSHOT_VISION=true once the chosen model is verified.
+    vision: process.env.MOONSHOT_VISION === 'true',
   },
 };
 
@@ -80,7 +87,7 @@ export const modelRefSchema = z.strictObject({
 export type ModelRef = z.infer<typeof modelRefSchema>;
 
 /** Step groups that can be routed separately (first segment of LlmContext.step). */
-export const STEP_GROUPS = ['triage', 'retriage', 'act', 'interpret', 'compose'] as const;
+export const STEP_GROUPS = ['triage', 'retriage', 'act', 'interpret', 'compose', 'vision'] as const;
 
 /** organizations.llm_routing. Null/absent = Claude for every step. */
 export const llmRoutingSchema = z

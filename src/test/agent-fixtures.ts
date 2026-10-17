@@ -30,6 +30,8 @@ export const cleanTriage: TriageOutput = {
     outOfScope: false,
     multipleIssues: false,
   },
+  askForMedia: false,
+  mediaToCapture: null,
   tenantReply: 'Thanks Ana — we have your request and are arranging a plumber.',
 };
 

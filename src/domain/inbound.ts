@@ -1,6 +1,7 @@
 import type { DbOrTx } from '@/db/client';
 import { DomainError } from './errors';
 import { createJobFromTenantMessage, getJob } from './jobs';
+import { saveMessageImages, type Rejected } from './media-store';
 import { recordInbound } from './messages';
 
 /**
@@ -15,8 +16,16 @@ export async function ingestMessage(
     senderId: string;
     jobId?: string | null;
     body: string;
+    /** Raw image files attached to the message (photos from the tenant or supplier). */
+    images?: Buffer[];
+    now?: Date;
   },
-): Promise<{ jobId: string; messageId: string; newJob: boolean }> {
+): Promise<{
+  jobId: string;
+  messageId: string;
+  newJob: boolean;
+  images: { saved: string[]; rejected: Rejected[] };
+}> {
   return db.transaction(async (tx) => {
     let jobId = args.jobId ?? null;
     let newJob = false;
@@ -47,6 +56,15 @@ export async function ingestMessage(
       senderId: args.senderId,
       body: args.body,
     });
-    return { jobId, messageId: msg.id, newJob };
+    const images = args.images?.length
+      ? await saveMessageImages(tx, {
+          organizationId: args.organizationId,
+          jobId,
+          messageId: msg.id,
+          files: args.images,
+          now: args.now ?? new Date(),
+        })
+      : { saved: [], rejected: [] };
+    return { jobId, messageId: msg.id, newJob, images };
   });
 }

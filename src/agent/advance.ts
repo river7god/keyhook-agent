@@ -9,6 +9,7 @@ import { handleGeneralMessage } from './handlers/general';
 import { handleQuoteReply, handleTriaged } from './handlers/quote';
 import { handleOfferSlots, handleSlotReply } from './handlers/scheduling';
 import { escalateOnAgentFailure } from './failures';
+import { analyzeMessageMedia } from './handlers/media';
 import {
   alreadyProcessed,
   DuplicateInboundError,
@@ -65,6 +66,13 @@ async function advance(
     ? await loadInbound(deps.db, args.organizationId, args.jobId, args.messageId)
     : null;
   if (pending && (await alreadyProcessed(deps.db, pending))) pending = null;
+
+  // Photos are analysed before the message is handled, so every handler sees what they show.
+  if (pending) {
+    const job = await getJob(deps.db, args.organizationId, args.jobId);
+    const media = await analyzeMessageMedia(deps, job, pending);
+    if (media.analysed || media.unavailable) handled.push('analyse_media');
+  }
 
   for (let i = 0; i < MAX_STEPS; i++) {
     const job = await getJob(deps.db, args.organizationId, args.jobId);

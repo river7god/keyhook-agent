@@ -8,6 +8,7 @@ import { withOrg } from '@/db/org-scope';
 import { isDomainError } from '@/domain/errors';
 import { getAgentActivity } from '@/domain/agent-activity';
 import { getJob } from '@/domain/jobs';
+import { listJobMedia } from '@/domain/media-store';
 import { AgentActivityBadge } from '@/app/_lib/agent-activity-badge';
 import { AutoRefresh } from '@/app/_lib/auto-refresh';
 import { getJobTimeline, type TimelineItem } from '@/domain/timeline';
@@ -28,15 +29,16 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
       throw err;
     });
     if (!job) return null;
-    const [ctx, timeline, activity] = await Promise.all([
+    const [ctx, timeline, activity, photos] = await Promise.all([
       loadJobContext(tx, job),
       getJobTimeline(tx, user.organizationId, job.id),
       getAgentActivity(tx, job, new Date()),
+      listJobMedia(tx, user.organizationId, job.id),
     ]);
-    return { job, ctx, timeline, activity };
+    return { job, ctx, timeline, activity, photos };
   });
   if (!data) notFound();
-  const { job, ctx, timeline, activity } = data;
+  const { job, ctx, timeline, activity, photos } = data;
   const escalation =
     job.state === 'ESCALATED'
       ? [...timeline.items]
@@ -89,7 +91,7 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
             <h2>Timeline</h2>
             <ol className="timeline">
               {timeline.items.map((item) => (
-                <TimelineEntry key={item.id} item={item} />
+                <TimelineEntry key={item.id} item={item} photos={photos} />
               ))}
             </ol>
           </div>
@@ -146,7 +148,36 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
   );
 }
 
-function TimelineEntry({ item }: { item: TimelineItem }) {
+type Photo = Awaited<ReturnType<typeof listJobMedia>>[number];
+
+function PhotoFigure({ p }: { p: Photo }) {
+  const a = p.analysis;
+  return (
+    <figure style={{ margin: '8px 0 0' }}>
+      <a href={`/api/v1/media/${p.id}`} target="_blank" rel="noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element -- authenticated API image */}
+        <img
+          src={`/api/v1/media/${p.id}`}
+          alt="Attached photo"
+          style={{ maxWidth: 240, borderRadius: 6 }}
+        />
+      </a>
+      <figcaption className="sub" style={{ margin: 0 }}>
+        {!a
+          ? 'Not analysed yet'
+          : 'unavailable' in a
+            ? 'Kept, not analysed (no vision model)'
+            : `${a.quality}${a.showsIssue ? '' : ' · does not show the issue'} — ${a.observations}${
+                a.label && (a.label.make ?? a.label.model)
+                  ? ` · label: ${[a.label.make, a.label.model, a.label.serial].filter(Boolean).join(' ')}`
+                  : ''
+              }${a.safetyCues.length ? ` · ⚠ ${a.safetyCues.join(', ')}` : ''}`}
+      </figcaption>
+    </figure>
+  );
+}
+
+function TimelineEntry({ item, photos }: { item: TimelineItem; photos: Photo[] }) {
   const when = <div className="when">{formatNzDateTime(item.at)}</div>;
   switch (item.kind) {
     case 'message':
@@ -158,6 +189,11 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
           </strong>
           {item.status === 'failed' && <span className="error"> (delivery failed)</span>}
           <div className="body">{item.body}</div>
+          {photos
+            .filter((p) => p.messageId === item.id)
+            .map((p) => (
+              <PhotoFigure key={p.id} p={p} />
+            ))}
         </li>
       );
     case 'transition':

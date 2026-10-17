@@ -87,14 +87,16 @@ export async function llmForOrganization(
  * Deployment-wide default when an organization has no llm_routing:
  *   LLM_DEFAULT_MODEL=moonshot:<model id>   (provider:model)
  *   LLM_ACKNOWLEDGE_OFFSHORE=true            (required for deepseek / moonshot)
+ *   LLM_VISION_MODEL=provider:model          (optional: model for photo analysis)
  * Unset → Claude everywhere.
  */
 export function envDefaultRouting(): LlmRouting | null {
   const ref = process.env.LLM_DEFAULT_MODEL;
-  if (!ref) return null;
+  const vision = process.env.LLM_VISION_MODEL;
+  if (!ref && !vision) return null;
   const parsed = llmRoutingSchema.safeParse({
-    default: parseModelRef(ref),
-    steps: {},
+    default: ref ? parseModelRef(ref) : DEFAULT_MODEL,
+    steps: vision ? { vision: parseModelRef(vision) } : {},
     acknowledgeOffshoreProviders: process.env.LLM_ACKNOWLEDGE_OFFSHORE === 'true',
   });
   if (!parsed.success)

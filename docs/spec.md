@@ -139,7 +139,7 @@ platform it touches. Rules marked *(proposed)* need product-owner confirmation b
   guidance; then the model judges relevance ("does it show the issue?").
 - Extract: visible issue, safety cues, make/model/serial text. Pass relevant facts to the supplier.
 - Media is untrusted input (text inside images can be a prompt injection).
-- Video: analyse sampled key frames. *(proposed)* up to 60 s; media retained 180 days.
+- Video: analyse sampled key frames. Up to 60 s; media retained 180 days (confirmed 2026-10-18).
 
 **R2 — Quote variations.** After approval a supplier may report extra work/cost.
 - The new total is re-checked with the approval policy (§5): within the effective PM limit →
@@ -148,7 +148,7 @@ platform it touches. Rules marked *(proposed)* need product-owner confirmation b
 
 **R3 — Invoice check (no payments).** Keyhook matches invoices to work orders.
 - Extract the invoice total (PDF/photo) and compare with the approved amount (quote + approved
-  variations). *(proposed)* Within 5 % or NZ$50 → mark matched; above → PM review with the
+  variations). Within 5 % or NZ$50 → mark matched (confirmed 2026-10-18); above → PM review with the
   difference explained. Payment execution stays out of scope.
 
 **R4 — Inspection findings → work orders.** An inspection finding creates a job
@@ -161,7 +161,7 @@ completed (with final cost). v1 still lets the PM approve on the owner's behalf 
 **R6 — Tenant milestone updates.** The tenant hears at each milestone without asking: supplier
 engaged, visit booked, running late, awaiting approval (no amounts), completed.
 
-**R7 — Portfolio Monitor (proactive).** Scheduled scan per organization. *(proposed)* Triggers: three
+**R7 — Portfolio Monitor (proactive).** Scheduled scan per organization. Triggers (confirmed 2026-10-18): three
 or more jobs of the same trade at one property within 12 months; compliance items near expiry
 (Healthy Homes statements, smoke-alarm checks, building WOF) once a compliance data source exists.
 It proposes an `agent_detected` job with the evidence; a PM opens it — the monitor never dispatches

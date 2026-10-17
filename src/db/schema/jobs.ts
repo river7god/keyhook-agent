@@ -58,6 +58,8 @@ export const jobs = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::uuid[]`),
+    /** What the agent asked the tenant to photograph (spec §12 R1); null if no media requested. */
+    mediaRequest: text(),
     /** Set when a PM hands an escalated job back: their review covers the original triage flags. */
     pmReviewedAt: tstz(),
     closedAt: tstz(),

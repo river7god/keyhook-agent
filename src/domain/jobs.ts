@@ -17,6 +17,7 @@ type JobPatch = Partial<
     | 'clarifyRounds'
     | 'excludedTradieIds'
     | 'pmReviewedAt'
+    | 'mediaRequest'
     | 'offeredSlotIds'
     | 'urgency'
     | 'trade'

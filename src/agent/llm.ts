@@ -25,6 +25,14 @@ export interface StructuredRequest<T> {
   user: string;
   schema: z.ZodType<T>;
   effort: Effort;
+  /** Images to look at (base64). Providers without vision raise LlmConfigError. */
+  images?: ImageInput[];
+}
+
+export interface ImageInput {
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+  /** Base64, no data: prefix. */
+  data: string;
 }
 
 export interface ToolTurnRequest {
@@ -131,7 +139,24 @@ export class ClaudeLlm implements LlmClient {
           fallbacks: 'default',
           cache_control: { type: 'ephemeral' },
           system: req.system,
-          messages: [{ role: 'user', content: req.user }],
+          messages: [
+            {
+              role: 'user',
+              content: req.images?.length
+                ? [
+                    ...req.images.map((img) => ({
+                      type: 'image' as const,
+                      source: {
+                        type: 'base64' as const,
+                        media_type: img.mediaType,
+                        data: img.data,
+                      },
+                    })),
+                    { type: 'text' as const, text: req.user },
+                  ]
+                : req.user,
+            },
+          ],
           output_config: { effort: req.effort, format: betaZodOutputFormat(req.schema) },
         })
         .withResponse();

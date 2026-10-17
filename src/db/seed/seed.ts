@@ -22,10 +22,11 @@ import { tradieRows } from './data/tradies';
 
 /** Wipe and re-insert all seed data in one transaction. Idempotent. */
 export async function seed(db: Db, now: Date = new Date()): Promise<void> {
+  // CPU/memory-heavy work happens before the transaction opens, never while holding it.
+  const passwordHash = await seedPasswordHash();
   await db.transaction(async (tx) => {
     await truncateAllTables(tx);
     await tx.insert(organizations).values(organizationRows);
-    const passwordHash = await seedPasswordHash();
     await tx
       .insert(propertyManagers)
       .values(propertyManagerRows.map((pm) => ({ ...pm, passwordHash })));

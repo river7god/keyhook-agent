@@ -283,3 +283,22 @@ scope; the agent integrates through adapters. Keyhook's vocabulary (work order, 
 approval threshold, variation) is used in docs and UI going forward.
 **Reason:** The project demonstrates the agent layer the role describes, sitting on Keyhook's
 existing data and approvals — not a clone of the platform.
+
+### 2026-10-18 — M6: tenant photos (images now, video later)
+**Decision:** Photos arrive on inbound messages (simulator downsizes in the browser to ≤1600 px
+JPEG). Code pre-checks type/size/resolution from the file header (no image library); a vision
+model then reports what is shown, quality, safety cues and appliance label text; results are
+stored per photo and included in every later step's context. Instructions inside an image
+escalate (prompt injection); unusable photos trigger a retake request; no vision model →
+photo kept as "not analysed" and the job continues. Bytes are stored in Postgres (`media`,
+RLS) behind `media-store.ts`, retained 180 days (daily purge). Vision is its own routing step
+group (`LLM_VISION_MODEL`); providers declare `vision`, Kimi only with `MOONSHOT_VISION=true`.
+Video needs frame extraction (ffmpeg) and is deferred.
+**Reason:** Keyhook tenants already attach media; reading it (e.g. the model on a cylinder label)
+is where the agent adds value. Postgres storage needs no new service for the demo.
+
+### 2026-10-18 — Cheap password hashing cost in tests; no heavy work inside transactions
+**Decision:** scrypt cost is N=2^17 (128 MB) in production and 2^14 under tests; the seed hashes
+before opening its transaction.
+**Reason:** Hashing at production cost on every test seed stalled memory-constrained dev machines
+for minutes (and held a transaction open meanwhile) — the earlier "intermittent" test hangs.

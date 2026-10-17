@@ -32,6 +32,10 @@ export default defineConfig({
           globalSetup: ['src/test/db-global-setup.ts'],
           // One shared test database → run DB test files serially.
           fileParallelism: false,
+          // Generous limits: on some dev machines module loading between files stalls for tens
+          // of seconds (nothing touches the DB meanwhile); CI on Linux runs these in seconds.
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
         },
       },
     ],

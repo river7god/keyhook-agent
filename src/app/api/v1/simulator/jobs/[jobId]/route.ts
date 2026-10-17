@@ -5,6 +5,7 @@ import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
 import { auditLog, llmCalls } from '@/db/schema';
 import { getAgentActivity } from '@/domain/agent-activity';
+import { listJobMedia } from '@/domain/media-store';
 import { getJob } from '@/domain/jobs';
 import { listJobMessages } from '@/domain/messages';
 import { ok, toErrorResponse } from '../../../_lib/respond';
@@ -40,7 +41,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ job
           .where(and(eq(llmCalls.organizationId, org), eq(llmCalls.jobId, jobId))),
       ]);
       const activity = await getAgentActivity(tx, job, new Date());
-      return { job, messages, audit, activity, llmCostUsdMicros: spend?.costUsdMicros ?? 0 };
+      const media = await listJobMedia(tx, org, jobId);
+      return { job, messages, audit, activity, media, llmCostUsdMicros: spend?.costUsdMicros ?? 0 };
     });
     return ok(snapshot);
   } catch (err) {

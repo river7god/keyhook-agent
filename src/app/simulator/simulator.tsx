@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AgentActivityBadge, type ActivityView } from '../_lib/agent-activity-badge';
+import { downscaleToBase64 } from '../_lib/downscale';
 
 interface Persona {
   id: string;
@@ -45,6 +46,19 @@ interface Snapshot {
     createdAt: string;
   }[];
   activity: ActivityView;
+  media: {
+    id: string;
+    messageId: string;
+    analysis:
+      | {
+          quality: string;
+          showsIssue: boolean;
+          observations: string;
+          label: { make: string | null; model: string | null; serial: string | null } | null;
+        }
+      | { unavailable: string }
+      | null;
+  }[];
   llmCostUsdMicros: number;
 }
 
@@ -61,6 +75,8 @@ export function Simulator({ personas }: Props) {
   const [openJobs, setOpenJobs] = useState<JobSummary[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const [photos, setPhotos] = useState<{ name: string; b64: string }[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -120,11 +136,26 @@ export function Simulator({ personas }: Props) {
       const res = await fetch('/api/v1/simulator/messages', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ senderType, senderId, jobId, body: text }),
+        body: JSON.stringify({
+          senderType,
+          senderId,
+          jobId,
+          body: text,
+          images: photos.map((p) => p.b64),
+        }),
       });
-      const data = (await res.json()) as { jobId?: string; error?: { message: string } };
+      const data = (await res.json()) as {
+        jobId?: string;
+        images?: { rejected: { index: number; reason: string }[] };
+        error?: { message: string };
+      };
       if (!res.ok || !data.jobId) throw new Error(data.error?.message ?? `HTTP ${res.status}`);
+      const rejected = data.images?.rejected ?? [];
+      setNotice(
+        rejected.length ? `Photo not accepted: ${rejected.map((r) => r.reason).join('; ')}` : null,
+      );
       setText('');
+      setPhotos([]);
       setJobId(data.jobId);
       setJobsVersion((v) => v + 1);
       setRefresh((v) => v + 1); // fetch the snapshot now, not on the next 2s tick
@@ -205,14 +236,51 @@ export function Simulator({ personas }: Props) {
           }
           style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
         />
+        <label style={{ display: 'block', marginTop: 8 }}>
+          Photos{' '}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []).slice(0, 5);
+              void Promise.all(
+                files.map(async (f) => ({ name: f.name, b64: await downscaleToBase64(f) })),
+              )
+                .then(setPhotos)
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : String(err));
+                });
+            }}
+          />
+        </label>
+        {photos.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+            {photos.map((p) => (
+              // eslint-disable-next-line @next/next/no-img-element -- local data: preview
+              <img
+                key={p.name}
+                src={`data:image/jpeg;base64,${p.b64}`}
+                alt={p.name}
+                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6 }}
+              />
+            ))}
+          </div>
+        )}
         <button
           onClick={() => void send()}
-          disabled={sending || !text.trim() || !senderId || (senderType === 'tradie' && !jobId)}
+          disabled={
+            sending ||
+            (!text.trim() && photos.length === 0) ||
+            !senderId ||
+            (senderType === 'tradie' && !jobId)
+          }
           style={{ marginTop: 8, padding: '8px 16px' }}
         >
           {sending ? 'Sending…' : 'Send'}
         </button>
         {error && <p style={{ color: '#b00020' }}>{error}</p>}
+        {notice && <p style={{ color: '#9a6200' }}>{notice}</p>}
       </section>
 
       <section>
@@ -281,6 +349,29 @@ export function Simulator({ personas }: Props) {
                     · {nz(m.createdAt)}
                   </small>
                   <div>{m.body}</div>
+                  {shown.media
+                    .filter((p) => p.messageId === m.id)
+                    .map((p) => (
+                      <figure key={p.id} style={{ margin: '8px 0 0' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- authenticated API image */}
+                        <img
+                          src={`/api/v1/media/${p.id}`}
+                          alt="Attached photo"
+                          style={{ maxWidth: 220, borderRadius: 6 }}
+                        />
+                        <figcaption style={{ fontSize: 12, color: '#555' }}>
+                          {!p.analysis
+                            ? 'Analysing photo…'
+                            : 'unavailable' in p.analysis
+                              ? 'Photo kept — not analysed (no vision model)'
+                              : `${p.analysis.quality}${p.analysis.showsIssue ? '' : ' · does not show the issue'} — ${p.analysis.observations}${
+                                  p.analysis.label?.model
+                                    ? ` · ${[p.analysis.label.make, p.analysis.label.model].filter(Boolean).join(' ')}`
+                                    : ''
+                                }`}
+                        </figcaption>
+                      </figure>
+                    ))}
                 </li>
               ))}
               {pending && (

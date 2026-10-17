@@ -20,6 +20,8 @@ const clean: TriageOutput = {
     outOfScope: false,
     multipleIssues: false,
   },
+  askForMedia: false,
+  mediaToCapture: null,
   tenantReply: 'Thanks',
 };
 

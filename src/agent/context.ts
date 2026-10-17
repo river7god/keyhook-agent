@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { DbOrTx } from '@/db/client';
 import { messages, properties, tenants, tradies } from '@/db/schema';
 import type { Job } from '@/domain/jobs';
+import { listJobMedia } from '@/domain/media-store';
 import { formatNzDateTime } from '@/lib/time';
 import { untrusted } from './untrusted';
 
@@ -78,6 +79,19 @@ export async function renderJobContext(
     })
     .join('\n\n');
 
+  const photos = await listJobMedia(db, job.organizationId, job.id);
+  const photoLines = photos.map((p, i) => {
+    const a = p.analysis;
+    if (!a) return `Photo ${i + 1}: not analysed yet`;
+    if ('unavailable' in a) return `Photo ${i + 1}: received, could not be analysed`;
+    const label =
+      a.label && (a.label.make ?? a.label.model ?? a.label.serial)
+        ? ` Label: ${[a.label.make, a.label.model, a.label.serial && `serial ${a.label.serial}`].filter(Boolean).join(' ')}.`
+        : '';
+    const cues = a.safetyCues.length ? ` Safety cues: ${a.safetyCues.join('; ')}.` : '';
+    return `Photo ${i + 1} (${a.quality}${a.showsIssue ? '' : ', does not show the issue'}): ${a.observations}${label}${cues}`;
+  });
+
   return [
     `Job: ${job.title}`,
     `State: ${job.state}`,
@@ -89,6 +103,8 @@ export async function renderJobContext(
       ? `Tenant: ${tenant.fullName} (profile language: ${tenant.preferredLanguage} — reply in the language of their latest message)`
       : null,
     tradie ? `Assigned tradie: ${tradie.businessName} (${tradie.contactName})` : null,
+    job.mediaRequest ? `Photo requested from tenant: ${job.mediaRequest}` : null,
+    photoLines.length ? `Photos (agent's own analysis):\n${photoLines.join('\n')}` : null,
     '',
     'Conversation so far:',
     conversation || '(none)',

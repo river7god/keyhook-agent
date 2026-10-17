@@ -14,3 +14,4 @@ export * from './llm-calls';
 export * from './tradie-availability';
 export * from './sessions';
 export * from './agent-feedback';
+export * from './media';

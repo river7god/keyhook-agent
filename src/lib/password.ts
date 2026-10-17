@@ -1,7 +1,11 @@
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 
-/** scrypt (Node built-in) with OWASP-recommended cost; format: scrypt$N$r$p$salt$hash (base64url). */
-const N = 2 ** 17;
+/**
+ * scrypt (Node built-in) with OWASP-recommended cost (N=2^17, 128 MB) in production; a cheap cost
+ * under tests, where hashing on every seed made memory-constrained machines stall for minutes.
+ * Format scrypt$N$r$p$salt$hash records the cost, so verification works across both.
+ */
+const N = process.env.VITEST || process.env.NODE_ENV === 'test' ? 2 ** 14 : 2 ** 17;
 const r = 8;
 const p = 1;
 const KEYLEN = 32;

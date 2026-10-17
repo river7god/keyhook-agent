@@ -54,6 +54,13 @@ export class OpenAICompatibleLlm implements LlmClient {
   }
 
   structured<T>(req: StructuredRequest<T>): Promise<T> {
+    if (req.images?.length && !this.provider.vision) {
+      return Promise.reject(
+        new LlmConfigError(
+          `${this.ref} has no image input; route the "vision" step to a vision model`,
+        ),
+      );
+    }
     return this.traced(req.ctx, req.effort, async () => {
       const schema = z.toJSONSchema(req.schema, { io: 'output' }) as Record<string, unknown>;
       delete schema.$schema;
@@ -62,7 +69,18 @@ export class OpenAICompatibleLlm implements LlmClient {
         : `${req.system}\n\nRespond with only a JSON object (no prose, no code fences) that matches this JSON Schema:\n${JSON.stringify(schema)}`;
       const messages: ChatMessage[] = [
         { role: 'system', content: system },
-        { role: 'user', content: req.user },
+        {
+          role: 'user',
+          content: req.images?.length
+            ? [
+                ...req.images.map((img) => ({
+                  type: 'image_url' as const,
+                  image_url: { url: `data:${img.mediaType};base64,${img.data}` },
+                })),
+                { type: 'text' as const, text: req.user },
+              ]
+            : req.user,
+        },
       ];
       const responseFormat: OpenAI.Chat.Completions.ChatCompletionCreateParams['response_format'] =
         this.provider.jsonSchemaOutput
