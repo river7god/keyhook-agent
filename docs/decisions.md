@@ -273,3 +273,13 @@ unless `--include-unreviewed`. A person reviews, then sets `reviewed: true` and 
 **Reason:** The model doesn't learn from production; the system does — every correction becomes a
 regression test, so prompt/policy changes are proven against real past mistakes. Review stays
 human because production messages contain personal information.
+
+### 2026-10-18 — Scope aligned with Keyhook's platform
+**Decision:** Requirements derived from Keyhook's public site are added as spec §12 (R1–R8,
+milestones M6–M9): tenant media analysis, quote variations, invoice check, inspection findings →
+work orders, owner notifications, tenant milestone updates, Portfolio Monitor, arrears. Listings,
+screening, e-signing, trust accounting and reporting are Keyhook-platform concerns and out of
+scope; the agent integrates through adapters. Keyhook's vocabulary (work order, supplier, owner
+approval threshold, variation) is used in docs and UI going forward.
+**Reason:** The project demonstrates the agent layer the role describes, sitting on Keyhook's
+existing data and approvals — not a clone of the platform.

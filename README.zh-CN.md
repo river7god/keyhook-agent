@@ -53,6 +53,7 @@ pnpm dev            # Next.js 于 :3000 + Inngest 开发服务器于 :8288
 ## 文档
 - [`docs/spec.zh-CN.md`](docs/spec.zh-CN.md) — 产品规格
 - [`docs/agents.zh-CN.md`](docs/agents.zh-CN.md) — Agent 目录与人机边界
+- [`docs/keyhook-fit.zh-CN.md`](docs/keyhook-fit.zh-CN.md) — 与 Keyhook 平台的对应关系
 - [`docs/decisions.zh-CN.md`](docs/decisions.zh-CN.md) — 架构决策
 - [`docs/deploy.zh-CN.md`](docs/deploy.zh-CN.md) — 部署到 Vercel + Neon + Inngest Cloud
 - [`CLAUDE.zh-CN.md`](CLAUDE.zh-CN.md) — 工程规则（参考译本；Claude Code 加载的是英文 `CLAUDE.md`）

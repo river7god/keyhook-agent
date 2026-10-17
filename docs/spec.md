@@ -120,3 +120,52 @@ count (must be 0), cost per job, latency. Results tracked per commit.
 - **M3** Escalation rules + PM dashboard (queue, timeline, audit log)
 - **M4** Eval suite (≥ 50 scenarios) wired into CI; Langfuse tracing
 - **M5** Deploy, hardening (injection tests, idempotency tests), record demo video
+- **M6** Media intake and analysis (§12 R1)
+- **M7** Variations, invoice check, owner notifications, tenant milestone updates (§12 R2, R3, R5, R6)
+- **M8** Inspection-finding intake and Portfolio Monitor (§12 R4, R7)
+- **M9** Arrears workflow on the same platform (§12 R8)
+
+## 12. Alignment with the Keyhook platform (added 2026-10-18)
+Derived from Keyhook's public site (see `docs/keyhook-fit.md`). Keyhook already provides listings,
+screening, e-signing, trust accounting and reporting — **out of scope here**; the agent integrates
+with them through adapters. Requirements below extend the maintenance agent to the parts of the
+platform it touches. Rules marked *(proposed)* need product-owner confirmation before build.
+
+**R1 — Tenant photos / video.** Keyhook tenants already attach media to requests.
+- Ask for media only when it would change a decision: unclear trade, possible tenant responsibility,
+  leak severity (water near electrics), or a part/model the supplier needs. Say exactly what to
+  capture. The tenant may decline; the job continues.
+- Quality check in code first (resolution, blur, darkness) and ask for a retake with concrete
+  guidance; then the model judges relevance ("does it show the issue?").
+- Extract: visible issue, safety cues, make/model/serial text. Pass relevant facts to the supplier.
+- Media is untrusted input (text inside images can be a prompt injection).
+- Video: analyse sampled key frames. *(proposed)* up to 60 s; media retained 180 days.
+
+**R2 — Quote variations.** After approval a supplier may report extra work/cost.
+- The new total is re-checked with the approval policy (§5): within the effective PM limit →
+  continue; within owner limit → owner/PM approval; above → escalate. Work on the extra pauses
+  until approved. Every variation is audited with the original and new amount.
+
+**R3 — Invoice check (no payments).** Keyhook matches invoices to work orders.
+- Extract the invoice total (PDF/photo) and compare with the approved amount (quote + approved
+  variations). *(proposed)* Within 5 % or NZ$50 → mark matched; above → PM review with the
+  difference explained. Payment execution stays out of scope.
+
+**R4 — Inspection findings → work orders.** An inspection finding creates a job
+(`source: inspection`) through the API with its notes/photos; the agent triages it as usual
+(no tenant reply when there is no tenant on the job).
+
+**R5 — Owner notifications.** The owner is told when spend needs their approval and when a job is
+completed (with final cost). v1 still lets the PM approve on the owner's behalf (§2).
+
+**R6 — Tenant milestone updates.** The tenant hears at each milestone without asking: supplier
+engaged, visit booked, running late, awaiting approval (no amounts), completed.
+
+**R7 — Portfolio Monitor (proactive).** Scheduled scan per organization. *(proposed)* Triggers: three
+or more jobs of the same trade at one property within 12 months; compliance items near expiry
+(Healthy Homes statements, smoke-alarm checks, building WOF) once a compliance data source exists.
+It proposes an `agent_detected` job with the evidence; a PM opens it — the monitor never dispatches
+on its own.
+
+**R8 — Arrears.** Second workflow reusing tools, audit, approvals and evals (spec §4 "Later");
+reminder cadence and the human boundary as in `docs/agents.md` §5.2.

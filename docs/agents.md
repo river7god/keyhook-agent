@@ -142,3 +142,7 @@ instead of re-investigating for 10 minutes.
    monitor and improve themselves", and what separates production from demo.
 4. **Demo narrative (2 minutes)** — one tenant message → agent runs the job → over-limit spend
    escalates to PM → one-click approval → loop closes → show audit log and eval scores.
+5. **Fill the gaps next to Keyhook's existing platform** (2026-10-18, `docs/keyhook-fit.md`) — tenant
+   media analysis, quote variations, invoice check, inspection findings → work orders, owner and
+   tenant milestone updates, Portfolio Monitor, arrears (spec §12, milestones M6–M9). Listings,
+   screening, e-signing and accounting stay with the Keyhook platform.
