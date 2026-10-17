@@ -45,6 +45,8 @@ export const jobs = pgTable(
     assignedTradieId: uuid(),
     scheduledStart: tstz(),
     scheduledEnd: tstz(),
+    /** Slots last offered to the tenant (SCHEDULING), in the order presented. */
+    offeredSlotIds: uuid().array(),
     closedAt: tstz(),
     ...timestamps,
   },

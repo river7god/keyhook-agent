@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "offered_slot_ids" uuid[];
