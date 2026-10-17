@@ -140,3 +140,36 @@ status is treated as inclusive and noted in the audit log.
 `evals/results/`. Whether to adopt promptfoo is decided in M4 when the suite reaches 50+ scenarios.
 **Reason:** CLAUDE.md requires an eval score for any agent change from M1 on; the scenario format
 is promptfoo-agnostic.
+
+### 2026-10-17 — M2 follow-up and retry policy (configurable per organization)
+**Decision:** `organizations.workflow_policy` (Zod-validated JSON) with agreed defaults: clarify up
+to 2 rounds; tenant waits (clarify, slot choice) remind at 24h and escalate 24h later; completion
+confirmation reminds at 48h, escalates 72h later; quote reminders at 1h/4h/24h by urgency, 2
+reminders then reassign; at most 3 tradies tried; slots offered at most twice; post-visit check
+4h after the slot ends, escalate 24h later; PM approval reminder at 24h; no reminders 20:00–08:00
+NZ time (postponed to 08:00).
+**Reason:** Agencies run different service levels; the numbers are business rules, not code.
+
+### 2026-10-17 — Follow-ups: DB as source of truth, sweeper + per-job serialisation
+**Decision:** At most one `scheduled` follow-up per job (partial unique index). Any state
+transition or reply from the job's parties marks it `satisfied`; after every advance the job's
+current wait gets a fresh one. A 5-minute Inngest cron emits `followup/due` per due row (event id
+dedupes); the handler claims the row (`scheduled → sent`) before acting. All job-mutating Inngest
+functions share one env-scoped concurrency key per job.
+**Reason:** Durable without per-follow-up sleeping functions or cancellation plumbing; a lost
+event is retried by the next sweep; duplicates cannot double-send.
+
+### 2026-10-17 — Clarifying instead of escalating when information is the only gap
+**Decision:** If triage reports `needsMoreInfo` and the only other triggers are low confidence or
+an unclassifiable trade, the agent asks the tenant (RECEIVED/NEEDS_INFO → TRIAGED → NEEDS_INFO)
+rather than escalating; any other trigger still escalates. After the round limit it escalates.
+**Reason:** Spec §7's low-confidence rule exists to avoid guessing; asking is the cheaper fix and
+the escalation still happens if asking doesn't help.
+
+### 2026-10-17 — PM approval path
+**Decision:** Quote above the effective PM limit but within the owner limit → `request_approval`
+(pending record, AWAITING_APPROVAL, PM notified). The PM's decision is written first (as the
+PM), then `approve_spend` runs with the PM as actor; executeTool refuses it without a stored
+approved record. Rejection escalates. Each approval can be decided once. Until auth exists the PM
+selects their identity from the organization's PMs.
+**Reason:** CLAUDE.md rule 2 and spec §5/§8.
