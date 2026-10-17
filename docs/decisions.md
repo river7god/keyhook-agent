@@ -210,3 +210,9 @@ runner's mechanics against the scripted LLM. Forbidden actions or scenario error
 **Decision:** If one message reports issues needing different trades or separate visits, the agent
 escalates so the PM can split them into jobs; several items for the same tradie stay one job.
 **Reason:** Silently handling only one issue would drop the other.
+
+### 2026-10-17 — Agent failures escalate; duplicate processing aborts
+**Decision:** A model refusal or unusable output escalates the job at once (no retries); any other
+error is retried by Inngest and, once retries are exhausted, `onFailure` escalates the job. A run
+that finds its inbound message already processed by a concurrent run aborts its transaction.
+**Reason:** A stuck job is invisible to the PM; escalation makes every failure a visible task.
