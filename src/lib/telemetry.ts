@@ -7,7 +7,7 @@ import { BatchSpanProcessor, NodeTracerProvider } from '@opentelemetry/sdk-trace
  * OpenTelemetry tracing (decisions.md: "Tracing via OTLP"). Exports only when an OTLP endpoint is
  * configured through the standard env vars, e.g. for Langfuse:
  *   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1/traces
- *   OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Basic <base64(publicKey:secretKey)>
+ *   OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Basic%20<base64(publicKey:secretKey)>
  * With nothing configured, spans are no-ops.
  */
 let provider: NodeTracerProvider | null = null;

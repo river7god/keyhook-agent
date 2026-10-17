@@ -60,7 +60,9 @@ owner 角色有权限创建）。
 ## 6. Langfuse 追踪（可选）
 在 https://cloud.langfuse.com 创建项目，然后在 Vercel 中设置：
 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1/traces` 和
-`OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Basic <publicKey:secretKey 的 base64>`。
+`OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Basic%20<publicKey:secretKey 的 base64>`。
+用 `printf '%s' 'pk-lf-…:sk-lf-…' | base64` 生成这个值。保留 `%20`（header 的值需要 URL 编码，直接写空格会失效）。
+美国区域请使用 `https://us.cloud.langfuse.com/…`。
 
 ## 7. GitHub（真实评测，可选）
 仓库 *Settings → Secrets and variables → Actions* → 添加 `ANTHROPIC_API_KEY`。之后 *Eval* workflow 会每晚和按需运行。

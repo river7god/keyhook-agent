@@ -59,7 +59,9 @@ Server errors and agent failures are reported; request bodies, cookies and user 
 ## 6. Langfuse tracing (optional)
 Create a project at https://cloud.langfuse.com, then in Vercel:
 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1/traces` and
-`OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Basic <base64 of publicKey:secretKey>`.
+`OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Basic%20<base64 of publicKey:secretKey>`.
+Generate the value with `printf '%s' 'pk-lf-…:sk-lf-…' | base64`. Keep `%20` (the header value is
+URL-encoded; a literal space breaks it). For the US region use `https://us.cloud.langfuse.com/…`.
 
 ## 7. GitHub (live evals, optional)
 Repository *Settings → Secrets and variables → Actions* → `ANTHROPIC_API_KEY`. The *Eval*
