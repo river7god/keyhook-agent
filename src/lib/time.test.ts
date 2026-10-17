@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatNzDate, formatNzDateTime } from './time';
+import { formatNzDate, formatNzDateTime, zonedDateParts, zonedToUtc } from './time';
 
 describe('time', () => {
   it('displays UTC instants in NZST (UTC+12) in winter', () => {
@@ -13,5 +13,24 @@ describe('time', () => {
     // 2026-01-15T11:30Z → 12:30 am, 16 Jan in Auckland
     expect(formatNzDateTime(new Date('2026-01-15T11:30:00Z'))).toMatch(/16 Jan 2026.*12:30/);
     expect(formatNzDate(new Date('2026-01-15T11:30:00Z'))).toBe('16 Jan 2026');
+  });
+});
+
+describe('zonedToUtc', () => {
+  it('converts NZST wall time (UTC+12)', () => {
+    expect(zonedToUtc({ year: 2026, month: 7, day: 1, hour: 9 }).toISOString()).toBe(
+      '2026-06-30T21:00:00.000Z',
+    );
+  });
+
+  it('converts NZDT wall time (UTC+13)', () => {
+    expect(zonedToUtc({ year: 2026, month: 12, day: 1, hour: 9 }).toISOString()).toBe(
+      '2026-11-30T20:00:00.000Z',
+    );
+  });
+
+  it('round-trips through zonedDateParts', () => {
+    const utc = zonedToUtc({ year: 2026, month: 10, day: 19, hour: 8 });
+    expect(zonedDateParts(utc)).toMatchObject({ year: 2026, month: 10, day: 19, weekday: 1 });
   });
 });

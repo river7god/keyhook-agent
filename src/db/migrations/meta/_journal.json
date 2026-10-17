@@ -15,6 +15,13 @@
       "when": 1792154870029,
       "tag": "0001_audit_log_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792201558356,
+      "tag": "0002_m1_llm_calls_availability_selection",
+      "breakpoints": true
     }
   ]
 }

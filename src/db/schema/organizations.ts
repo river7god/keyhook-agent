@@ -1,5 +1,9 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, integer, pgTable, text, unique } from 'drizzle-orm/pg-core';
+import { boolean, check, integer, jsonb, pgTable, text, unique } from 'drizzle-orm/pg-core';
+import {
+  DEFAULT_TRADIE_SELECTION,
+  type TradieSelectionConfig,
+} from '@/domain/tradie-selection-config';
 import { id, organizationId, timestamps } from './columns';
 
 export const organizations = pgTable(
@@ -11,6 +15,11 @@ export const organizations = pgTable(
     timezone: text().notNull().default('Pacific/Auckland'),
     /** Fallback PM auto-approval limit when a PM has no personal limit. */
     defaultPmAutoApproveLimitCents: integer().notNull(),
+    /** Validated with tradieSelectionConfigSchema on read. */
+    tradieSelection: jsonb()
+      .$type<TradieSelectionConfig>()
+      .notNull()
+      .default(DEFAULT_TRADIE_SELECTION),
     ...timestamps,
   },
   (t) => [

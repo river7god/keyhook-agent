@@ -10,3 +10,5 @@ export * from './approvals';
 export * from './audit-log';
 export * from './follow-ups';
 export * from './idempotency-keys';
+export * from './llm-calls';
+export * from './tradie-availability';
