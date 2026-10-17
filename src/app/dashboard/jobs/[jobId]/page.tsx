@@ -6,7 +6,10 @@ import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
 import { isDomainError } from '@/domain/errors';
+import { getAgentActivity } from '@/domain/agent-activity';
 import { getJob } from '@/domain/jobs';
+import { AgentActivityBadge } from '@/app/_lib/agent-activity-badge';
+import { AutoRefresh } from '@/app/_lib/auto-refresh';
 import { getJobTimeline, type TimelineItem } from '@/domain/timeline';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
@@ -24,14 +27,15 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
       throw err;
     });
     if (!job) return null;
-    const [ctx, timeline] = await Promise.all([
+    const [ctx, timeline, activity] = await Promise.all([
       loadJobContext(tx, job),
       getJobTimeline(tx, user.organizationId, job.id),
+      getAgentActivity(tx, job, new Date()),
     ]);
-    return { job, ctx, timeline };
+    return { job, ctx, timeline, activity };
   });
   if (!data) notFound();
-  const { job, ctx, timeline } = data;
+  const { job, ctx, timeline, activity } = data;
   const escalation =
     job.state === 'ESCALATED'
       ? [...timeline.items]
@@ -51,6 +55,12 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
         {ctx.property.address}, {ctx.property.suburb}
       </p>
 
+      <AutoRefresh active={activity.working} />
+      {activity.working && (
+        <p>
+          <AgentActivityBadge activity={activity} />
+        </p>
+      )}
       <div className="grid-2">
         <section>
           {escalation && (

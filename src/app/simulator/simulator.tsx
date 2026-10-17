@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AgentActivityBadge, type ActivityView } from '../_lib/agent-activity-badge';
 
 interface Persona {
   id: string;
@@ -43,6 +44,7 @@ interface Snapshot {
     outcome: string;
     createdAt: string;
   }[];
+  activity: ActivityView;
   llmCostUsdMicros: number;
 }
 
@@ -62,6 +64,9 @@ export function Simulator({ personas }: Props) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  /** Shown immediately on send, until the next snapshot includes the real message. */
+  const [pending, setPending] = useState<{ body: string; at: string } | null>(null);
+  const [refresh, setRefresh] = useState(0);
 
   // Bumped after each send so the open-jobs list refetches.
   const [jobsVersion, setJobsVersion] = useState(0);
@@ -96,7 +101,7 @@ export function Simulator({ personas }: Props) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [jobId]);
+  }, [jobId, refresh]);
 
   // Only show a snapshot for the currently selected job.
   const shown = snapshot && snapshot.job.id === jobId ? snapshot : null;
@@ -110,6 +115,7 @@ export function Simulator({ personas }: Props) {
   const send = async () => {
     setSending(true);
     setError(null);
+    setPending({ body: text, at: new Date().toISOString() });
     try {
       const res = await fetch('/api/v1/simulator/messages', {
         method: 'POST',
@@ -121,10 +127,12 @@ export function Simulator({ personas }: Props) {
       setText('');
       setJobId(data.jobId);
       setJobsVersion((v) => v + 1);
+      setRefresh((v) => v + 1); // fetch the snapshot now, not on the next 2s tick
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
+      setPending(null);
     }
   };
 
@@ -209,7 +217,32 @@ export function Simulator({ personas }: Props) {
 
       <section>
         {!shown ? (
-          <p style={{ color: '#777' }}>Send a message or pick a job to see the conversation.</p>
+          pending ? (
+            <div>
+              <p
+                className="pending-msg"
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  background: '#eef3ff',
+                  marginRight: '15%',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {pending.body}
+              </p>
+              <AgentActivityBadge
+                activity={{
+                  working: true,
+                  waitingSince: pending.at,
+                  lastStep: null,
+                  stalled: false,
+                }}
+              />
+            </div>
+          ) : (
+            <p style={{ color: '#777' }}>Send a message or pick a job to see the conversation.</p>
+          )
         ) : (
           <>
             <h2 style={{ marginTop: 0 }}>{shown.job.title}</h2>
@@ -250,6 +283,36 @@ export function Simulator({ personas }: Props) {
                   <div>{m.body}</div>
                 </li>
               ))}
+              {pending && (
+                <li
+                  className="pending-msg"
+                  style={{
+                    margin: '8px 0',
+                    padding: 10,
+                    borderRadius: 8,
+                    background: '#eef3ff',
+                    marginRight: '15%',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  <small style={{ color: '#555' }}>{senderType} → agent · sending…</small>
+                  <div>{pending.body}</div>
+                </li>
+              )}
+              <li style={{ margin: '8px 0' }}>
+                <AgentActivityBadge
+                  activity={
+                    sending
+                      ? {
+                          working: true,
+                          waitingSince: pending?.at ?? null,
+                          lastStep: null,
+                          stalled: false,
+                        }
+                      : shown.activity
+                  }
+                />
+              </li>
             </ol>
             <details>
               <summary>Audit trail ({shown.audit.length})</summary>

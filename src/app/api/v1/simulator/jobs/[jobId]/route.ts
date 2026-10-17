@@ -4,6 +4,7 @@ import { requireApiUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
 import { auditLog, llmCalls } from '@/db/schema';
+import { getAgentActivity } from '@/domain/agent-activity';
 import { getJob } from '@/domain/jobs';
 import { listJobMessages } from '@/domain/messages';
 import { ok, toErrorResponse } from '../../../_lib/respond';
@@ -38,7 +39,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ job
           .from(llmCalls)
           .where(and(eq(llmCalls.organizationId, org), eq(llmCalls.jobId, jobId))),
       ]);
-      return { job, messages, audit, llmCostUsdMicros: spend?.costUsdMicros ?? 0 };
+      const activity = await getAgentActivity(tx, job, new Date());
+      return { job, messages, audit, activity, llmCostUsdMicros: spend?.costUsdMicros ?? 0 };
     });
     return ok(snapshot);
   } catch (err) {
