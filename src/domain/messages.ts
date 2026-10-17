@@ -47,6 +47,8 @@ export async function queueOutbound(
     recipientId: string;
     body: string;
     idempotencyKey: string;
+    /** Defaults to the agent; a PM writing from the dashboard is recorded as the PM. */
+    sender?: { type: Extract<ActorType, 'agent' | 'pm'>; id: string | null };
   },
 ): Promise<Message> {
   await tx
@@ -55,7 +57,8 @@ export async function queueOutbound(
       organizationId: args.organizationId,
       jobId: args.jobId,
       direction: 'outbound',
-      senderType: 'agent',
+      senderType: args.sender?.type ?? 'agent',
+      senderId: args.sender?.id ?? null,
       recipientType: args.recipientType,
       recipientId: args.recipientId,
       body: args.body,

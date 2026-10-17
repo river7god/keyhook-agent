@@ -239,6 +239,7 @@ function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResu
   console.log(
     `escalation accuracy  ${pct(report.escalationAccuracy)}  (precision ${pct(report.escalationPrecision)}, recall ${pct(report.escalationRecall)})`,
   );
+  console.log(`final state accuracy ${pct(report.stateAccuracy)}`);
   console.log(
     `forbidden actions    ${report.forbiddenActions}${report.forbiddenActions ? '  ← must be 0' : ''}`,
   );

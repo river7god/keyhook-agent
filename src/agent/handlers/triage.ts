@@ -18,12 +18,28 @@ import {
   type StepResult,
 } from './shared';
 
-/** RECEIVED: first triage. */
-export function handleReceived(
+/**
+ * RECEIVED: first triage. A job a PM handed back after a triage escalation is not re-triaged:
+ * the PM's review covers the original flags, so the recorded (or PM-corrected) urgency/trade
+ * are accepted. A new tenant message is still triaged normally.
+ */
+export async function handleReceived(
   deps: AgentDeps,
   job: Job,
   msg: Message | null,
 ): Promise<StepResult> {
+  if (job.pmReviewedAt && job.urgency && job.trade && !msg) {
+    await deps.db.transaction((tx) =>
+      transitionJob(tx, {
+        organizationId: job.organizationId,
+        jobId: job.id,
+        to: 'TRIAGED',
+        actor: { type: 'agent' },
+        reason: `Triage accepted by PM review (${job.urgency ?? ''} ${job.trade ?? ''})`,
+      }),
+    );
+    return 'continue';
+  }
   return triage(deps, job, msg);
 }
 

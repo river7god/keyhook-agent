@@ -1,6 +1,6 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
-import { jobs, properties, tenants, tradieAvailability } from '@/db/schema';
+import { jobs, messages, properties, tenants, tradieAvailability } from '@/db/schema';
 import { writeAudit } from '@/domain/audit';
 import { DomainError } from '@/domain/errors';
 import { getJob, transitionJob } from '@/domain/jobs';
@@ -171,13 +171,30 @@ export const escalateTool = defineTool({
         idempotencyKey: `${ctx.idempotencyScope}:escalate:pm`,
       });
     }
+    // Evidence: the most recent inbound messages, linked from the dashboard timeline.
+    const evidence = await ctx.db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.organizationId, ctx.organizationId),
+          eq(messages.jobId, ctx.jobId),
+          eq(messages.direction, 'inbound'),
+        ),
+      )
+      .orderBy(desc(messages.createdAt))
+      .limit(5);
     await writeAudit(ctx.db, {
       organizationId: ctx.organizationId,
       jobId: ctx.jobId,
       actorType: 'agent',
       action: 'job.escalation_package',
       reason: input.reason,
-      output: { ...input, escalatedFrom: job.stateBeforeEscalation },
+      output: {
+        ...input,
+        escalatedFrom: job.stateBeforeEscalation,
+        evidenceMessageIds: evidence.map((e) => e.id),
+      },
       outcome: 'ok',
     });
     return { state: job.state, escalatedFrom: job.stateBeforeEscalation };

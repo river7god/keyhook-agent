@@ -1,51 +1,110 @@
+import Link from 'next/link';
+import { z } from 'zod';
 import { getDb } from '@/db/client';
-import { listJobs } from '@/domain/jobs';
+import { urgencyEnum } from '@/db/schema';
+import { listDashboardJobs, stateCounts, type Bucket } from '@/domain/dashboard';
 import { resolveDevOrganization } from '@/domain/organizations';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
-/** M0 placeholder: proves DB wiring. The real dashboard (queue, timeline, audit) is M3. */
-export default async function DashboardPage() {
+const query = z.object({
+  bucket: z.enum(['needs_pm', 'active', 'done']).catch('needs_pm'),
+  urgency: z.enum(urgencyEnum.enumValues).optional().catch(undefined),
+});
+
+const TABS: { bucket: Bucket; label: string }[] = [
+  { bucket: 'needs_pm', label: 'Needs you' },
+  { bucket: 'active', label: 'Agent working' },
+  { bucket: 'done', label: 'Done' },
+];
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const q = query.parse(await searchParams);
   const db = getDb();
   const org = await resolveDevOrganization(db);
-  const jobs = await listJobs(db, org.id);
+  const [counts, jobs] = await Promise.all([
+    stateCounts(db, org.id),
+    listDashboardJobs(db, org.id, { bucket: q.bucket, urgency: q.urgency ?? null }),
+  ]);
 
   return (
-    <main>
-      <h1>{org.name} — jobs</h1>
+    <main className="page">
+      <h1>Jobs</h1>
+      <p className="sub">{org.name}</p>
+
+      <div className="tabs" role="navigation" aria-label="Job buckets">
+        {TABS.map((t) => (
+          <Link
+            key={t.bucket}
+            className="tab"
+            href={`/dashboard?bucket=${t.bucket}`}
+            aria-current={q.bucket === t.bucket ? 'page' : undefined}
+          >
+            {t.label}
+            <span className="count">{counts[t.bucket]}</span>
+          </Link>
+        ))}
+        <span style={{ flex: 1 }} />
+        {(['emergency', 'urgent', 'routine'] as const).map((u) => (
+          <Link
+            key={u}
+            className="tab"
+            href={
+              q.urgency === u
+                ? `/dashboard?bucket=${q.bucket}`
+                : `/dashboard?bucket=${q.bucket}&urgency=${u}`
+            }
+            aria-current={q.urgency === u ? 'page' : undefined}
+          >
+            {u}
+          </Link>
+        ))}
+      </div>
+
       {jobs.length === 0 ? (
-        <p>No jobs yet.</p>
+        <p className="card">
+          {q.bucket === 'needs_pm' ? 'Nothing needs you right now.' : 'No jobs here.'}
+        </p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Created (NZT)</th>
-              <th>Property</th>
-              <th>Title</th>
-              <th>State</th>
-              <th>Urgency</th>
-              <th>Trade</th>
-              <th>Estimate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => (
-              <tr key={job.id}>
-                <td>{formatNzDateTime(job.createdAt)}</td>
-                <td>
-                  {job.address}, {job.suburb}
-                </td>
-                <td>{job.title}</td>
-                <td>{job.state}</td>
-                <td>{job.urgency ?? '—'}</td>
-                <td>{job.trade ?? '—'}</td>
-                <td>{job.estimateCents === null ? '—' : formatNzd(job.estimateCents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        jobs.map((j) => (
+          <Link key={j.id} href={`/dashboard/jobs/${j.id}`} className="card job-row">
+            <div>
+              <div>
+                <strong>{j.title}</strong>{' '}
+                <span className={`badge ${j.state}`}>{j.state.replaceAll('_', ' ')}</span>{' '}
+                {j.urgency && <span className={`badge ${j.urgency}`}>{j.urgency}</span>}
+              </div>
+              <div className="meta">
+                {j.address}, {j.suburb}
+                {j.trade && ` · ${j.trade}`}
+                {j.tradie && ` · ${j.tradie}`}
+                {j.estimateCents !== null && ` · ${formatNzd(j.estimateCents)}`}
+              </div>
+              {j.escalationReason && (
+                <div style={{ marginTop: 6 }}>
+                  <span className="error">Why: {j.escalationReason}</span>
+                  {j.recommendation && <div className="recommendation">→ {j.recommendation}</div>}
+                </div>
+              )}
+            </div>
+            <div className="meta" style={{ textAlign: 'right' }}>
+              <div>Updated {formatNzDateTime(j.updatedAt)}</div>
+              {j.scheduledStart && <div>Visit {formatNzDateTime(j.scheduledStart)}</div>}
+              {j.nextFollowUpAt && (
+                <div>
+                  Next nudge {formatNzDateTime(j.nextFollowUpAt)} (
+                  {j.nextFollowUpKind?.replace('_', ' ')})
+                </div>
+              )}
+            </div>
+          </Link>
+        ))
       )}
     </main>
   );

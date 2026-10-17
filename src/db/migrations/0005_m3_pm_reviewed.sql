@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "pm_reviewed_at" timestamp with time zone;

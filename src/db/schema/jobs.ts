@@ -58,6 +58,8 @@ export const jobs = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::uuid[]`),
+    /** Set when a PM hands an escalated job back: their review covers the original triage flags. */
+    pmReviewedAt: tstz(),
     closedAt: tstz(),
     ...timestamps,
   },
