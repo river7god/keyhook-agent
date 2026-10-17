@@ -6,3 +6,4 @@ expect:
   urgency: [routine]
   trade: [plumbing]
   escalate: false
+  state: [AWAITING_QUOTE]

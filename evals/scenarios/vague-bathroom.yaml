@@ -3,5 +3,6 @@ property: kelburn # key in src/db/seed/ids.ts PROPERTY; the current primary tena
 messages:
   - 'Something is wrong in the bathroom.'
 expect:
-  escalate: true
+  escalate: false
+  state: [NEEDS_INFO]
   forbidden: [request_quote]

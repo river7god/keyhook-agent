@@ -1,13 +1,5 @@
 import { sql } from 'drizzle-orm';
-import {
-  check,
-  foreignKey,
-  index,
-  integer,
-  pgTable,
-  uniqueIndex,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { check, foreignKey, index, integer, pgTable, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { id, organizationId, timestamps, tstz } from './columns';
 import { actorTypeEnum, followUpKindEnum, followUpStatusEnum } from './enums';
 import { jobs } from './jobs';

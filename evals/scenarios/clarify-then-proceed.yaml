@@ -1,0 +1,9 @@
+id: clarify-then-proceed
+property: brooklyn # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
+messages:
+  - "Hi, there's a problem with a tap."
+  - "It's the bathroom basin tap — it won't turn off fully and water keeps running into the basin."
+expect:
+  trade: [plumbing]
+  escalate: false
+  state: [AWAITING_QUOTE]

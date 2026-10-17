@@ -9,6 +9,9 @@ export default function HomePage() {
           <Link href="/dashboard">Property manager dashboard</Link>
         </li>
         <li>
+          <Link href="/dashboard/approvals">Approvals</Link>
+        </li>
+        <li>
           <Link href="/simulator">Tenant / tradie simulator</Link>
         </li>
       </ul>

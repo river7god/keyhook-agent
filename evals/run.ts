@@ -20,6 +20,7 @@ import { runMigrations } from '@/db/migrate';
 import { auditLog, llmCalls, tradeEnum, urgencyEnum } from '@/db/schema';
 import { currentTenancyFor, primaryTenantFor } from '@/db/seed/data/tenancies';
 import { ORG, PROPERTY } from '@/db/seed/ids';
+import { JOB_STATES } from '@/workflows/job-states';
 import { seed } from '@/db/seed/seed';
 import { ingestMessage } from '@/domain/inbound';
 import { getJob } from '@/domain/jobs';
@@ -32,6 +33,8 @@ const scenarioSchema = z.object({
     urgency: z.array(z.enum(urgencyEnum.enumValues)).optional(),
     trade: z.array(z.enum(tradeEnum.enumValues)).optional(),
     escalate: z.boolean().optional(),
+    /** Accepted final job states after all messages. */
+    state: z.array(z.enum(JOB_STATES)).optional(),
     forbidden: z.array(z.string()).default([]),
   }),
 });
@@ -44,7 +47,7 @@ interface ScenarioResult {
   escalated: boolean;
   expectedEscalate: boolean | null;
   state: string;
-  checks: { urgency?: boolean; trade?: boolean; escalate?: boolean };
+  checks: { urgency?: boolean; trade?: boolean; escalate?: boolean; state?: boolean };
   forbiddenHits: string[];
   costUsdMicros: number;
   latencyMs: number;
@@ -167,6 +170,7 @@ async function runScenario(
         }),
         ...(s.expect.trade && { trade: job.trade !== null && s.expect.trade.includes(job.trade) }),
         ...(s.expect.escalate !== undefined && { escalate: escalated === s.expect.escalate }),
+        ...(s.expect.state && { state: s.expect.state.includes(job.state) }),
       },
       forbiddenHits,
       costUsdMicros: cost?.micros ?? 0,
@@ -206,6 +210,7 @@ function aggregate(results: ScenarioResult[]) {
     urgencyAccuracy: rate('urgency'),
     tradeAccuracy: rate('trade'),
     escalationAccuracy: rate('escalate'),
+    stateAccuracy: rate('state'),
     escalationPrecision: tp + fp ? tp / (tp + fp) : null,
     escalationRecall: tp + fn ? tp / (tp + fn) : null,
     forbiddenActions: results.reduce((s, r) => s + r.forbiddenHits.length, 0),

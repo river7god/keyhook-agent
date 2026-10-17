@@ -15,3 +15,8 @@ export const systemPing = eventType('system/ping.requested', {
 export const jobAdvanceRequested = eventType('job/advance.requested', {
   schema: z.object({ ...orgScoped, jobId: z.uuid(), messageId: z.uuid().nullable() }),
 });
+
+/** A follow-up is due (emitted by the sweeper; event id dedupes repeats). */
+export const followUpDue = eventType('followup/due', {
+  schema: z.object({ ...orgScoped, jobId: z.uuid(), followUpId: z.uuid() }),
+});
