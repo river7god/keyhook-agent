@@ -161,3 +161,21 @@ PM）。先以 PM 身份写入 PM 的决定，再以 PM 为执行者运行 `appr
 修改操作都通过经 Zod 校验的 `/api/v1` 路由，调用与 agent 相同的服务，并以 PM 为执行者写入审计。使用带设计
 token 的纯 CSS，暂不引入 UI 库。
 **理由：** 保持 API 优先，又不必重复实现读取接口；所有写操作只有一条代码路径。
+
+### 2026-10-17 — 通过 OpenTelemetry/OTLP 追踪；Langfuse 作为可配置的后端
+**决策：** 仅当设置了 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`（或 `OTEL_EXPORTER_OTLP_ENDPOINT`）时，应用才注册
+OpenTelemetry tracer provider，并通过 OTLP/HTTP 导出——把它指向 Langfuse 的 OTLP 端点即可接入 Langfuse，无需其 SDK。
+每次 Claude 请求生成一个 `gen_ai.*` span（模型、token、成本、步骤、effort）；`job.advance` 为根 span；审计行保存
+当前 trace id。span 只含元数据，不含提示词文本。暂不使用 Anthropic SDK 自带的追踪：带该功能的版本发布还不满两周。
+**理由：** 标准化埋点、后端可替换、不依赖厂商 SDK；默认不把租客消息内容发送到追踪后端（个人信息）。
+
+### 2026-10-17 — 评测集形态与运行频率
+**决策：** 60 个 YAML 场景（spec 要求 ≥50），支持多步流程和模拟时间。真实运行：本地 `pnpm eval`，以及按需 + 每晚
+运行的 GitHub workflow（需要 `ANTHROPIC_API_KEY` secret）。每次 push 运行不需要 key 的检查：场景校验，以及用脚本化
+LLM 测试 runner 的机制。出现禁止操作或场景错误时运行失败。
+**理由：** 真实评测要花钱且结果不确定；每次 push 的 CI 必须免费且稳定。
+
+### 2026-10-17 — 一条消息报多个问题（提议——待确认）
+**决策：** 如果一条消息报告的问题需要不同工种或分开上门，agent 升级，由 PM 拆分成多个工单；同一位师傅能处理的
+多个小问题仍为一个工单。
+**理由：** 只处理其中一个问题会悄悄漏掉另一个。

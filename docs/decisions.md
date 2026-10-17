@@ -188,3 +188,25 @@ client data fetching for reads). Every PM mutation goes through a Zod-validated 
 that calls the same services the agent uses, audited with the PM as actor. Plain CSS with design
 tokens; no UI library yet.
 **Reason:** API-first without duplicating read endpoints; one code path for every write.
+
+### 2026-10-17 — Tracing via OpenTelemetry/OTLP; Langfuse is a configured backend
+**Decision:** The app registers an OpenTelemetry tracer provider only when
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (or `OTEL_EXPORTER_OTLP_ENDPOINT`) is set and exports over
+OTLP/HTTP — pointing it at Langfuse's OTLP endpoint gives Langfuse tracing without its SDK. Each
+Claude request gets a `gen_ai.*` span (model, tokens, cost, step, effort); `job.advance` is the
+root span; audit rows store the active trace id. Spans carry metadata only, no prompt text.
+The Anthropic SDK's built-in tracing is not used yet: no release with it is two weeks old.
+**Reason:** Standard instrumentation, swappable backend, no vendor SDK; tenant message content
+stays out of the tracing backend by default (PII).
+
+### 2026-10-17 — Eval suite shape and cadence
+**Decision:** 60 YAML scenarios (spec requires ≥50) with multi-step flows and simulated time.
+Live runs: `pnpm eval` locally, and a GitHub workflow on demand + nightly (needs the
+`ANTHROPIC_API_KEY` secret). Every push runs the key-free checks: scenario validation and the
+runner's mechanics against the scripted LLM. Forbidden actions or scenario errors fail the run.
+**Reason:** Live evals cost money and are non-deterministic; per-push CI must stay free and stable.
+
+### 2026-10-17 — Multi-issue requests (proposed — confirm)
+**Decision:** If one message reports issues needing different trades or separate visits, the agent
+escalates so the PM can split them into jobs; several items for the same tradie stay one job.
+**Reason:** Silently handling only one issue would drop the other.

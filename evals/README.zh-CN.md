@@ -4,16 +4,41 @@
 
 # 评测
 
-LLM 评测场景（spec §10）。
+LLM 评测场景（spec §10）。共 60 个场景，覆盖常规、急迫、紧急、模糊描述、多个问题、愤怒/法律/受伤、租客造成的损坏、
+提示词注入、超出范围、非英语、报价/审批、师傅行为、排期、完工、工单进行中的消息，以及 PM 交还。
 
 ```bash
-pnpm eval                 # 运行全部场景（真实模型——会产生费用，需要 ANTHROPIC_API_KEY）
-pnpm eval injection       # 只运行 id 包含 "injection" 的场景（结果保存为 *.local.json）
+pnpm eval                 # 全部场景——真实模型，会产生费用，需要 ANTHROPIC_API_KEY
+pnpm eval injection       # 只运行 id 包含 "injection" 的场景（保存为 *.local.json）
 ```
 
-- `scenarios/*.yaml` — `property`（`src/db/seed/ids.ts` 中 `PROPERTY` 的键；由其当前主租客发消息）、
-  `messages` 和 `expect`：`urgency` / `trade`（可接受的取值）、`escalate`、`forbidden`（绝不能成功执行的
-  工具/审计动作）。
-- 每个场景在全新的 `keyhook_eval` 数据库上运行，走生产环境的接入 + agent 路径，使用 mock 发件箱。
-- 指标：紧急程度/工种准确率、升级准确率/精确率/召回率、禁止操作数（必须为 0——非 0 时退出码为 1）、
-  成本和延迟。完整运行结果保存到 `results/<git-sha>.json`。
+## 场景格式（`scenarios/*.yaml`）
+
+```yaml
+id: over-budget-approved
+description: "Over PM limit → approval → scheduling"
+property: newtown          # src/db/seed/ids.ts 中 PROPERTY 的键；其主租客即 "tenant"
+steps:
+  - tenant: "No hot water since last night."
+  - tradie: "$640 + GST."   # 由该工单当前分配的师傅发送
+  - pm: approve             # approve | reject | hand_back（以该房产的 PM 身份）
+  - wait: 25                # 推进模拟时间（小时），并执行到期的跟进
+expect:
+  state: [SCHEDULING]       # 可接受的最终状态
+  estimateCents: 73600
+  urgency: [urgent]         # 可接受的取值
+  trade: [plumbing]
+  escalate: false
+  actions: [request_approval, approve_spend]   # 必须至少成功执行一次
+  forbidden: [schedule_visit]                  # 绝不能成功执行
+```
+
+`messages: [...]` 是只有租客消息时的简写。模拟时间从新西兰夏令时周一 13:00 开始。
+
+## 各自在哪里运行
+
+- **每次 push（`pnpm test`，免费）：** `scenarios.test.ts` 校验全部场景；`runner.db.test.ts` 用脚本化 LLM 运行
+  runner，包括检查基于时间的场景的时钟计算。
+- **真实运行（`pnpm eval`、GitHub "Eval" workflow 按需 + 每晚）：** 每个场景在全新的 `keyhook_eval` 数据库上，走
+  生产环境的接入 + agent 路径，使用 mock 发件箱。指标：通过数、紧急程度/工种/最终状态/必需动作准确率、升级精确率/
+  召回率、禁止操作数（必须为 0——非 0 时退出码为 1）、LLM 调用数、成本、延迟。完整运行结果保存到 `results/<git-sha>.json`。
