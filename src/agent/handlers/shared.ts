@@ -104,7 +104,7 @@ export async function alreadyProcessed(db: Db, msg: Message): Promise<boolean> {
  * party we were waiting on also cancels the pending follow-up (a fresh one is scheduled after).
  */
 export async function markProcessed(tx: DbOrTx, msg: Message): Promise<void> {
-  await withIdempotency(
+  const { replayed } = await withIdempotency(
     tx,
     {
       organizationId: msg.organizationId,
@@ -114,5 +114,14 @@ export async function markProcessed(tx: DbOrTx, msg: Message): Promise<void> {
     },
     () => Promise.resolve({ processed: true }),
   );
+  // Another run processed this message concurrently: abort this transaction (no double effects).
+  if (replayed) throw new DuplicateInboundError(msg.id);
   if (msg.jobId) await satisfyFollowUps(tx, msg.organizationId, msg.jobId);
+}
+
+export class DuplicateInboundError extends Error {
+  constructor(readonly messageId: string) {
+    super(`Inbound message ${messageId} was already processed`);
+    this.name = 'DuplicateInboundError';
+  }
 }

@@ -1,7 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { LlmClient, StructuredRequest, ToolTurnRequest } from '@/agent/llm';
 
-type StructuredHandler = (req: StructuredRequest<unknown>) => unknown;
+type StructuredHandler = (req: StructuredRequest<unknown>) => unknown; // may return a Promise
 type ToolTurnHandler = (req: ToolTurnRequest, turn: number) => Anthropic.Beta.BetaContentBlock[];
 
 /**
@@ -22,7 +22,10 @@ export class ScriptedLlm implements LlmClient {
     this.calls.push({ step: req.ctx.step, kind: 'structured' });
     const handler = this.structuredHandlers[req.ctx.step];
     if (!handler) throw new Error(`ScriptedLlm: no structured handler for step "${req.ctx.step}"`);
-    return Promise.resolve(req.schema.parse(handler(req as StructuredRequest<unknown>)));
+    // Handlers may be async (e.g. to hold two concurrent runs at a barrier).
+    return Promise.resolve(handler(req as StructuredRequest<unknown>)).then((v) =>
+      req.schema.parse(v),
+    );
   }
 
   toolTurn(req: ToolTurnRequest): Promise<Anthropic.Beta.BetaMessage> {

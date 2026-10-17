@@ -8,7 +8,14 @@ import { withSpan } from '@/lib/telemetry';
 import { handleGeneralMessage } from './handlers/general';
 import { handleQuoteReply, handleTriaged } from './handlers/quote';
 import { handleOfferSlots, handleSlotReply } from './handlers/scheduling';
-import { alreadyProcessed, type AgentDeps, type StepResult } from './handlers/shared';
+import { escalateOnAgentFailure } from './failures';
+import {
+  alreadyProcessed,
+  DuplicateInboundError,
+  type AgentDeps,
+  type StepResult,
+} from './handlers/shared';
+import { LlmOutputError, LlmRefusalError } from './llm';
 import { handleClarifyReply, handleReceived } from './handlers/triage';
 import { handleConfirmationReply, handleProgressReply } from './handlers/visit';
 
@@ -64,7 +71,24 @@ async function advance(
     const step = pickHandler(job, pending);
     if (!step) break;
     handled.push(step.name);
-    const result = await step.run(deps, job, pending);
+    let result: StepResult;
+    try {
+      result = await step.run(deps, job, pending);
+    } catch (err) {
+      if (err instanceof DuplicateInboundError) break; // a concurrent run already handled it
+      if (err instanceof LlmRefusalError || err instanceof LlmOutputError) {
+        // Retrying won't change a refusal or a malformed answer: hand to a PM now.
+        await escalateOnAgentFailure(deps.db, {
+          organizationId: args.organizationId,
+          jobId: args.jobId,
+          reason: err.message,
+          now: deps.now(),
+        });
+        handled.push('escalated_on_failure');
+        break;
+      }
+      throw err;
+    }
     pending = null; // an inbound message is consumed by at most one handler
     if (result === 'wait') break;
   }

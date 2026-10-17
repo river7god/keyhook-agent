@@ -4,6 +4,7 @@ import { ClaudeLlm } from '@/agent/llm';
 import { getDb } from '@/db/client';
 import { listDueFollowUps } from '@/domain/follow-ups';
 import { inngest } from '../client';
+import { escalateAfterRetries } from './on-failure';
 import { perJobConcurrency } from '../concurrency';
 import { followUpDue } from '../events';
 
@@ -41,7 +42,13 @@ export const followUpSweeper = inngest.createFunction(
 );
 
 export const followUpHandler = inngest.createFunction(
-  { id: 'follow-up-handle', triggers: [followUpDue], concurrency: perJobConcurrency, retries: 3 },
+  {
+    id: 'follow-up-handle',
+    triggers: [followUpDue],
+    concurrency: perJobConcurrency,
+    retries: 3,
+    onFailure: escalateAfterRetries,
+  },
   async ({ event, step }) =>
     step.run('handle', () => {
       const db = getDb();

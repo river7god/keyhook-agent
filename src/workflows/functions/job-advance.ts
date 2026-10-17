@@ -2,6 +2,7 @@ import { advanceJob } from '@/agent/advance';
 import { ClaudeLlm } from '@/agent/llm';
 import { getDb } from '@/db/client';
 import { inngest } from '../client';
+import { escalateAfterRetries } from './on-failure';
 import { perJobConcurrency } from '../concurrency';
 import { jobAdvanceRequested } from '../events';
 
@@ -16,6 +17,7 @@ export const jobAdvance = inngest.createFunction(
     triggers: [jobAdvanceRequested],
     concurrency: perJobConcurrency,
     retries: 3,
+    onFailure: escalateAfterRetries,
   },
   async ({ event, step }) => {
     return step.run('advance', () => {
