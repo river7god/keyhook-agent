@@ -83,6 +83,18 @@ interface ScenarioResult {
   unpricedCalls: number;
   costUsdMicros: number;
   stoppedEarly?: string;
+  /** Why the agent decided what it did — for reading failures without re-running. */
+  diagnostics?: {
+    escalationReason?: string;
+    triage?: {
+      confidence: number;
+      needsMoreInfo: boolean;
+      flags: string[];
+      decision: string;
+      reasons: string[];
+    };
+    lastAudit?: string[];
+  };
   latencyMs: number;
   error?: string;
 }
@@ -115,7 +127,9 @@ async function main() {
 
   const includeUnreviewed = args.includes('--include-unreviewed');
   const scenarios = loadScenarios().filter(
-    (s) => (!filter || s.id.includes(filter)) && (s.reviewed || includeUnreviewed),
+    (s) =>
+      (!filter || filter.split(',').some((f) => s.id.includes(f.trim()))) &&
+      (s.reviewed || includeUnreviewed),
   );
   const { db, close } = createDb(evalUrl, { max: 4 });
   const results: ScenarioResult[] = [];
@@ -306,6 +320,7 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
     .where(eq(llmCalls.jobId, jobId));
   const e = s.expect;
   const escalated = job.state === 'ESCALATED';
+  const diagnostics = await diagnose(db, jobId);
   const missingActions = e.actions.filter((a) => !succeeded.has(a));
   return {
     id: s.id,
@@ -327,7 +342,50 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
     llmCalls: usage?.calls ?? 0,
     unpricedCalls: usage?.unpriced ?? 0,
     costUsdMicros: usage?.micros ?? 0,
+    diagnostics,
     latencyMs: Date.now() - started,
+  };
+}
+
+async function diagnose(
+  db: Db,
+  jobId: string,
+): Promise<NonNullable<ScenarioResult['diagnostics']>> {
+  const rows = await db
+    .select({
+      action: auditLog.action,
+      reason: auditLog.reason,
+      outcome: auditLog.outcome,
+      output: auditLog.output,
+    })
+    .from(auditLog)
+    .where(eq(auditLog.jobId, jobId))
+    .orderBy(auditLog.id);
+  const esc = rows.filter((r) => r.action === 'job.escalation_package').at(-1);
+  const tri = rows.find((r) => r.action === 'agent.triage')?.output as
+    | {
+        triage?: { confidence: number; needsMoreInfo: boolean; flags: Record<string, boolean> };
+        decision?: { action: string; reasons?: string[] };
+      }
+    | undefined;
+  return {
+    ...(esc?.reason ? { escalationReason: esc.reason } : {}),
+    ...(tri?.triage && tri.decision
+      ? {
+          triage: {
+            confidence: tri.triage.confidence,
+            needsMoreInfo: tri.triage.needsMoreInfo,
+            flags: Object.entries(tri.triage.flags)
+              .filter(([, v]) => v)
+              .map(([k]) => k),
+            decision: tri.decision.action,
+            reasons: tri.decision.reasons ?? [],
+          },
+        }
+      : {}),
+    lastAudit: rows
+      .slice(-4)
+      .map((r) => `${r.action}:${r.outcome}${r.reason ? ` (${r.reason.slice(0, 80)})` : ''}`),
   };
 }
 
@@ -380,10 +438,16 @@ function summarise(r: ScenarioResult) {
   ]
     .filter(Boolean)
     .join(' ');
+  const failed = Object.values(r.checks).includes(false) || r.forbiddenHits.length > 0;
+  const d = r.diagnostics;
+  const why =
+    failed && d
+      ? `\n    why: ${d.escalationReason ? `escalated: ${d.escalationReason}; ` : ''}${d.triage ? `triage conf ${d.triage.confidence} needsMoreInfo=${String(d.triage.needsMoreInfo)} flags=[${d.triage.flags.join(',')}] → ${d.triage.decision}` : ''}\n    last: ${(d.lastAudit ?? []).join(' | ')}`
+      : '';
   const cost = r.unpricedCalls
     ? `cost unknown (${r.unpricedCalls} unpriced calls)`
     : `$${(r.costUsdMicros / 1e6).toFixed(3)}`;
-  return `${r.state} (${r.urgency ?? '-'}/${r.trade ?? '-'}) ${marks} ${extra} ${cost}`;
+  return `${r.state} (${r.urgency ?? '-'}/${r.trade ?? '-'}) ${marks} ${extra} ${cost}${why}`;
 }
 
 function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResult[]) {

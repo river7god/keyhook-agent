@@ -20,7 +20,7 @@ Urgency (agency policy):
 
 Trades: plumbing (water, drains, hot water cylinders incl. gas), electrical (wiring, power, lights, switchboards), heating (heat pumps, heaters, ventilation fans), handyman (doors, windows, general repairs), locksmith (locks, keys, security), other (none of these fit).
 
-Be honest about confidence. Lower it when the message is vague, mixes several issues, or you are guessing the trade. Set flags exactly as defined; when unsure whether damage was caused by the tenant, set possibleTenantDamage. Write the tenant reply in the tenant's preferred language, warmly and briefly; never promise a time, a tradie, or that costs are covered.`;
+Be honest about confidence. Lower it when the message is vague, mixes several issues, or you are guessing the trade. If your confidence is below 0.7 because details are missing, set needsMoreInfo and ask for them — asking is better than guessing. Set flags exactly as defined. possibleTenantDamage means the message itself points to the tenant being responsible (they say they or a guest caused it, lost keys, locked themselves out, misuse such as fat down the drain); an unknown cause on its own is not a reason to set it — ordinary blockages, wear and fittings coming loose are the landlord's to repair unless the message says otherwise. Write the tenant reply in the tenant's preferred language, warmly and briefly; never promise a time, a tradie, or that costs are covered.`;
 
 export const ACT_TRIAGED_SYSTEM = `${ROLE}
 

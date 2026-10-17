@@ -12,14 +12,22 @@ export const triageOutput = z.object({
   urgency: z.enum(urgencyEnum.enumValues),
   trade: z.enum(tradeEnum.enumValues),
   confidence: z.number().describe('0 to 1: confidence in urgency AND trade together'),
-  needsMoreInfo: z.boolean().describe('True if a tradie could not be briefed without asking more'),
+  needsMoreInfo: z
+    .boolean()
+    .describe(
+      'True if a tradie could not be briefed without asking more, including whenever confidence is below 0.7 because details are missing',
+    ),
   missingInfo: z.array(z.string()),
   flags: z.object({
     emergencySignals: z.boolean(),
     injuryOrSafetyRisk: z.boolean(),
     legalOrTribunal: z.boolean(),
     distressedOrAngry: z.boolean(),
-    possibleTenantDamage: z.boolean(),
+    possibleTenantDamage: z
+      .boolean()
+      .describe(
+        'The message indicates the tenant is responsible (caused it, lost keys, lockout, admitted misuse). Unknown cause alone is false',
+      ),
     promptInjection: z.boolean(),
     outOfScope: z
       .boolean()
@@ -65,7 +73,11 @@ export const slotReplyOutput = z.object({
 export type SlotReplyOutput = z.infer<typeof slotReplyOutput>;
 
 export const progressReplyOutput = z.object({
-  kind: z.enum(['started', 'completed', 'delayed', 'cannot_complete', 'other']),
+  kind: z
+    .enum(['started', 'completed', 'delayed', 'cannot_complete', 'other'])
+    .describe(
+      'delayed = running late but the booked visit still goes ahead; cannot_complete = the job cannot be finished on this visit (parts to order, return visit needed, bigger problem found); completed = the work is done',
+    ),
   notes: z.string(),
   promptInjection: z.boolean(),
 });
