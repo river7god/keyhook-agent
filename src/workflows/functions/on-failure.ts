@@ -1,5 +1,6 @@
 import { escalateOnAgentFailure } from '@/agent/failures';
 import { getDb } from '@/db/client';
+import { reportError } from '@/lib/sentry';
 
 /**
  * Shared onFailure handler: after Inngest exhausts retries, escalate the job so a PM sees it.
@@ -13,6 +14,11 @@ export async function escalateAfterRetries({
   error: Error;
 }): Promise<{ escalated: boolean }> {
   const data = event.data.event.data as { organizationId?: string; jobId?: string };
+  await reportError(error, {
+    function: 'inngest',
+    ...(data.organizationId ? { organizationId: data.organizationId } : {}),
+    ...(data.jobId ? { jobId: data.jobId } : {}),
+  });
   if (!data.organizationId || !data.jobId) return { escalated: false };
   const escalated = await escalateOnAgentFailure(getDb(), {
     organizationId: data.organizationId,

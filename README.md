@@ -55,6 +55,7 @@ Sign in at http://localhost:3000 as `aroha@harbourcity.example.test` / `keyhook-
 - [`docs/spec.md`](docs/spec.md) — product spec
 - [`docs/agents.md`](docs/agents.md) — agent catalog and human/agent boundaries
 - [`docs/decisions.md`](docs/decisions.md) — architecture decisions
+- [`docs/deploy.md`](docs/deploy.md) — deploying to Vercel + Neon + Inngest Cloud
 - [`CLAUDE.md`](CLAUDE.md) — engineering rules (also used by Claude Code)
 
 Every document has a Simplified Chinese version alongside it (`*.zh-CN.md`); English is canonical.

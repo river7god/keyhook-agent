@@ -16,7 +16,12 @@ export function createDb(
   db: Db;
   close: () => Promise<void>;
 } {
-  const sql = postgres(url, { max: options.max ?? 10, onnotice: () => undefined });
+  const sql = postgres(url, {
+    max: options.max ?? 10,
+    onnotice: () => undefined,
+    // PgBouncer in transaction mode (e.g. Neon's "-pooler" host) can't use prepared statements.
+    prepare: !usesTransactionPooler(url),
+  });
   const db = drizzle(sql, { schema, casing: 'snake_case' });
   return { db, close: () => sql.end() };
 }
@@ -27,4 +32,9 @@ let appDb: Db | undefined;
 export function getDb(): Db {
   appDb ??= createDb(getEnv().DATABASE_URL).db;
   return appDb;
+}
+
+export function usesTransactionPooler(url: string): boolean {
+  if (process.env.DATABASE_PREPARE === 'false') return true;
+  return new URL(url).hostname.includes('-pooler.');
 }

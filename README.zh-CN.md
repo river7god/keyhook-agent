@@ -54,6 +54,7 @@ pnpm dev            # Next.js 于 :3000 + Inngest 开发服务器于 :8288
 - [`docs/spec.zh-CN.md`](docs/spec.zh-CN.md) — 产品规格
 - [`docs/agents.zh-CN.md`](docs/agents.zh-CN.md) — Agent 目录与人机边界
 - [`docs/decisions.zh-CN.md`](docs/decisions.zh-CN.md) — 架构决策
+- [`docs/deploy.zh-CN.md`](docs/deploy.zh-CN.md) — 部署到 Vercel + Neon + Inngest Cloud
 - [`CLAUDE.zh-CN.md`](CLAUDE.zh-CN.md) — 工程规则（参考译本；Claude Code 加载的是英文 `CLAUDE.md`）
 
 每份文档都有对应的英文版（`*.md`），以英文版为准。
