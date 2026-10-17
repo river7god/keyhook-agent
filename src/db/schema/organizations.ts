@@ -4,6 +4,7 @@ import {
   DEFAULT_TRADIE_SELECTION,
   type TradieSelectionConfig,
 } from '@/domain/tradie-selection-config';
+import { DEFAULT_WORKFLOW_POLICY, type WorkflowPolicy } from '@/domain/workflow-policy-config';
 import { id, organizationId, timestamps } from './columns';
 
 export const organizations = pgTable(
@@ -20,6 +21,8 @@ export const organizations = pgTable(
       .$type<TradieSelectionConfig>()
       .notNull()
       .default(DEFAULT_TRADIE_SELECTION),
+    /** Follow-up timings and retry limits; validated with workflowPolicySchema on read. */
+    workflowPolicy: jsonb().$type<WorkflowPolicy>().notNull().default(DEFAULT_WORKFLOW_POLICY),
     ...timestamps,
   },
   (t) => [

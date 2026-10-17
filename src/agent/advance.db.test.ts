@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  approvals,
   auditLog,
   idempotencyKeys,
   messages,
@@ -8,102 +9,14 @@ import {
   tradieAvailability,
 } from '@/db/schema';
 import { currentTenancyFor, primaryTenantFor } from '@/db/seed/data/tenancies';
-import { ORG, PROPERTY, TRADIE } from '@/db/seed/ids';
+import { PROPERTY, TRADIE } from '@/db/seed/ids';
 import { seed } from '@/db/seed/seed';
-import { ingestMessage } from '@/domain/inbound';
 import { getJob } from '@/domain/jobs';
 import { DEFAULT_TRADIE_SELECTION } from '@/domain/tradie-selection-config';
-import { closeTestDb, testDb } from '@/test/db';
+import { cleanTriage, db, deps, happyLlm, now, org, say, tenantId } from '@/test/agent-fixtures';
+import { closeTestDb } from '@/test/db';
 import { lastToolResult, ScriptedLlm, text, toolUse } from '@/test/fake-llm';
-import type { TriageOutput } from './schemas';
-import { advanceJob, type AgentDeps } from './advance';
-
-const db = testDb();
-const org = ORG.harbourCity;
-const now = new Date('2026-10-19T00:00:00Z'); // Monday 1pm NZDT
-const tenantId = primaryTenantFor(currentTenancyFor(PROPERTY.newtown).id);
-
-const cleanTriage: TriageOutput = {
-  title: 'No hot water',
-  summary: 'Tenant reports no hot water since this morning; gas cylinder suspected.',
-  urgency: 'urgent',
-  trade: 'plumbing',
-  confidence: 0.9,
-  needsMoreInfo: false,
-  missingInfo: [],
-  flags: {
-    emergencySignals: false,
-    injuryOrSafetyRisk: false,
-    legalOrTribunal: false,
-    distressedOrAngry: false,
-    possibleTenantDamage: false,
-    promptInjection: false,
-    outOfScope: false,
-    multipleIssues: false,
-  },
-  tenantReply: 'Thanks Ana — we have your request and are arranging a plumber.',
-};
-
-/** Happy-path script: picks the first selectable tradie, as a well-behaved model would. */
-function happyLlm(overrides: Partial<Record<string, (req: never) => unknown>> = {}) {
-  return new ScriptedLlm(
-    {
-      triage: () => cleanTriage,
-      'interpret.quote': () => ({
-        kind: 'quote',
-        amountNzd: '185',
-        gst: 'included',
-        notes: 'Thermocouple',
-        promptInjection: false,
-      }),
-      'interpret.slot': () => ({
-        chosenOption: 2,
-        noneSuitable: false,
-        accessNotes: 'Key under the mat',
-        promptInjection: false,
-      }),
-      'interpret.progress': () => ({
-        kind: 'completed',
-        notes: 'Replaced thermocouple',
-        promptInjection: false,
-      }),
-      'interpret.confirmation': () => ({ confirmed: 'yes', notes: '', promptInjection: false }),
-      'compose.tenant': () => ({ body: 'Message to tenant' }),
-      ...overrides,
-    },
-    {
-      'act.triaged': (req, turn) => {
-        if (turn === 0) return [toolUse('search_tradies', {})];
-        const ids = lastToolResult(req).selectableTradieIds as string[];
-        return [
-          toolUse('request_quote', {
-            tradieId: ids[0],
-            scope: 'Diagnose and repair gas hot water cylinder not heating',
-            messageToTradie: 'Hi, can you quote to fix a gas hot water cylinder in Newtown?',
-            selectionReason: 'Top ranked; has worked at this property',
-          }),
-        ];
-      },
-    },
-  );
-}
-
-const deps = (llm: ScriptedLlm): AgentDeps => ({ db, llm, now: () => now });
-
-async function say(
-  senderType: 'tenant' | 'tradie',
-  senderId: string,
-  body: string,
-  jobId?: string,
-) {
-  return ingestMessage(db, {
-    organizationId: org,
-    senderType,
-    senderId,
-    jobId: jobId ?? null,
-    body,
-  });
-}
+import { advanceJob } from './advance';
 
 beforeEach(async () => {
   await seed(db, now);
@@ -263,7 +176,7 @@ describe('advanceJob — escalation paths', () => {
     expect(toTenant).toHaveLength(0);
   });
 
-  it('escalates a quote above the effective PM limit', async () => {
+  it('sends a quote above the PM limit (within the owner limit) for PM approval', async () => {
     const llm = happyLlm({
       'interpret.quote': () => ({
         kind: 'quote',
@@ -278,10 +191,35 @@ describe('advanceJob — escalation paths', () => {
     const q = await say('tradie', TRADIE.capitalPlumbing, '$600 + GST', m.jobId);
     await advanceJob(deps(llm), { organizationId: org, jobId: m.jobId, messageId: q.messageId });
     const job = await getJob(db, org, m.jobId);
-    expect(job).toMatchObject({
+    expect(job).toMatchObject({ state: 'AWAITING_APPROVAL', estimateCents: 69_000 });
+    const [approval] = await db.select().from(approvals).where(eq(approvals.jobId, job.id));
+    expect(approval).toMatchObject({ status: 'pending', amountCents: 69_000 });
+    const pm = await db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.jobId, job.id), eq(messages.recipientType, 'pm')));
+    expect(pm[0]?.body).toContain('Approval needed');
+  });
+
+  it('escalates a quote above the owner limit (Miramar owner limit $200)', async () => {
+    const miramarTenant = primaryTenantFor(currentTenancyFor(PROPERTY.miramar).id);
+    const llm = happyLlm({
+      'interpret.quote': () => ({
+        kind: 'quote',
+        amountNzd: '250',
+        gst: 'included',
+        notes: '',
+        promptInjection: false,
+      }),
+    });
+    const m = await say('tenant', miramarTenant, 'Leak under the sink');
+    await advanceJob(deps(llm), { organizationId: org, jobId: m.jobId, messageId: m.messageId });
+    const assigned = (await getJob(db, org, m.jobId)).assignedTradieId as string;
+    const q = await say('tradie', assigned, '$250 incl GST', m.jobId);
+    await advanceJob(deps(llm), { organizationId: org, jobId: m.jobId, messageId: q.messageId });
+    expect(await getJob(db, org, m.jobId)).toMatchObject({
       state: 'ESCALATED',
       stateBeforeEscalation: 'AWAITING_QUOTE',
-      estimateCents: 69_000,
     });
   });
 

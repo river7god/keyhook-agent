@@ -41,6 +41,15 @@ export const followUpStatusEnum = pgEnum('follow_up_status', [
   'satisfied',
   'cancelled',
 ]);
+/** Which wait a follow-up belongs to; each maps to exactly one job state set (domain/follow-ups). */
+export const followUpKindEnum = pgEnum('follow_up_kind', [
+  'info_chase',
+  'quote_chase',
+  'approval_chase',
+  'slot_chase',
+  'visit_check',
+  'confirmation_chase',
+]);
 export const auditOutcomeEnum = pgEnum('audit_outcome', ['ok', 'rejected', 'error']);
 
 export type Urgency = (typeof urgencyEnum.enumValues)[number];
@@ -49,3 +58,4 @@ export type JobSource = (typeof jobSourceEnum.enumValues)[number];
 export type ActorType = (typeof actorTypeEnum.enumValues)[number];
 export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
 export type AuditOutcome = (typeof auditOutcomeEnum.enumValues)[number];
+export type FollowUpKind = (typeof followUpKindEnum.enumValues)[number];

@@ -1,0 +1,8 @@
+CREATE TYPE "public"."follow_up_kind" AS ENUM('info_chase', 'quote_chase', 'approval_chase', 'slot_chase', 'visit_check', 'confirmation_chase');--> statement-breakpoint
+ALTER TABLE "follow_ups" ALTER COLUMN "kind" SET DATA TYPE "public"."follow_up_kind" USING "kind"::"public"."follow_up_kind";--> statement-breakpoint
+ALTER TABLE "organizations" ADD COLUMN "workflow_policy" jsonb DEFAULT '{"clarify":{"maxRounds":2,"reminderAfterHours":24,"escalateAfterHours":24},"quote":{"reminderAfterHours":{"emergency":1,"urgent":4,"routine":24},"maxReminders":2,"maxTradiesTried":3},"slot":{"reminderAfterHours":24,"escalateAfterHours":24,"maxOffers":2},"visit":{"checkAfterEndHours":4,"escalateAfterHours":24},"confirmation":{"reminderAfterHours":48,"escalateAfterHours":72},"approval":{"reminderAfterHours":24},"quietHours":{"startHour":20,"endHour":8}}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN "summary" text;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN "slot_offer_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN "clarify_rounds" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN "excluded_tradie_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "follow_ups_one_scheduled_per_job_uq" ON "follow_ups" USING btree ("job_id") WHERE "follow_ups"."status" = 'scheduled';

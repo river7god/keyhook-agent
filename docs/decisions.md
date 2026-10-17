@@ -129,10 +129,10 @@ emergency call-outs) is always code; `request_quote` re-checks the tradie is sel
 without a known price). Business money remains NZD cents.
 **Reason:** API cost is an operating metric billed in USD (spec §10 "cost per job").
 
-### 2026-10-17 — Quotes stored GST-inclusive (proposed — confirm)
+### 2026-10-17 — Quotes stored GST-inclusive
 **Decision:** `estimate_cents` is GST-inclusive. A quote stated "+GST" has 15% added; unclear GST
 status is treated as inclusive and noted in the audit log.
-**Reason:** Approval limits must compare like with like. Needs product-owner confirmation.
+**Reason:** Approval limits must compare like with like. Confirmed with product owner 2026-10-17.
 
 ### 2026-10-17 — In-house eval runner for M1; promptfoo decision deferred to M4
 **Decision:** `pnpm eval` runs YAML scenarios through the real ingest + agent path on a separate

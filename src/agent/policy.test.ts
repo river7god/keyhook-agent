@@ -32,7 +32,6 @@ describe('decideTriage', () => {
     [{ urgency: 'emergency' as const }, 'emergency'],
     [{ confidence: 0.69 }, 'low triage confidence (0.69)'],
     [{ trade: 'other' as const }, 'trade could not be classified'],
-    [{ needsMoreInfo: true }, 'more information needed from tenant'],
     [{ flags: { ...clean.flags, promptInjection: true } }, 'suspected prompt injection'],
     [
       { flags: { ...clean.flags, legalOrTribunal: true } },
@@ -42,6 +41,22 @@ describe('decideTriage', () => {
     const d = decideTriage({ ...clean, ...override });
     expect(d.action).toBe('escalate');
     if (d.action === 'escalate') expect(d.reasons).toContain(reason);
+  });
+
+  it('asks the tenant when the only problem is missing information', () => {
+    expect(decideTriage({ ...clean, needsMoreInfo: true }).action).toBe('clarify');
+    expect(
+      decideTriage({ ...clean, needsMoreInfo: true, confidence: 0.4, trade: 'other' }).action,
+    ).toBe('clarify');
+  });
+
+  it('escalates instead of clarifying when a non-information rule also fires', () => {
+    const d = decideTriage({
+      ...clean,
+      needsMoreInfo: true,
+      flags: { ...clean.flags, distressedOrAngry: true },
+    });
+    expect(d.action).toBe('escalate');
   });
 
   it('proceeds exactly at the 0.7 threshold', () => {

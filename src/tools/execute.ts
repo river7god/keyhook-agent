@@ -29,7 +29,8 @@ export async function executeTool(
     writeAudit(ctx.db, {
       organizationId: ctx.organizationId,
       jobId: ctx.jobId,
-      actorType: 'agent',
+      actorType: ctx.actor?.type ?? 'agent',
+      actorId: ctx.actor?.id ?? null,
       action: tool.name,
       reason: ctx.reason,
       input: rawInput,

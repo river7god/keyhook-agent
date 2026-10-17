@@ -105,6 +105,7 @@ export async function rankedTradiesForJob(
     propertyId: job.propertyId,
     now,
     horizonHours: config.availabilityHorizonHours,
+    excludeTradieIds: job.excludedTradieIds,
   });
   const ranked = rankCandidates(candidates, config, now);
   const selectable =

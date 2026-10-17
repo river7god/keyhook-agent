@@ -5,12 +5,18 @@ import { TERMINAL_STATES, type JobState } from '@/workflows/job-states';
 import { checkTransition } from '@/workflows/state-machine';
 import { writeAudit } from './audit';
 import { DomainError } from './errors';
+import { satisfyFollowUps } from './follow-ups';
 
 export type Job = typeof jobs.$inferSelect;
 type JobPatch = Partial<
   Pick<
     Job,
     | 'title'
+    | 'summary'
+    | 'slotOfferCount'
+    | 'clarifyRounds'
+    | 'excludedTradieIds'
+    | 'offeredSlotIds'
     | 'urgency'
     | 'trade'
     | 'triageConfidence'
@@ -199,6 +205,8 @@ export async function transitionJob(
     .where(and(eq(jobs.id, current.id), eq(jobs.version, current.version)))
     .returning();
   if (!updated) throw new DomainError('CONFLICT', 'Concurrent update', { jobId: args.jobId });
+  // Whatever we were waiting for in the old state is no longer relevant.
+  await satisfyFollowUps(tx, args.organizationId, args.jobId);
 
   await writeAudit(tx, {
     organizationId: args.organizationId,

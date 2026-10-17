@@ -31,6 +31,8 @@ export const jobs = pgTable(
     createdByActorId: text(),
     title: text().notNull(),
     description: text().notNull(),
+    /** Agent-written English summary from triage (for PMs and tradie briefs; never raw tenant text). */
+    summary: text(),
 
     state: jobStateEnum().notNull().default('RECEIVED'),
     /** Set only while ESCALATED, so a PM can hand the job back to where it was. */
@@ -47,6 +49,15 @@ export const jobs = pgTable(
     scheduledEnd: tstz(),
     /** Slots last offered to the tenant (SCHEDULING), in the order presented. */
     offeredSlotIds: uuid().array(),
+    /** How many times visit slots have been offered (spec: re-offer up to policy max). */
+    slotOfferCount: integer().notNull().default(0),
+    /** Clarifying-question rounds so far. */
+    clarifyRounds: integer().notNull().default(0),
+    /** Tradies already tried for this job (declined / unresponsive) — never re-selected. */
+    excludedTradieIds: uuid()
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     closedAt: tstz(),
     ...timestamps,
   },

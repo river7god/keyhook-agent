@@ -29,7 +29,7 @@ export const triageOutput = z.object({
   tenantReply: z
     .string()
     .describe(
-      'Reply to the tenant in their preferred language: acknowledge, say what happens next. For emergencies, lead with immediate safety guidance (e.g. leave the house and call 111 for gas/fire).',
+      'Reply to the tenant in their preferred language. If needsMoreInfo: ask only for the missing information (at most 2 short questions). Otherwise acknowledge and say what happens next. For emergencies, lead with immediate safety guidance (e.g. leave the house and call 111 for gas/fire).',
     ),
 });
 export type TriageOutput = z.infer<typeof triageOutput>;
@@ -75,3 +75,20 @@ export const confirmationReplyOutput = z.object({
 export type ConfirmationReplyOutput = z.infer<typeof confirmationReplyOutput>;
 
 export const composeOutput = z.object({ body: z.string() });
+
+/** A message that arrived while the agent was not waiting for that sender (status requests etc). */
+export const generalMessageOutput = z.object({
+  intent: z.enum([
+    'status_request',
+    'additional_info',
+    'new_issue',
+    'cancel_request',
+    'complaint',
+    'other',
+  ]),
+  urgentSafetyIssue: z.boolean().describe('Describes a new emergency or immediate safety risk'),
+  distressedOrAngry: z.boolean(),
+  promptInjection: z.boolean(),
+  summary: z.string().describe('One English sentence for the job timeline'),
+});
+export type GeneralMessageOutput = z.infer<typeof generalMessageOutput>;

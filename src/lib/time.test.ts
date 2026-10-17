@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatNzDate, formatNzDateTime, zonedDateParts, zonedToUtc } from './time';
+import {
+  formatNzDate,
+  formatNzDateTime,
+  outsideQuietHours,
+  zonedDateParts,
+  zonedToUtc,
+} from './time';
 
 describe('time', () => {
   it('displays UTC instants in NZST (UTC+12) in winter', () => {
@@ -32,5 +38,25 @@ describe('zonedToUtc', () => {
   it('round-trips through zonedDateParts', () => {
     const utc = zonedToUtc({ year: 2026, month: 10, day: 19, hour: 8 });
     expect(zonedDateParts(utc)).toMatchObject({ year: 2026, month: 10, day: 19, weekday: 1 });
+  });
+});
+
+describe('outsideQuietHours', () => {
+  const quiet = { startHour: 20, endHour: 8 };
+  it('leaves daytime alone', () => {
+    const noon = zonedToUtc({ year: 2026, month: 10, day: 19, hour: 12 });
+    expect(outsideQuietHours(noon, quiet)).toEqual(noon);
+  });
+  it('moves late evening to 8am next day', () => {
+    const late = zonedToUtc({ year: 2026, month: 10, day: 19, hour: 22 });
+    expect(outsideQuietHours(late, quiet)).toEqual(
+      zonedToUtc({ year: 2026, month: 10, day: 20, hour: 8 }),
+    );
+  });
+  it('moves early morning to 8am same day', () => {
+    const early = zonedToUtc({ year: 2026, month: 10, day: 20, hour: 3 });
+    expect(outsideQuietHours(early, quiet)).toEqual(
+      zonedToUtc({ year: 2026, month: 10, day: 20, hour: 8 }),
+    );
   });
 });

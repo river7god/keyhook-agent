@@ -83,3 +83,34 @@ export function zonedDateParts(instant: Date, timeZone: string = DISPLAY_TIME_ZO
     weekday,
   };
 }
+
+/** NZ local hour (0–23) of an instant. */
+export function zonedHour(instant: Date, timeZone: string = DISPLAY_TIME_ZONE): number {
+  return Number(
+    new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', hourCycle: 'h23' }).format(
+      instant,
+    ),
+  );
+}
+
+/**
+ * Move `instant` out of quiet hours (e.g. 20:00–08:00 local) to the next `endHour`.
+ * Handles windows that wrap midnight.
+ */
+export function outsideQuietHours(
+  instant: Date,
+  quiet: { startHour: number; endHour: number },
+  timeZone: string = DISPLAY_TIME_ZONE,
+): Date {
+  const h = zonedHour(instant, timeZone);
+  const wraps = quiet.startHour > quiet.endHour;
+  const inQuiet = wraps
+    ? h >= quiet.startHour || h < quiet.endHour
+    : h >= quiet.startHour && h < quiet.endHour;
+  if (!inQuiet) return instant;
+  const day = zonedDateParts(instant, timeZone);
+  const sameDayEnd = zonedToUtc({ ...day, hour: quiet.endHour }, timeZone);
+  if (sameDayEnd > instant) return sameDayEnd;
+  const next = zonedDateParts(new Date(instant.getTime() + 24 * 3_600_000), timeZone);
+  return zonedToUtc({ ...next, hour: quiet.endHour }, timeZone);
+}

@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import type { DbOrTx } from '@/db/client';
+import type { ActorType } from '@/db/schema';
 
 /** CLAUDE.md rule 2. */
 export type Permission = 'read' | 'auto' | 'approval';
@@ -9,7 +10,9 @@ export interface ToolContext {
   db: DbOrTx;
   organizationId: string;
   jobId: string;
-  /** Agent actions are attributed to the agent; the reason is the "why" in the audit log. */
+  /** Who is acting. Defaults to the agent; PM-initiated actions (approve_spend) pass the PM. */
+  actor?: { type: ActorType; id?: string | null };
+  /** The "why" recorded in the audit log. */
   reason: string;
   /** Base for deterministic idempotency keys, e.g. "<jobId>:v3". Required for side effects. */
   idempotencyScope: string;
