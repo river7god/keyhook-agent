@@ -6,7 +6,8 @@
  * services the dashboard uses, and simulated time for follow-ups. The resulting job is scored
  * against `expect`. Full runs are saved to evals/results/<git-sha>.json.
  *
- * Costs real money (roughly US$0.05–0.30 per scenario). Requires ANTHROPIC_API_KEY.
+ * Costs real money (roughly US$0.05–0.30 per scenario with Claude). Needs the chosen provider's
+ * API key. Compare models with `pnpm eval --model openai:<model>` etc. before switching routing.
  */
 import { execSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -16,7 +17,9 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { advanceJob, type AgentDeps } from '@/agent/advance';
 import { handleFollowUp } from '@/agent/handlers/follow-up';
-import { AGENT_MODEL, ClaudeLlm, type LlmClient } from '@/agent/llm';
+import type { LlmClient } from '@/agent/llm';
+import { DEFAULT_MODEL, RoutingLlm } from '@/agent/providers';
+import { parseModelRef, PROVIDERS, type ModelRef } from '@/agent/providers/registry';
 import { handBackJob, recordApprovalDecision } from '@/agent/pm-actions';
 import { createDb, type Db } from '@/db/client';
 import { runMigrations } from '@/db/migrate';
@@ -86,10 +89,14 @@ async function main() {
   } catch {
     /* CI provides env */
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error(
-      'pnpm eval: ANTHROPIC_API_KEY is not set (add it to .env). Evals call the real model.',
-    );
+  // Usage: pnpm eval [filter] [--model provider:model]   (default: anthropic:claude-opus-5-5)
+  const args = process.argv.slice(2);
+  const modelIdx = args.indexOf('--model');
+  const model: ModelRef = modelIdx >= 0 ? parseModelRef(args[modelIdx + 1] ?? '') : DEFAULT_MODEL;
+  const filter = args.filter((_, i) => i !== modelIdx && i !== modelIdx + 1)[0];
+  const keyEnv = PROVIDERS[model.provider].apiKeyEnv;
+  if (!process.env[keyEnv]) {
+    console.error(`pnpm eval: ${keyEnv} is not set (add it to .env). Evals call the real model.`);
     process.exit(2);
   }
   const baseUrl = process.env.DATABASE_URL;
@@ -97,14 +104,13 @@ async function main() {
   registerTelemetry();
   const evalUrl = await ensureEvalDatabase(baseUrl);
 
-  const filter = process.argv[2];
   const scenarios = loadScenarios().filter((s) => !filter || s.id.includes(filter));
   const { db, close } = createDb(evalUrl, { max: 4 });
   const results: ScenarioResult[] = [];
   try {
     for (const s of scenarios) {
       process.stdout.write(`• ${s.id} … `);
-      const r = await runScenario(db, s);
+      const r = await runScenario(db, s, new RoutingLlm(db, null, model));
       results.push(r);
       console.log(r.error ? `ERROR ${r.error}` : summarise(r));
     }
@@ -117,11 +123,19 @@ async function main() {
   printReport(report, results);
   const sha = gitSha();
   mkdirSync(path.join(here, 'results'), { recursive: true });
-  const file = path.join(here, 'results', `${sha}${filter ? '.local' : ''}.json`);
+  const modelTag =
+    model === DEFAULT_MODEL ? '' : `.${model.provider}-${model.model.replace(/[^\w.-]/g, '_')}`;
+  const file = path.join(here, 'results', `${sha}${modelTag}${filter ? '.local' : ''}.json`);
   writeFileSync(
     file,
     JSON.stringify(
-      { sha, model: AGENT_MODEL, at: new Date().toISOString(), report, results },
+      {
+        sha,
+        model: `${model.provider}:${model.model}`,
+        at: new Date().toISOString(),
+        report,
+        results,
+      },
       null,
       2,
     ) + '\n',
@@ -152,7 +166,7 @@ function stepsOf(s: Scenario): Step[] {
 export async function runScenario(
   db: Db,
   s: Scenario,
-  llm: LlmClient = new ClaudeLlm(db),
+  llm: LlmClient = new RoutingLlm(db, null),
 ): Promise<ScenarioResult> {
   const started = Date.now();
   const org = ORG.harbourCity;

@@ -15,7 +15,7 @@ import {
   type AgentDeps,
   type StepResult,
 } from './handlers/shared';
-import { LlmOutputError, LlmRefusalError } from './llm';
+import { LlmConfigError, LlmOutputError, LlmRefusalError } from './llm';
 import { handleClarifyReply, handleReceived } from './handlers/triage';
 import { handleConfirmationReply, handleProgressReply } from './handlers/visit';
 
@@ -76,7 +76,11 @@ async function advance(
       result = await step.run(deps, job, pending);
     } catch (err) {
       if (err instanceof DuplicateInboundError) break; // a concurrent run already handled it
-      if (err instanceof LlmRefusalError || err instanceof LlmOutputError) {
+      if (
+        err instanceof LlmRefusalError ||
+        err instanceof LlmOutputError ||
+        err instanceof LlmConfigError
+      ) {
         // Retrying won't change a refusal or a malformed answer: hand to a PM now.
         await escalateOnAgentFailure(deps.db, {
           organizationId: args.organizationId,

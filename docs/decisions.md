@@ -241,3 +241,16 @@ user-facing surface is where an auth or query bug would leak data, so that is wh
 (default 60) per organization or once the organization's 24h AI spend reaches
 `DAILY_LLM_BUDGET_USD` (default 5). Jobs already running continue.
 **Reason:** On a public demo the simulator is the one way an outsider can trigger paid model calls.
+
+### 2026-10-17 — Pluggable model providers; Claude stays the default
+**Decision:** `LlmClient` has two implementations: `ClaudeLlm` (Anthropic SDK) and
+`OpenAICompatibleLlm` (OpenAI SDK with `baseURL`, covering OpenAI, DeepSeek and Moonshot Kimi).
+`organizations.llm_routing` picks a model per step group (triage, retriage, act, interpret,
+compose) with a default; null means Claude everywhere. The OpenAI-compatible adapter translates
+the Anthropic message/tool shape both ways, so handlers are unchanged; structured output uses
+native JSON Schema where supported, otherwise JSON mode with the schema in the prompt, always
+Zod-validated with one repair attempt. Keys are environment-only. DeepSeek and Kimi require
+`acknowledgeOffshoreProviders: true`. Costs for non-Claude models come from `LLM_PRICES_JSON`
+(null otherwise). A model is switched only after `pnpm eval --model provider:model` shows no loss.
+**Reason:** Product owner wants flexibility and cost options without forking agent logic; the
+privacy gate and eval gate keep the switch deliberate. New dependency: `openai` (official SDK).

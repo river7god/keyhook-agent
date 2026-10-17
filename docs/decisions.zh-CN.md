@@ -202,3 +202,12 @@ Postgres 会过滤所有按组织划分的表，并拒绝跨组织写入；缺�
 **决策：** 当某组织每小时的模拟器消息超过 `SIMULATOR_MAX_MESSAGES_PER_HOUR`（默认 60），或 24 小时内 AI 花费达到
 `DAILY_LLM_BUDGET_USD`（默认 5）时，拒绝新的模拟器消息（429）。已经在进行的工单继续运行。
 **理由：** 公开演示时，模拟器是外人唯一能触发付费模型调用的入口。
+
+### 2026-10-17 — 可插拔的模型提供商；Claude 仍为默认
+**决策：** `LlmClient` 有两个实现：`ClaudeLlm`（Anthropic SDK）和 `OpenAICompatibleLlm`（带 `baseURL` 的 OpenAI SDK，
+覆盖 OpenAI、DeepSeek 和 Moonshot Kimi）。`organizations.llm_routing` 按步骤组（triage、retriage、act、interpret、compose）
+选择模型并设默认值；为 null 时全部使用 Claude。OpenAI 兼容适配器在两个方向上转换 Anthropic 的消息/工具格式，因此处理器
+代码无需改动；结构化输出在支持时使用原生 JSON Schema，否则用 JSON 模式并把 schema 写进提示词，始终经 Zod 校验，并有一次
+修正重试。API key 只来自环境变量。DeepSeek 和 Kimi 需要 `acknowledgeOffshoreProviders: true`。非 Claude 模型的成本来自
+`LLM_PRICES_JSON`（否则为 null）。只有在 `pnpm eval --model provider:model` 证明质量不降后才切换模型。
+**理由：** 产品负责人需要灵活性和成本选择，同时不分叉 agent 逻辑；隐私门槛和评测门槛保证切换是有意为之。新增依赖：`openai`（官方 SDK）。

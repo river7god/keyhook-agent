@@ -9,7 +9,10 @@ quotes/approvals, tradie behaviour, scheduling, completion, mid-job messages and
 ```bash
 pnpm eval                 # all scenarios — real model, costs money, needs ANTHROPIC_API_KEY
 pnpm eval injection       # only ids containing "injection" (saved as *.local.json)
+pnpm eval --model openai:<model>        # same suite on another provider (OpenAI, deepseek:…, moonshot:…)
 ```
+
+Switch a step to another model only after its run matches the Claude baseline.
 
 ## Scenario format (`scenarios/*.yaml`)
 

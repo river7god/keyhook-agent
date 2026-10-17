@@ -1,5 +1,5 @@
 import { advanceJob } from '@/agent/advance';
-import { ClaudeLlm } from '@/agent/llm';
+import { llmForOrganization } from '@/agent/providers';
 import { getDb } from '@/db/client';
 import { inngest } from '../client';
 import { escalateAfterRetries } from './on-failure';
@@ -20,10 +20,10 @@ export const jobAdvance = inngest.createFunction(
     onFailure: escalateAfterRetries,
   },
   async ({ event, step }) => {
-    return step.run('advance', () => {
+    return step.run('advance', async () => {
       const db = getDb();
       return advanceJob(
-        { db, llm: new ClaudeLlm(db), now: () => new Date() },
+        { db, llm: await llmForOrganization(db, event.data.organizationId), now: () => new Date() },
         {
           organizationId: event.data.organizationId,
           jobId: event.data.jobId,

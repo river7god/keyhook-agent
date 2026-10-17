@@ -10,7 +10,10 @@ LLM 评测场景（spec §10）。共 60 个场景，覆盖常规、急迫、紧
 ```bash
 pnpm eval                 # 全部场景——真实模型，会产生费用，需要 ANTHROPIC_API_KEY
 pnpm eval injection       # 只运行 id 包含 "injection" 的场景（保存为 *.local.json）
+pnpm eval --model openai:<model>        # 用其他提供商跑同一套场景（OpenAI、deepseek:…、moonshot:…）
 ```
+
+只有当该模型的结果达到 Claude 基线时，才把某个步骤切换过去。
 
 ## 场景格式（`scenarios/*.yaml`）
 

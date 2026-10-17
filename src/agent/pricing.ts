@@ -18,8 +18,23 @@ export interface TokenUsage {
 }
 
 /** Integer USD micro-dollars: tokens × ($/MTok) works out to micro-dollars directly. */
+/**
+ * Extra/override prices from env, e.g. for non-Claude providers whose prices change:
+ *   LLM_PRICES_JSON={"deepseek:deepseek-chat":{"input":0.3,"output":1.2,"cacheRead":0.03}}
+ * Keys are a bare Claude model id or "provider:model".
+ */
+function envPrices(): Record<string, { input: number; output: number; cacheRead: number }> {
+  try {
+    return process.env.LLM_PRICES_JSON
+      ? (JSON.parse(process.env.LLM_PRICES_JSON) as ReturnType<typeof envPrices>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 export function costUsdMicros(model: string, u: TokenUsage): number | null {
-  const p = PRICES[model];
+  const p = envPrices()[model] ?? PRICES[model];
   if (!p) return null;
   return Math.round(
     u.inputTokens * p.input +

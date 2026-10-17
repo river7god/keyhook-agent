@@ -23,6 +23,8 @@ export const organizations = pgTable(
       .default(DEFAULT_TRADIE_SELECTION),
     /** Follow-up timings and retry limits; validated with workflowPolicySchema on read. */
     workflowPolicy: jsonb().$type<WorkflowPolicy>().notNull().default(DEFAULT_WORKFLOW_POLICY),
+    /** Model per step (src/agent/providers/registry.ts llmRoutingSchema). Null = Claude everywhere. */
+    llmRouting: jsonb(),
     ...timestamps,
   },
   (t) => [

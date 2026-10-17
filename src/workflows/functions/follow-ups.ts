@@ -1,6 +1,6 @@
 import { cron } from 'inngest';
 import { handleFollowUp } from '@/agent/handlers/follow-up';
-import { ClaudeLlm } from '@/agent/llm';
+import { llmForOrganization } from '@/agent/providers';
 import { getDb } from '@/db/client';
 import { listDueFollowUps } from '@/domain/follow-ups';
 import { inngest } from '../client';
@@ -50,10 +50,10 @@ export const followUpHandler = inngest.createFunction(
     onFailure: escalateAfterRetries,
   },
   async ({ event, step }) =>
-    step.run('handle', () => {
+    step.run('handle', async () => {
       const db = getDb();
       return handleFollowUp(
-        { db, llm: new ClaudeLlm(db), now: () => new Date() },
+        { db, llm: await llmForOrganization(db, event.data.organizationId), now: () => new Date() },
         event.data.followUpId,
       );
     }),

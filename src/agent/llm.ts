@@ -43,6 +43,14 @@ export class LlmRefusalError extends Error {
   }
 }
 
+/** The model/provider is not usable as configured (missing key, unknown provider). */
+export class LlmConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LlmConfigError';
+  }
+}
+
 /** The model's answer was unusable (no parsable structured output, truncated, …). */
 export class LlmOutputError extends Error {
   constructor(
