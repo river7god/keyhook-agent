@@ -9,6 +9,8 @@ export const DOMAIN_ERROR_CODES = [
   'CONFLICT',
   'APPROVAL_REQUIRED',
   'IDEMPOTENCY_MISMATCH',
+  'UNAUTHENTICATED',
+  'RATE_LIMITED',
 ] as const;
 
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];

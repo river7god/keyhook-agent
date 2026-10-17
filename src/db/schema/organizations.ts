@@ -41,6 +41,8 @@ export const propertyManagers = pgTable(
     /** Null → use organizations.default_pm_auto_approve_limit_cents. */
     autoApproveLimitCents: integer(),
     active: boolean().notNull().default(true),
+    /** scrypt hash (src/lib/password.ts). Null = cannot log in. */
+    passwordHash: text(),
     ...timestamps,
   },
   (t) => [

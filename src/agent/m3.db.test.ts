@@ -135,7 +135,8 @@ describe('PM messages', () => {
       .from(messages)
       .where(and(eq(messages.jobId, m.jobId), eq(messages.senderType, 'pm')));
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ senderId: PM.aroha, status: 'sent' });
+    // Queued only: delivery happens after the request transaction commits.
+    expect(sent[0]).toMatchObject({ senderId: PM.aroha, status: 'queued' });
   });
 });
 

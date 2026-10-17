@@ -7,7 +7,8 @@ import { isDomainError, type DomainErrorCode } from '@/domain/errors';
  * - Success: the resource JSON itself (no envelope).
  * - Error:   { error: { code, message, details? } } with a matching HTTP status.
  * - Request bodies and query strings are validated with Zod before reaching the domain layer.
- * - Every handler resolves an organizationId before calling domain code (auth arrives later).
+ * - Every handler (except health/auth) calls requireApiUser() and runs domain code inside
+ *   withOrg(user.organizationId) — row-level security applies.
  */
 export interface ApiErrorBody {
   error: { code: DomainErrorCode | 'INTERNAL'; message: string; details?: unknown };
@@ -20,6 +21,8 @@ const STATUS: Record<DomainErrorCode, number> = {
   CONFLICT: 409,
   APPROVAL_REQUIRED: 403,
   IDEMPOTENCY_MISMATCH: 422,
+  UNAUTHENTICATED: 401,
+  RATE_LIMITED: 429,
 };
 
 export function ok<T>(body: T, init?: ResponseInit): NextResponse<T> {

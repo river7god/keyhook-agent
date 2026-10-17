@@ -1,4 +1,4 @@
-import type { Db } from '@/db/client';
+import type { DbOrTx } from '@/db/client';
 import { DomainError } from './errors';
 import { createJobFromTenantMessage, getJob } from './jobs';
 import { recordInbound } from './messages';
@@ -8,7 +8,7 @@ import { recordInbound } from './messages';
  * A tenant message without jobId opens a new job; otherwise the sender must belong to the job.
  */
 export async function ingestMessage(
-  db: Db,
+  db: DbOrTx,
   args: {
     organizationId: string;
     senderType: 'tenant' | 'tradie';

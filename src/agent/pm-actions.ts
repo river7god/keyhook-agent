@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm';
-import type { Db, DbOrTx } from '@/db/client';
+import type { DbOrTx } from '@/db/client';
 import {
   approvals,
   jobs,
@@ -13,7 +13,7 @@ import {
 import { writeAudit } from '@/domain/audit';
 import { DomainError } from '@/domain/errors';
 import { getJob, transitionJob } from '@/domain/jobs';
-import { deliverQueued, queueOutbound } from '@/domain/messages';
+import { queueOutbound } from '@/domain/messages';
 import { formatNzd } from '@/lib/money';
 import { approveSpendTool } from '@/tools/approval-tools';
 import { executeTool } from '@/tools/execute';
@@ -25,7 +25,7 @@ import { executeTool } from '@/tools/execute';
  * Rejection escalates the job (confirmed business rule) so the PM decides what happens next.
  */
 export async function recordApprovalDecision(
-  db: Db,
+  db: DbOrTx,
   args: {
     organizationId: string;
     approvalId: string;
@@ -97,7 +97,7 @@ export async function recordApprovalDecision(
   });
 }
 
-export async function listPendingApprovals(db: Db, organizationId: string) {
+export async function listPendingApprovals(db: DbOrTx, organizationId: string) {
   return db
     .select({
       id: approvals.id,
@@ -150,7 +150,7 @@ async function requirePm(db: DbOrTx, organizationId: string, pmId: string): Prom
  * covers the original triage flags, so a job escalated at triage is not re-triaged.
  */
 export async function handBackJob(
-  db: Db,
+  db: DbOrTx,
   args: {
     organizationId: string;
     jobId: string;
@@ -185,7 +185,7 @@ export async function handBackJob(
 
 /** PM-only cancellation (spec §5). Frees any booked tradie slot. */
 export async function cancelJob(
-  db: Db,
+  db: DbOrTx,
   args: { organizationId: string; jobId: string; propertyManagerId: string; reason: string },
 ) {
   return db.transaction(async (tx) => {
@@ -212,7 +212,7 @@ export async function cancelJob(
 
 /** PM writes to the tenant or assigned tradie from the dashboard. Audited as the PM. */
 export async function pmSendMessage(
-  db: Db,
+  db: DbOrTx,
   args: {
     organizationId: string;
     jobId: string;
@@ -250,6 +250,6 @@ export async function pmSendMessage(
     });
     return { messageId: msg.id };
   });
-  await deliverQueued(db, args.organizationId, args.jobId);
+  // Delivery happens after the caller's transaction commits (see the messages route).
   return result;
 }

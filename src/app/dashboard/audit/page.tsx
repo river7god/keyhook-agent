@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { z } from 'zod';
+import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
+import { withOrg } from '@/db/org-scope';
 import { actorTypeEnum } from '@/db/schema';
 import { listAudit } from '@/domain/dashboard';
-import { resolveDevOrganization } from '@/domain/organizations';
 import { formatNzDateTime } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
@@ -22,14 +23,15 @@ export default async function AuditPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const q = query.parse(await searchParams);
-  const db = getDb();
-  const org = await resolveDevOrganization(db);
-  const rows = await listAudit(db, org.id, {
-    actionPrefix: q.action ?? null,
-    actorType: q.actor ?? null,
-    beforeId: q.before ?? null,
-    limit: PAGE,
-  });
+  const user = await requirePageUser();
+  const rows = await withOrg(getDb(), user.organizationId, (tx) =>
+    listAudit(tx, user.organizationId, {
+      actionPrefix: q.action ?? null,
+      actorType: q.actor ?? null,
+      beforeId: q.before ?? null,
+      limit: PAGE,
+    }),
+  );
   const qs = (extra: { before?: number }) => {
     const p = new URLSearchParams();
     if (q.action) p.set('action', q.action);

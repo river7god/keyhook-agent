@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { z } from 'zod';
+import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
+import { withOrg } from '@/db/org-scope';
 import { urgencyEnum } from '@/db/schema';
 import { listDashboardJobs, stateCounts, type Bucket } from '@/domain/dashboard';
-import { resolveDevOrganization } from '@/domain/organizations';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 
@@ -26,17 +27,18 @@ export default async function DashboardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const q = query.parse(await searchParams);
-  const db = getDb();
-  const org = await resolveDevOrganization(db);
-  const [counts, jobs] = await Promise.all([
-    stateCounts(db, org.id),
-    listDashboardJobs(db, org.id, { bucket: q.bucket, urgency: q.urgency ?? null }),
-  ]);
+  const user = await requirePageUser();
+  const [counts, jobs] = await withOrg(getDb(), user.organizationId, (tx) =>
+    Promise.all([
+      stateCounts(tx, user.organizationId),
+      listDashboardJobs(tx, user.organizationId, { bucket: q.bucket, urgency: q.urgency ?? null }),
+    ]),
+  );
 
   return (
     <main className="page">
       <h1>Jobs</h1>
-      <p className="sub">{org.name}</p>
+      <p className="sub">{user.organizationName}</p>
 
       <div className="tabs" role="navigation" aria-label="Job buckets">
         {TABS.map((t) => (

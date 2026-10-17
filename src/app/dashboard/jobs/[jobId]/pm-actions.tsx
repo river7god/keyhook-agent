@@ -15,7 +15,6 @@ interface Props {
   trade: string | null;
   hasTenant: boolean;
   hasTradie: boolean;
-  pms: { id: string; name: string }[];
 }
 
 async function post(url: string, body: unknown): Promise<string | null> {
@@ -29,10 +28,9 @@ async function post(url: string, body: unknown): Promise<string | null> {
   return data.error?.message ?? `HTTP ${res.status}`;
 }
 
-/** PM actions for one job. Identity is picked from the org's PMs until auth exists. */
+/** PM actions for one job, performed as the signed-in PM. */
 export function PmActions(props: Props) {
   const router = useRouter();
-  const [pmId, setPmId] = useState(props.pms[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -63,21 +61,6 @@ export function PmActions(props: Props) {
   return (
     <div className="card">
       <h2>Actions</h2>
-      <label>
-        Acting as{' '}
-        <select
-          value={pmId}
-          onChange={(e) => {
-            setPmId(e.target.value);
-          }}
-        >
-          {props.pms.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </label>
 
       {props.state === 'ESCALATED' && props.stateBeforeEscalation && (
         <form
@@ -88,7 +71,6 @@ export function PmActions(props: Props) {
             void run(
               () =>
                 post(`${base}/hand-back`, {
-                  propertyManagerId: pmId,
                   note: note.trim() || null,
                   urgency: urgency || null,
                   trade: trade || null,
@@ -148,7 +130,6 @@ export function PmActions(props: Props) {
             void run(
               () =>
                 post(`${base}/messages`, {
-                  propertyManagerId: pmId,
                   recipient,
                   body: message,
                   clientRequestId: crypto.randomUUID(),
@@ -185,7 +166,7 @@ export function PmActions(props: Props) {
         style={{ marginTop: 16 }}
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => post(`${base}/cancel`, { propertyManagerId: pmId, reason: cancelReason }));
+          void run(() => post(`${base}/cancel`, { reason: cancelReason }));
         }}
       >
         <strong>Cancel job</strong>

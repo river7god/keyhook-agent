@@ -1,8 +1,7 @@
-import { asc, eq } from 'drizzle-orm';
 import { listPendingApprovals } from '@/agent/pm-actions';
+import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
-import { propertyManagers } from '@/db/schema';
-import { resolveDevOrganization } from '@/domain/organizations';
+import { withOrg } from '@/db/org-scope';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 import { ApprovalActions } from './approval-actions';
@@ -11,16 +10,10 @@ export const dynamic = 'force-dynamic';
 
 /** Minimal approvals queue (M2). The full PM dashboard arrives in M3. */
 export default async function ApprovalsPage() {
-  const db = getDb();
-  const org = await resolveDevOrganization(db);
-  const [pending, pms] = await Promise.all([
-    listPendingApprovals(db, org.id),
-    db
-      .select({ id: propertyManagers.id, name: propertyManagers.fullName })
-      .from(propertyManagers)
-      .where(eq(propertyManagers.organizationId, org.id))
-      .orderBy(asc(propertyManagers.fullName)),
-  ]);
+  const user = await requirePageUser();
+  const pending = await withOrg(getDb(), user.organizationId, (tx) =>
+    listPendingApprovals(tx, user.organizationId),
+  );
 
   return (
     <main
@@ -47,7 +40,7 @@ export default async function ApprovalsPage() {
                 {formatNzDateTime(a.createdAt)}
               </div>
               <p style={{ margin: '8px 0' }}>{a.reason}</p>
-              <ApprovalActions approvalId={a.id} pms={pms} />
+              <ApprovalActions approvalId={a.id} />
             </li>
           ))}
         </ul>

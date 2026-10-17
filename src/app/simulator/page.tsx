@@ -1,14 +1,16 @@
+import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
-import { resolveDevOrganization } from '@/domain/organizations';
+import { withOrg } from '@/db/org-scope';
 import { listPersonas } from '@/domain/personas';
 import { Simulator } from './simulator';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SimulatorPage() {
-  const db = getDb();
-  const org = await resolveDevOrganization(db);
-  const personas = await listPersonas(db, org.id);
+  const user = await requirePageUser();
+  const personas = await withOrg(getDb(), user.organizationId, (tx) =>
+    listPersonas(tx, user.organizationId),
+  );
   return (
     <main
       style={{
@@ -20,8 +22,8 @@ export default async function SimulatorPage() {
     >
       <h1 style={{ marginBottom: 4 }}>Message simulator</h1>
       <p style={{ marginTop: 0, color: '#555' }}>
-        Act as a tenant or tradie of {org.name}. Messages go through the same path real SMS/email
-        would. No real messages are sent (mock outbox).
+        Act as a tenant or tradie of {user.organizationName}. Messages go through the same path real
+        SMS/email would. No real messages are sent (mock outbox).
       </p>
       <Simulator personas={personas} />
     </main>

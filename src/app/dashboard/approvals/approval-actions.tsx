@@ -3,15 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export function ApprovalActions({
-  approvalId,
-  pms,
-}: {
-  approvalId: string;
-  pms: { id: string; name: string }[];
-}) {
+export function ApprovalActions({ approvalId }: { approvalId: string }) {
   const router = useRouter();
-  const [pmId, setPmId] = useState(pms[0]?.id ?? '');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +15,7 @@ export function ApprovalActions({
     const res = await fetch(`/api/v1/approvals/${approvalId}/decision`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ decision, propertyManagerId: pmId, note: note.trim() || null }),
+      body: JSON.stringify({ decision, note: note.trim() || null }),
     });
     setBusy(false);
     if (!res.ok) {
@@ -35,19 +28,6 @@ export function ApprovalActions({
 
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      <select
-        value={pmId}
-        onChange={(e) => {
-          setPmId(e.target.value);
-        }}
-        aria-label="Deciding PM"
-      >
-        {pms.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
       <input
         value={note}
         onChange={(e) => {

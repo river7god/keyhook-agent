@@ -1,13 +1,12 @@
-import { and, asc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { loadJobContext } from '@/agent/context';
+import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
-import { propertyManagers } from '@/db/schema';
+import { withOrg } from '@/db/org-scope';
 import { isDomainError } from '@/domain/errors';
 import { getJob } from '@/domain/jobs';
-import { resolveDevOrganization } from '@/domain/organizations';
 import { getJobTimeline, type TimelineItem } from '@/domain/timeline';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
@@ -18,21 +17,21 @@ export const dynamic = 'force-dynamic';
 export default async function JobPage({ params }: { params: Promise<{ jobId: string }> }) {
   const parsed = z.uuid().safeParse((await params).jobId);
   if (!parsed.success) notFound();
-  const db = getDb();
-  const org = await resolveDevOrganization(db);
-  const job = await getJob(db, org.id, parsed.data).catch((err: unknown) => {
-    if (isDomainError(err) && err.code === 'NOT_FOUND') notFound();
-    throw err;
+  const user = await requirePageUser();
+  const data = await withOrg(getDb(), user.organizationId, async (tx) => {
+    const job = await getJob(tx, user.organizationId, parsed.data).catch((err: unknown) => {
+      if (isDomainError(err) && err.code === 'NOT_FOUND') return null;
+      throw err;
+    });
+    if (!job) return null;
+    const [ctx, timeline] = await Promise.all([
+      loadJobContext(tx, job),
+      getJobTimeline(tx, user.organizationId, job.id),
+    ]);
+    return { job, ctx, timeline };
   });
-  const [ctx, timeline, pms] = await Promise.all([
-    loadJobContext(db, job),
-    getJobTimeline(db, org.id, job.id),
-    db
-      .select({ id: propertyManagers.id, name: propertyManagers.fullName })
-      .from(propertyManagers)
-      .where(and(eq(propertyManagers.organizationId, org.id), eq(propertyManagers.active, true)))
-      .orderBy(asc(propertyManagers.fullName)),
-  ]);
+  if (!data) notFound();
+  const { job, ctx, timeline } = data;
   const escalation =
     job.state === 'ESCALATED'
       ? [...timeline.items]
@@ -125,7 +124,6 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
             trade={job.trade}
             hasTenant={Boolean(ctx.tenant)}
             hasTradie={Boolean(ctx.tradie)}
-            pms={pms}
           />
         </aside>
       </div>
