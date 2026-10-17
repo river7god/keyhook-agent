@@ -1,15 +1,19 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { getDb } from '@/db/client';
 import { getSessionUser, SESSION_COOKIE, type SessionUser } from '@/domain/auth';
 import { DomainError } from '@/domain/errors';
 
-/** Authoritative session check (database lookup). The proxy only does an optimistic cookie check. */
-export async function getCurrentUser(): Promise<SessionUser | null> {
+/**
+ * Authoritative session check (database lookup). The proxy only does an optimistic cookie check.
+ * Memoised per request, so the layout and the page share one lookup.
+ */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   return getSessionUser(getDb(), token, new Date());
-}
+});
 
 /** For pages: redirect to /login when not signed in. */
 export async function requirePageUser(): Promise<SessionUser> {

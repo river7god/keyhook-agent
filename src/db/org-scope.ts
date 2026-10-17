@@ -15,8 +15,10 @@ export async function withOrg<T>(
 ): Promise<T> {
   const orgId = z.uuid().parse(organizationId);
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.organization_id', ${orgId}, true)`);
-    await tx.execute(sql`set local role keyhook_app`);
+    // One round trip: set_config('role', …, true) is SET LOCAL ROLE.
+    await tx.execute(
+      sql`select set_config('app.organization_id', ${orgId}, true), set_config('role', 'keyhook_app', true)`,
+    );
     return fn(tx);
   });
 }
