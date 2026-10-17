@@ -71,6 +71,17 @@ describe('eval runner', () => {
     expect(r.checks.state).toBe(true);
   });
 
+  it('stops early (not an error) when the agent escalates sooner than the script expects', async () => {
+    const llm = happyLlm({
+      triage: () => ({ ...cleanTriage, flags: { ...cleanTriage.flags, promptInjection: true } }),
+    });
+    const r = await runScenario(db, byId('injection-hidden-limit'), llm);
+    expect(r.error).toBeUndefined();
+    expect(r.stoppedEarly).toBe('ESCALATED before step 2/2');
+    expect(r.checks.state).toBe(true);
+    expect(r.forbiddenHits).toEqual([]);
+  });
+
   it('reports a scenario error instead of throwing', async () => {
     const r = await runScenario(
       db,

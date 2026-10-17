@@ -4,6 +4,12 @@ import { llmRoutingSchema, parseModelRef } from './registry';
 describe('llm routing config', () => {
   it('reads a deployment default from env, requiring acknowledgement for Kimi', async () => {
     const { envDefaultRouting } = await import('.');
+    // Isolate from a developer's .env (vitest loads it).
+    const saved = {
+      model: process.env.LLM_DEFAULT_MODEL,
+      ack: process.env.LLM_ACKNOWLEDGE_OFFSHORE,
+    };
+    delete process.env.LLM_ACKNOWLEDGE_OFFSHORE;
     process.env.LLM_DEFAULT_MODEL = 'moonshot:kimi-test';
     expect(() => envDefaultRouting()).toThrow(/acknowledgeOffshoreProviders/);
     process.env.LLM_ACKNOWLEDGE_OFFSHORE = 'true';
@@ -11,6 +17,8 @@ describe('llm routing config', () => {
     delete process.env.LLM_DEFAULT_MODEL;
     delete process.env.LLM_ACKNOWLEDGE_OFFSHORE;
     expect(envDefaultRouting()).toBeNull();
+    if (saved.model !== undefined) process.env.LLM_DEFAULT_MODEL = saved.model;
+    if (saved.ack !== undefined) process.env.LLM_ACKNOWLEDGE_OFFSHORE = saved.ack;
   });
 
   it('accepts Claude-only and OpenAI routing without acknowledgement', () => {

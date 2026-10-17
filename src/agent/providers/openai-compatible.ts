@@ -6,6 +6,7 @@ import type { DbOrTx } from '@/db/client';
 import { llmCalls } from '@/db/schema';
 import { withSpan } from '@/lib/telemetry';
 import {
+  isPermanentProviderError,
   LlmConfigError,
   LlmOutputError,
   LlmRefusalError,
@@ -152,6 +153,10 @@ export class OpenAICompatibleLlm implements LlmClient {
             message: err.message,
           },
         });
+        const status = typeof err.status === 'number' ? err.status : undefined;
+        if (isPermanentProviderError(status, err.message)) {
+          throw new LlmConfigError(`${this.ref} ${String(status)}: ${err.message}`);
+        }
       }
       throw err;
     }

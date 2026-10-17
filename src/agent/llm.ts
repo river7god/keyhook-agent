@@ -51,6 +51,16 @@ export class LlmConfigError extends Error {
   }
 }
 
+/**
+ * Errors a retry cannot fix: bad request, auth, missing model, or an exhausted/suspended account
+ * (some providers report billing problems as 429). Genuine rate limits and 5xx stay retryable.
+ */
+export function isPermanentProviderError(status: number | undefined, message: string): boolean {
+  if (status === 400 || status === 401 || status === 403 || status === 404 || status === 422)
+    return true;
+  return status === 429 && /balance|quota|billing|suspend|insufficient|credit/i.test(message);
+}
+
 /** The model's answer was unusable (no parsable structured output, truncated, …). */
 export class LlmOutputError extends Error {
   constructor(
@@ -133,7 +143,11 @@ export class ClaudeLlm implements LlmClient {
       return data.parsed_output;
     } catch (err) {
       if (err instanceof Anthropic.APIError) {
-        await this.recordError(req.ctx, apiErrorInfo(err), Date.now() - started);
+        const info = apiErrorInfo(err);
+        await this.recordError(req.ctx, info, Date.now() - started);
+        if (isPermanentProviderError(info.status, info.message)) {
+          throw new LlmConfigError(`anthropic ${String(info.status)}: ${info.message}`);
+        }
       }
       throw err;
     }
@@ -160,7 +174,11 @@ export class ClaudeLlm implements LlmClient {
       return data;
     } catch (err) {
       if (err instanceof Anthropic.APIError) {
-        await this.recordError(req.ctx, apiErrorInfo(err), Date.now() - started);
+        const info = apiErrorInfo(err);
+        await this.recordError(req.ctx, info, Date.now() - started);
+        if (isPermanentProviderError(info.status, info.message)) {
+          throw new LlmConfigError(`anthropic ${String(info.status)}: ${info.message}`);
+        }
       }
       throw err;
     }

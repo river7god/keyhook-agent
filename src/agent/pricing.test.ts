@@ -25,3 +25,23 @@ describe('costUsdMicros', () => {
     ).toBeNull();
   });
 });
+
+describe('isPermanentProviderError', () => {
+  it('treats auth, bad request, missing model and exhausted balance as permanent', async () => {
+    const { isPermanentProviderError } = await import('./llm');
+    expect(isPermanentProviderError(401, 'invalid x-api-key')).toBe(true);
+    expect(isPermanentProviderError(404, 'model not found')).toBe(true);
+    expect(isPermanentProviderError(400, 'Your credit balance is too low')).toBe(true);
+    expect(isPermanentProviderError(429, 'account is suspended due to insufficient balance')).toBe(
+      true,
+    );
+  });
+
+  it('keeps rate limits, overload and server errors retryable', async () => {
+    const { isPermanentProviderError } = await import('./llm');
+    expect(isPermanentProviderError(429, 'Rate limit reached for requests')).toBe(false);
+    expect(isPermanentProviderError(529, 'Overloaded')).toBe(false);
+    expect(isPermanentProviderError(500, 'Internal error')).toBe(false);
+    expect(isPermanentProviderError(undefined, 'connection reset')).toBe(false);
+  });
+});

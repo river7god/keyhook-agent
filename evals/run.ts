@@ -75,7 +75,10 @@ interface ScenarioResult {
   missingActions: string[];
   forbiddenHits: string[];
   llmCalls: number;
+  /** Calls whose cost is unknown (no price configured for the model). */
+  unpricedCalls: number;
   costUsdMicros: number;
+  stoppedEarly?: string;
   latencyMs: number;
   error?: string;
 }
@@ -181,8 +184,23 @@ export async function runScenario(
     .where(eq(properties.id, PROPERTY[s.property]));
 
   let jobId: string | null = null;
+  let stoppedEarly: string | undefined;
   try {
-    for (const st of stepsOf(s)) {
+    const steps = stepsOf(s);
+    for (const [i, st] of steps.entries()) {
+      // The agent may hand the job to a PM (or finish) earlier than the script expects — e.g.
+      // flagging an injection at triage. Remaining steps are moot; score the outcome as is.
+      if (jobId && !('pm' in st && st.pm === 'hand_back')) {
+        const current = await getJob(db, org, jobId);
+        if (
+          current.state === 'ESCALATED' ||
+          current.state === 'CLOSED' ||
+          current.state === 'CANCELLED'
+        ) {
+          stoppedEarly = `${current.state} before step ${i + 1}/${steps.length}`;
+          break;
+        }
+      }
       if ('tenant' in st || 'tradie' in st) {
         const job = jobId ? await getJob(db, org, jobId) : null;
         const sender =
@@ -230,7 +248,7 @@ export async function runScenario(
       }
     }
     if (!jobId) throw new Error('no job');
-    return await score(db, s, jobId, started);
+    return { ...(await score(db, s, jobId, started)), ...(stoppedEarly ? { stoppedEarly } : {}) };
   } catch (err) {
     return {
       id: s.id,
@@ -243,6 +261,7 @@ export async function runScenario(
       missingActions: [],
       forbiddenHits: [],
       llmCalls: 0,
+      unpricedCalls: 0,
       costUsdMicros: 0,
       latencyMs: Date.now() - started,
       error: err instanceof Error ? err.message : String(err),
@@ -273,6 +292,7 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
     .select({
       calls: sql<number>`count(*)::int`,
       micros: sql<number>`coalesce(sum(${llmCalls.costUsdMicros}), 0)::int`,
+      unpriced: sql<number>`count(*) filter (where ${llmCalls.costUsdMicros} is null)::int`,
     })
     .from(llmCalls)
     .where(eq(llmCalls.jobId, jobId));
@@ -297,6 +317,7 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
     missingActions,
     forbiddenHits: e.forbidden.filter((a) => succeeded.has(a)),
     llmCalls: usage?.calls ?? 0,
+    unpricedCalls: usage?.unpriced ?? 0,
     costUsdMicros: usage?.micros ?? 0,
     latencyMs: Date.now() - started,
   };
@@ -329,6 +350,7 @@ function aggregate(results: ScenarioResult[]) {
     actionsAccuracy: rate('actions'),
     forbiddenActions: results.reduce((n, r) => n + r.forbiddenHits.length, 0),
     totalCostUsd: cost / 1e6,
+    unpricedCalls: results.reduce((n, r) => n + r.unpricedCalls, 0),
     meanCostPerScenarioUsd: results.length ? cost / 1e6 / results.length : 0,
     meanLlmCallsPerScenario: results.length
       ? results.reduce((n, r) => n + r.llmCalls, 0) / results.length
@@ -346,10 +368,14 @@ function summarise(r: ScenarioResult) {
   const extra = [
     r.missingActions.length ? `missing:${r.missingActions.join(',')}` : '',
     r.forbiddenHits.length ? `FORBIDDEN:${r.forbiddenHits.join(',')}` : '',
+    r.stoppedEarly ? `(stopped early: ${r.stoppedEarly})` : '',
   ]
     .filter(Boolean)
     .join(' ');
-  return `${r.state} (${r.urgency ?? '-'}/${r.trade ?? '-'}) ${marks} ${extra} $${(r.costUsdMicros / 1e6).toFixed(3)}`;
+  const cost = r.unpricedCalls
+    ? `cost unknown (${r.unpricedCalls} unpriced calls)`
+    : `$${(r.costUsdMicros / 1e6).toFixed(3)}`;
+  return `${r.state} (${r.urgency ?? '-'}/${r.trade ?? '-'}) ${marks} ${extra} ${cost}`;
 }
 
 function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResult[]) {
@@ -371,6 +397,11 @@ function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResu
   console.log(
     `cost                 US$${report.totalCostUsd.toFixed(3)} total, US$${report.meanCostPerScenarioUsd.toFixed(3)}/scenario, ${report.meanLlmCallsPerScenario.toFixed(1)} calls/scenario`,
   );
+  if (report.unpricedCalls) {
+    console.log(
+      `                     ${report.unpricedCalls} calls have no price (set LLM_PRICES_JSON) — total above excludes them`,
+    );
+  }
   console.log(`latency              ${report.meanLatencyMs} ms/scenario`);
   const failing = results.filter(
     (r) => r.error || Object.values(r.checks).includes(false) || r.forbiddenHits.length,
