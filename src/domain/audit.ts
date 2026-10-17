@@ -1,6 +1,7 @@
 import type { DbOrTx } from '@/db/client';
 import { auditLog } from '@/db/schema';
 import type { ActorType, AuditOutcome } from '@/db/schema';
+import { activeTraceId } from '@/lib/telemetry';
 
 export interface AuditEntry {
   organizationId: string;
@@ -34,6 +35,6 @@ export async function writeAudit(db: DbOrTx, entry: AuditEntry): Promise<void> {
     output: entry.output ?? null,
     outcome: entry.outcome,
     idempotencyKey: entry.idempotencyKey ?? null,
-    traceId: entry.traceId ?? null,
+    traceId: entry.traceId ?? activeTraceId(),
   });
 }

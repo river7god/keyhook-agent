@@ -1,11 +1,12 @@
 /**
- * pnpm eval — run every scenario in evals/scenarios/ against the real model (spec §10).
+ * pnpm eval [filter] — run every scenario in evals/scenarios/ against the real model (spec §10).
  *
- * For each scenario: reset a dedicated eval database, seed, send the tenant message(s) through
- * the same ingest + advanceJob path as production (ClaudeLlm, real tools, mock outbox), then
- * score the resulting job against `expect`. Writes evals/results/<git-sha>.json.
+ * Each scenario runs on a fresh, seeded `keyhook_eval` database through the production path:
+ * ingestMessage → advanceJob (ClaudeLlm, real tools, mock outbox), PM decisions via the same
+ * services the dashboard uses, and simulated time for follow-ups. The resulting job is scored
+ * against `expect`. Full runs are saved to evals/results/<git-sha>.json.
  *
- * Costs real money: roughly 3–5 Claude calls per scenario. Requires ANTHROPIC_API_KEY.
+ * Costs real money (roughly US$0.05–0.30 per scenario). Requires ANTHROPIC_API_KEY.
  */
 import { execSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -13,48 +14,71 @@ import path from 'node:path';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
-import { advanceJob } from '@/agent/advance';
-import { AGENT_MODEL, ClaudeLlm } from '@/agent/llm';
-import { createDb } from '@/db/client';
+import { advanceJob, type AgentDeps } from '@/agent/advance';
+import { handleFollowUp } from '@/agent/handlers/follow-up';
+import { AGENT_MODEL, ClaudeLlm, type LlmClient } from '@/agent/llm';
+import { handBackJob, recordApprovalDecision } from '@/agent/pm-actions';
+import { createDb, type Db } from '@/db/client';
 import { runMigrations } from '@/db/migrate';
-import { auditLog, llmCalls, tradeEnum, urgencyEnum } from '@/db/schema';
+import { approvals, auditLog, llmCalls, properties, tradeEnum, urgencyEnum } from '@/db/schema';
 import { currentTenancyFor, primaryTenantFor } from '@/db/seed/data/tenancies';
 import { ORG, PROPERTY } from '@/db/seed/ids';
-import { JOB_STATES } from '@/workflows/job-states';
 import { seed } from '@/db/seed/seed';
+import { listDueFollowUps } from '@/domain/follow-ups';
 import { ingestMessage } from '@/domain/inbound';
 import { getJob } from '@/domain/jobs';
+import { flushTelemetry, registerTelemetry } from '@/lib/telemetry';
+import { JOB_STATES } from '@/workflows/job-states';
+
+const step = z.union([
+  z.strictObject({ tenant: z.string().min(1) }),
+  z.strictObject({ tradie: z.string().min(1) }),
+  z.strictObject({ pm: z.enum(['approve', 'reject', 'hand_back']) }),
+  /** Advance simulated time and run every follow-up that is then due. */
+  z.strictObject({ wait: z.number().positive() }),
+]);
 
 const scenarioSchema = z.object({
   id: z.string(),
+  description: z.string().optional(),
   property: z.enum(Object.keys(PROPERTY) as [keyof typeof PROPERTY, ...(keyof typeof PROPERTY)[]]),
-  messages: z.array(z.string()).min(1),
+  /** Shorthand for tenant-only steps. */
+  messages: z.array(z.string()).optional(),
+  steps: z.array(step).optional(),
   expect: z.object({
     urgency: z.array(z.enum(urgencyEnum.enumValues)).optional(),
     trade: z.array(z.enum(tradeEnum.enumValues)).optional(),
     escalate: z.boolean().optional(),
-    /** Accepted final job states after all messages. */
     state: z.array(z.enum(JOB_STATES)).optional(),
+    estimateCents: z.number().int().optional(),
+    /** Audit actions that must have succeeded at least once. */
+    actions: z.array(z.string()).default([]),
+    /** Audit actions that must never succeed. */
     forbidden: z.array(z.string()).default([]),
   }),
 });
-type Scenario = z.infer<typeof scenarioSchema>;
+export type Scenario = z.infer<typeof scenarioSchema>;
+type Step = z.infer<typeof step>;
 
+type CheckName = 'urgency' | 'trade' | 'escalate' | 'state' | 'estimate' | 'actions';
 interface ScenarioResult {
   id: string;
   urgency: string | null;
   trade: string | null;
+  state: string;
   escalated: boolean;
   expectedEscalate: boolean | null;
-  state: string;
-  checks: { urgency?: boolean; trade?: boolean; escalate?: boolean; state?: boolean };
+  checks: Partial<Record<CheckName, boolean>>;
+  missingActions: string[];
   forbiddenHits: string[];
+  llmCalls: number;
   costUsdMicros: number;
   latencyMs: number;
   error?: string;
 }
 
 const here = path.dirname(new URL(import.meta.url).pathname);
+const SEED_TIME = new Date('2026-10-19T00:00:00Z'); // Monday 1pm NZDT — business hours
 
 async function main() {
   try {
@@ -70,17 +94,11 @@ async function main() {
   }
   const baseUrl = process.env.DATABASE_URL;
   if (!baseUrl) throw new Error('DATABASE_URL is not set');
+  registerTelemetry();
   const evalUrl = await ensureEvalDatabase(baseUrl);
 
   const filter = process.argv[2];
-  const scenarios = readdirSync(path.join(here, 'scenarios'))
-    .filter((f) => f.endsWith('.yaml'))
-    .sort()
-    .map((f) =>
-      scenarioSchema.parse(parseYaml(readFileSync(path.join(here, 'scenarios', f), 'utf8'))),
-    )
-    .filter((s) => !filter || s.id.includes(filter));
-
+  const scenarios = loadScenarios().filter((s) => !filter || s.id.includes(filter));
   const { db, close } = createDb(evalUrl, { max: 4 });
   const results: ScenarioResult[] = [];
   try {
@@ -92,6 +110,7 @@ async function main() {
     }
   } finally {
     await close();
+    await flushTelemetry();
   }
 
   const report = aggregate(results);
@@ -108,84 +127,108 @@ async function main() {
     ) + '\n',
   );
   console.log(`\nSaved ${path.relative(process.cwd(), file)}`);
-  if (report.forbiddenActions > 0) process.exitCode = 1;
+  if (report.forbiddenActions > 0 || report.errors > 0) process.exitCode = 1;
 }
 
-async function runScenario(
-  db: ReturnType<typeof createDb>['db'],
+export function loadScenarios(): Scenario[] {
+  return readdirSync(path.join(here, 'scenarios'))
+    .filter((f) => f.endsWith('.yaml'))
+    .sort()
+    .map((f) => {
+      const parsed = scenarioSchema.safeParse(
+        parseYaml(readFileSync(path.join(here, 'scenarios', f), 'utf8')),
+      );
+      if (!parsed.success) throw new Error(`${f}: ${z.prettifyError(parsed.error)}`);
+      if (!parsed.data.messages && !parsed.data.steps)
+        throw new Error(`${f}: needs messages or steps`);
+      return parsed.data;
+    });
+}
+
+function stepsOf(s: Scenario): Step[] {
+  return s.steps ?? (s.messages ?? []).map((tenant) => ({ tenant }));
+}
+
+export async function runScenario(
+  db: Db,
   s: Scenario,
+  llm: LlmClient = new ClaudeLlm(db),
 ): Promise<ScenarioResult> {
   const started = Date.now();
   const org = ORG.harbourCity;
+  let clock = SEED_TIME;
+  const deps: AgentDeps = { db, llm, now: () => clock };
   await db.execute(sql`TRUNCATE TABLE llm_calls, audit_log RESTART IDENTITY CASCADE`);
-  await seed(db);
+  await seed(db, SEED_TIME);
   const tenantId = primaryTenantFor(currentTenancyFor(PROPERTY[s.property]).id);
+  const [property] = await db
+    .select({ pmId: properties.propertyManagerId })
+    .from(properties)
+    .where(eq(properties.id, PROPERTY[s.property]));
+
+  let jobId: string | null = null;
   try {
-    let jobId: string | null = null;
-    for (const body of s.messages) {
-      const m = await ingestMessage(db, {
-        organizationId: org,
-        senderType: 'tenant',
-        senderId: tenantId,
-        jobId,
-        body,
-      });
-      jobId = m.jobId;
-      await advanceJob(
-        { db, llm: new ClaudeLlm(db), now: () => new Date() },
-        { organizationId: org, jobId, messageId: m.messageId },
-      );
+    for (const st of stepsOf(s)) {
+      if ('tenant' in st || 'tradie' in st) {
+        const job = jobId ? await getJob(db, org, jobId) : null;
+        const sender =
+          'tenant' in st
+            ? { senderType: 'tenant' as const, senderId: tenantId, body: st.tenant }
+            : {
+                senderType: 'tradie' as const,
+                senderId: job?.assignedTradieId ?? '',
+                body: st.tradie,
+              };
+        if (sender.senderType === 'tradie' && !sender.senderId)
+          throw new Error('tradie step but no tradie assigned');
+        const m = await ingestMessage(db, { organizationId: org, jobId, ...sender });
+        jobId = m.jobId;
+        await advanceJob(deps, { organizationId: org, jobId, messageId: m.messageId });
+      } else if ('pm' in st) {
+        if (!jobId || !property) throw new Error('pm step before a job exists');
+        if (st.pm === 'hand_back') {
+          await handBackJob(db, {
+            organizationId: org,
+            jobId,
+            propertyManagerId: property.pmId,
+            note: null,
+            now: clock,
+          });
+        } else {
+          const [pending] = await db
+            .select({ id: approvals.id })
+            .from(approvals)
+            .where(and(eq(approvals.jobId, jobId), eq(approvals.status, 'pending')));
+          if (!pending) throw new Error(`pm ${st.pm}: no pending approval`);
+          await recordApprovalDecision(db, {
+            organizationId: org,
+            approvalId: pending.id,
+            decision: st.pm === 'approve' ? 'approved' : 'rejected',
+            decidedBy: 'eval-pm',
+            note: null,
+            now: clock,
+          });
+        }
+        await advanceJob(deps, { organizationId: org, jobId });
+      } else {
+        clock = new Date(clock.getTime() + st.wait * 3_600_000);
+        for (const fu of await listDueFollowUps(db, clock)) await handleFollowUp(deps, fu.id);
+      }
     }
     if (!jobId) throw new Error('no job');
-    const job = await getJob(db, org, jobId);
-    const forbiddenHits = s.expect.forbidden.length
-      ? (
-          await db
-            .select({ action: auditLog.action })
-            .from(auditLog)
-            .where(
-              and(
-                eq(auditLog.jobId, jobId),
-                eq(auditLog.outcome, 'ok'),
-                inArray(auditLog.action, s.expect.forbidden),
-              ),
-            )
-        ).map((r) => r.action)
-      : [];
-    const [cost] = await db
-      .select({ micros: sql<number>`coalesce(sum(${llmCalls.costUsdMicros}), 0)::int` })
-      .from(llmCalls)
-      .where(eq(llmCalls.jobId, jobId));
-    const escalated = job.state === 'ESCALATED';
-    return {
-      id: s.id,
-      urgency: job.urgency,
-      trade: job.trade,
-      escalated,
-      expectedEscalate: s.expect.escalate ?? null,
-      state: job.state,
-      checks: {
-        ...(s.expect.urgency && {
-          urgency: job.urgency !== null && s.expect.urgency.includes(job.urgency),
-        }),
-        ...(s.expect.trade && { trade: job.trade !== null && s.expect.trade.includes(job.trade) }),
-        ...(s.expect.escalate !== undefined && { escalate: escalated === s.expect.escalate }),
-        ...(s.expect.state && { state: s.expect.state.includes(job.state) }),
-      },
-      forbiddenHits,
-      costUsdMicros: cost?.micros ?? 0,
-      latencyMs: Date.now() - started,
-    };
+    return await score(db, s, jobId, started);
   } catch (err) {
     return {
       id: s.id,
       urgency: null,
       trade: null,
+      state: 'ERROR',
       escalated: false,
       expectedEscalate: s.expect.escalate ?? null,
-      state: 'ERROR',
       checks: {},
+      missingActions: [],
       forbiddenHits: [],
+      llmCalls: 0,
       costUsdMicros: 0,
       latencyMs: Date.now() - started,
       error: err instanceof Error ? err.message : String(err),
@@ -193,31 +236,91 @@ async function runScenario(
   }
 }
 
+async function score(db: Db, s: Scenario, jobId: string, started: number): Promise<ScenarioResult> {
+  const job = await getJob(db, ORG.harbourCity, jobId);
+  const watched = [...new Set([...s.expect.actions, ...s.expect.forbidden])];
+  const succeeded = watched.length
+    ? new Set(
+        (
+          await db
+            .select({ action: auditLog.action })
+            .from(auditLog)
+            .where(
+              and(
+                eq(auditLog.jobId, jobId),
+                eq(auditLog.outcome, 'ok'),
+                inArray(auditLog.action, watched),
+              ),
+            )
+        ).map((r) => r.action),
+      )
+    : new Set<string>();
+  const [usage] = await db
+    .select({
+      calls: sql<number>`count(*)::int`,
+      micros: sql<number>`coalesce(sum(${llmCalls.costUsdMicros}), 0)::int`,
+    })
+    .from(llmCalls)
+    .where(eq(llmCalls.jobId, jobId));
+  const e = s.expect;
+  const escalated = job.state === 'ESCALATED';
+  const missingActions = e.actions.filter((a) => !succeeded.has(a));
+  return {
+    id: s.id,
+    urgency: job.urgency,
+    trade: job.trade,
+    state: job.state,
+    escalated,
+    expectedEscalate: e.escalate ?? null,
+    checks: {
+      ...(e.urgency && { urgency: job.urgency !== null && e.urgency.includes(job.urgency) }),
+      ...(e.trade && { trade: job.trade !== null && e.trade.includes(job.trade) }),
+      ...(e.escalate !== undefined && { escalate: escalated === e.escalate }),
+      ...(e.state && { state: e.state.includes(job.state) }),
+      ...(e.estimateCents !== undefined && { estimate: job.estimateCents === e.estimateCents }),
+      ...(e.actions.length > 0 && { actions: missingActions.length === 0 }),
+    },
+    missingActions,
+    forbiddenHits: e.forbidden.filter((a) => succeeded.has(a)),
+    llmCalls: usage?.calls ?? 0,
+    costUsdMicros: usage?.micros ?? 0,
+    latencyMs: Date.now() - started,
+  };
+}
+
 function aggregate(results: ScenarioResult[]) {
-  const rate = (k: keyof ScenarioResult['checks']) => {
-    const scored = results.filter((r) => r.checks[k] !== undefined);
+  const ok = results.filter((r) => !r.error);
+  const rate = (k: CheckName) => {
+    const scored = ok.filter((r) => r.checks[k] !== undefined);
     return scored.length ? scored.filter((r) => r.checks[k]).length / scored.length : null;
   };
-  // Escalation precision/recall over scenarios that state an expectation.
-  const withExp = results.filter((r) => r.expectedEscalate !== null && !r.error);
+  const withExp = ok.filter((r) => r.expectedEscalate !== null);
   const tp = withExp.filter((r) => r.escalated && r.expectedEscalate).length;
   const fp = withExp.filter((r) => r.escalated && !r.expectedEscalate).length;
   const fn = withExp.filter((r) => !r.escalated && r.expectedEscalate).length;
-  const cost = results.reduce((s, r) => s + r.costUsdMicros, 0);
+  const cost = results.reduce((n, r) => n + r.costUsdMicros, 0);
+  const passed = ok.filter(
+    (r) => !Object.values(r.checks).includes(false) && r.forbiddenHits.length === 0,
+  );
   return {
     scenarios: results.length,
-    errors: results.filter((r) => r.error).length,
+    passed: passed.length,
+    errors: results.length - ok.length,
     urgencyAccuracy: rate('urgency'),
     tradeAccuracy: rate('trade'),
     escalationAccuracy: rate('escalate'),
-    stateAccuracy: rate('state'),
     escalationPrecision: tp + fp ? tp / (tp + fp) : null,
     escalationRecall: tp + fn ? tp / (tp + fn) : null,
-    forbiddenActions: results.reduce((s, r) => s + r.forbiddenHits.length, 0),
+    stateAccuracy: rate('state'),
+    actionsAccuracy: rate('actions'),
+    forbiddenActions: results.reduce((n, r) => n + r.forbiddenHits.length, 0),
     totalCostUsd: cost / 1e6,
     meanCostPerScenarioUsd: results.length ? cost / 1e6 / results.length : 0,
+    meanLlmCallsPerScenario: results.length
+      ? results.reduce((n, r) => n + r.llmCalls, 0) / results.length
+      : 0,
     meanLatencyMs: results.length
-      ? Math.round(results.reduce((s, r) => s + r.latencyMs, 0) / results.length)
+      ? Math.round(results.reduce((n, r) => n + r.latencyMs, 0) / results.length)
       : 0,
   };
 }
@@ -226,41 +329,49 @@ function summarise(r: ScenarioResult) {
   const marks = Object.entries(r.checks)
     .map(([k, v]) => `${k}:${v ? '✓' : '✗'}`)
     .join(' ');
-  const forbidden = r.forbiddenHits.length ? ` FORBIDDEN:${r.forbiddenHits.join(',')}` : '';
-  return `${r.state} (${r.urgency ?? '-'}/${r.trade ?? '-'}) ${marks}${forbidden} $${(r.costUsdMicros / 1e6).toFixed(3)}`;
+  const extra = [
+    r.missingActions.length ? `missing:${r.missingActions.join(',')}` : '',
+    r.forbiddenHits.length ? `FORBIDDEN:${r.forbiddenHits.join(',')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return `${r.state} (${r.urgency ?? '-'}/${r.trade ?? '-'}) ${marks} ${extra} $${(r.costUsdMicros / 1e6).toFixed(3)}`;
 }
 
 function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResult[]) {
   const pct = (v: number | null) => (v === null ? 'n/a' : `${(v * 100).toFixed(0)}%`);
   console.log('\n── Eval report ─────────────────────────────');
-  console.log(`scenarios            ${report.scenarios} (${report.errors} errors)`);
+  console.log(
+    `scenarios            ${report.scenarios} (${report.passed} passed, ${report.errors} errors)`,
+  );
   console.log(`urgency accuracy     ${pct(report.urgencyAccuracy)}`);
   console.log(`trade accuracy       ${pct(report.tradeAccuracy)}`);
   console.log(
     `escalation accuracy  ${pct(report.escalationAccuracy)}  (precision ${pct(report.escalationPrecision)}, recall ${pct(report.escalationRecall)})`,
   );
   console.log(`final state accuracy ${pct(report.stateAccuracy)}`);
+  console.log(`required actions     ${pct(report.actionsAccuracy)}`);
   console.log(
     `forbidden actions    ${report.forbiddenActions}${report.forbiddenActions ? '  ← must be 0' : ''}`,
   );
   console.log(
-    `cost                 US$${report.totalCostUsd.toFixed(3)} total, US$${report.meanCostPerScenarioUsd.toFixed(3)}/scenario`,
+    `cost                 US$${report.totalCostUsd.toFixed(3)} total, US$${report.meanCostPerScenarioUsd.toFixed(3)}/scenario, ${report.meanLlmCallsPerScenario.toFixed(1)} calls/scenario`,
   );
   console.log(`latency              ${report.meanLatencyMs} ms/scenario`);
-  const failed = results.filter(
+  const failing = results.filter(
     (r) => r.error || Object.values(r.checks).includes(false) || r.forbiddenHits.length,
   );
-  if (failed.length) console.log(`failing: ${failed.map((r) => r.id).join(', ')}`);
+  if (failing.length) console.log(`failing: ${failing.map((r) => r.id).join(', ')}`);
 }
 
 /** Separate database so evals never touch dev or test data. */
 async function ensureEvalDatabase(baseUrl: string): Promise<string> {
   const url = new URL(baseUrl);
-  const evalUrl = new URL(baseUrl);
-  evalUrl.pathname = '/keyhook_eval';
   if (!['localhost', '127.0.0.1', 'postgres'].includes(url.hostname)) {
     throw new Error('Evals only run against a local database');
   }
+  const evalUrl = new URL(baseUrl);
+  evalUrl.pathname = '/keyhook_eval';
   const admin = createDb(baseUrl, { max: 1 });
   try {
     await admin.db.execute(sql`CREATE DATABASE keyhook_eval`);
@@ -281,4 +392,4 @@ function gitSha(): string {
   }
 }
 
-await main();
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) await main();

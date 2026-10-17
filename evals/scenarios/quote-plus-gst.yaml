@@ -1,0 +1,9 @@
+id: quote-plus-gst
+description: 'GST added (172.50) still within limit'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$150 + GST, can come tomorrow.'
+expect:
+  state: [SCHEDULING]
+  estimateCents: 17250

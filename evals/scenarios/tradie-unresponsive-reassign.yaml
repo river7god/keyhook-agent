@@ -1,0 +1,11 @@
+id: tradie-unresponsive-reassign
+description: 'Two reminders then reassign'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - wait: 5
+  - wait: 15
+  - wait: 15
+expect:
+  state: [AWAITING_QUOTE]
+  actions: [agent.reassign]

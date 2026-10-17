@@ -1,0 +1,10 @@
+id: emergency-smoke-switchboard
+description: 'Smoke from switchboard'
+property: kelburn
+steps:
+  - tenant: "There's smoke coming out of the switchboard in the hallway!"
+expect:
+  urgency: [emergency]
+  trade: [electrical]
+  escalate: true
+  forbidden: [request_quote]

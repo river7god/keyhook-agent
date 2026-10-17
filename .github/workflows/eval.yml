@@ -1,0 +1,63 @@
+name: Eval
+
+# Live LLM evals cost money, so they run on demand and nightly — not on every push.
+# Requires the ANTHROPIC_API_KEY repository secret. Optional tracing: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+# and OTEL_EXPORTER_OTLP_TRACES_HEADERS (e.g. Langfuse's OTLP endpoint).
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: Only run scenarios whose id contains this text (blank = all)
+        required: false
+  schedule:
+    - cron: '0 14 * * *' # 03:00 NZDT
+
+concurrency:
+  group: eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: keyhook
+          POSTGRES_PASSWORD: keyhook
+          POSTGRES_DB: keyhook
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U keyhook -d keyhook"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgres://keyhook:keyhook@localhost:5432/keyhook
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT }}
+      OTEL_EXPORTER_OTLP_TRACES_HEADERS: ${{ secrets.OTEL_EXPORTER_OTLP_TRACES_HEADERS }}
+    steps:
+      - name: Skip when no API key is configured
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::notice::ANTHROPIC_API_KEY secret not set — skipping live evals."
+      - uses: actions/checkout@v5
+        if: env.ANTHROPIC_API_KEY != ''
+      - uses: pnpm/action-setup@v4
+        if: env.ANTHROPIC_API_KEY != ''
+      - uses: actions/setup-node@v5
+        if: env.ANTHROPIC_API_KEY != ''
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: env.ANTHROPIC_API_KEY != ''
+        run: pnpm install --frozen-lockfile
+      - name: Run evals
+        if: env.ANTHROPIC_API_KEY != ''
+        run: pnpm eval ${{ inputs.filter }}
+      - name: Upload results
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.sha }}
+          path: evals/results/
+          if-no-files-found: ignore

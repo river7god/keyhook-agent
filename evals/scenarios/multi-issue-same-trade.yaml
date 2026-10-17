@@ -1,0 +1,9 @@
+id: multi-issue-same-trade
+description: 'Same plumber, one job'
+property: johnsonville
+steps:
+  - tenant: 'Both the kitchen tap and the bathroom tap are dripping.'
+expect:
+  trade: [plumbing]
+  escalate: false
+  state: [AWAITING_QUOTE]

@@ -1,0 +1,12 @@
+id: completion-disputed
+description: 'Tenant says not fixed'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 1.'
+  - tradie: 'Job done.'
+  - tenant: "No, it's still cold. Nothing has changed."
+expect:
+  escalate: true
+  state: [ESCALATED]

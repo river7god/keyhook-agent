@@ -1,0 +1,12 @@
+id: confirmation-timeout
+description: 'No confirmation → reminder → escalate'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 1.'
+  - tradie: 'All fixed.'
+  - wait: 49
+  - wait: 73
+expect:
+  state: [ESCALATED]

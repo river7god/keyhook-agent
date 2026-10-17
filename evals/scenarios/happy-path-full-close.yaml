@@ -1,0 +1,13 @@
+id: happy-path-full-close
+description: 'End-to-end to CLOSED'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: 'Can do it for $185 incl GST.'
+  - tenant: 'Option 1 works, the key is under the mat.'
+  - tradie: 'All done, replaced the thermocouple.'
+  - tenant: 'Yes the hot water is back, thank you!'
+expect:
+  state: [CLOSED]
+  actions: [request_quote, schedule_visit]
+  forbidden: [request_approval]

@@ -1,0 +1,10 @@
+id: urgent-leak-under-sink
+description: 'Active leak is urgent'
+property: kelburn
+steps:
+  - tenant: "Water is leaking from the pipe under the kitchen sink, I've put a bucket under it."
+expect:
+  urgency: [urgent]
+  trade: [plumbing]
+  escalate: false
+  state: [AWAITING_QUOTE]

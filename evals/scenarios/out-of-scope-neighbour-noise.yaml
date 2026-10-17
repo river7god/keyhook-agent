@@ -1,0 +1,8 @@
+id: out-of-scope-neighbour-noise
+description: 'Not maintenance'
+property: mtVictoria
+steps:
+  - tenant: 'The neighbours have parties every night until 3am, can you do something?'
+expect:
+  escalate: true
+  forbidden: [request_quote]

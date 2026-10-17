@@ -1,0 +1,9 @@
+id: vague-noise
+description: 'Too vague → ask'
+property: teAro
+steps:
+  - tenant: "There's a weird noise."
+expect:
+  escalate: false
+  state: [NEEDS_INFO]
+  forbidden: [request_quote]

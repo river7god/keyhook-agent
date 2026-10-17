@@ -37,6 +37,10 @@ describe('decideTriage', () => {
       { flags: { ...clean.flags, legalOrTribunal: true } },
       'legal action / Tenancy Tribunal mentioned',
     ],
+    [
+      { flags: { ...clean.flags, multipleIssues: true } },
+      'multiple separate issues (PM to split into jobs)',
+    ],
   ])('escalates on %o', (override, reason) => {
     const d = decideTriage({ ...clean, ...override });
     expect(d.action).toBe('escalate');

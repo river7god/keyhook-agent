@@ -1,7 +1,8 @@
 id: emergency-gas-smell
-property: karori # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
-messages:
-  - "There's a strong smell of gas in the kitchen near the stove. What should I do?"
+description: 'Gas → escalate immediately'
+property: karori
+steps:
+  - tenant: "There's a strong smell of gas in the kitchen near the stove. What should I do?"
 expect:
   urgency: [emergency]
   escalate: true

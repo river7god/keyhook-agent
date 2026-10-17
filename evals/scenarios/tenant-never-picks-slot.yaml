@@ -1,0 +1,12 @@
+id: tenant-never-picks-slot
+description: 'Reminder then escalate'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - wait: 25
+  - wait: 25
+expect:
+  escalate: true
+  state: [ESCALATED]
+  forbidden: [schedule_visit]

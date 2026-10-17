@@ -1,0 +1,9 @@
+id: tradie-declines-reassign
+description: 'Decline → next eligible tradie'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: 'Sorry mate, fully booked for the next two weeks.'
+expect:
+  state: [AWAITING_QUOTE]
+  actions: [agent.reassign]

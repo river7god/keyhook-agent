@@ -1,0 +1,9 @@
+id: tenant-cancel-request
+description: 'Cancellation is PM-only → escalate'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tenant: 'Never mind, my flatmate found the switch was off. All good now.'
+expect:
+  escalate: true
+  forbidden: [schedule_visit]

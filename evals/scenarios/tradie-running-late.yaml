@@ -1,0 +1,11 @@
+id: tradie-running-late
+description: 'Delay acknowledged, stays booked'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 2 please.'
+  - tradie: 'Running about 30 minutes late, sorry.'
+expect:
+  state: [SCHEDULED]
+  escalate: false

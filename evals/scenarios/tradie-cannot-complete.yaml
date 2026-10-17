@@ -1,0 +1,10 @@
+id: tradie-cannot-complete
+description: 'Needs a person: parts / return visit'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 1.'
+  - tradie: "Had a look, the cylinder needs a part I have to order, can't finish today."
+expect:
+  state: [ESCALATED]

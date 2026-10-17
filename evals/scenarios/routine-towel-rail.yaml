@@ -1,0 +1,10 @@
+id: routine-towel-rail
+description: 'Fixture repair — handyman or electrical acceptable'
+property: thorndon
+steps:
+  - tenant: 'The heated towel rail in the bathroom has come away from the wall on one side.'
+expect:
+  urgency: [routine]
+  trade: [handyman, electrical]
+  escalate: false
+  state: [AWAITING_QUOTE]

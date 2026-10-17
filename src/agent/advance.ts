@@ -4,6 +4,7 @@ import { messages } from '@/db/schema';
 import { ensureFollowUp } from '@/domain/follow-ups';
 import { getJob, type Job } from '@/domain/jobs';
 import { deliverQueued, type Message } from '@/domain/messages';
+import { withSpan } from '@/lib/telemetry';
 import { handleGeneralMessage } from './handlers/general';
 import { handleQuoteReply, handleTriaged } from './handlers/quote';
 import { handleOfferSlots, handleSlotReply } from './handlers/scheduling';
@@ -29,7 +30,26 @@ type Handler = {
  * (permissions, idempotency, audit). Afterwards the job's follow-up is (re)scheduled for whatever
  * it is now waiting on, and queued messages are delivered.
  */
-export async function advanceJob(
+export function advanceJob(
+  deps: AgentDeps,
+  args: { organizationId: string; jobId: string; messageId?: string | null },
+): Promise<{ handled: string[] }> {
+  return withSpan(
+    'job.advance',
+    {
+      'keyhook.organization_id': args.organizationId,
+      'keyhook.job_id': args.jobId,
+      ...(args.messageId ? { 'keyhook.message_id': args.messageId } : {}),
+    },
+    async (span) => {
+      const result = await advance(deps, args);
+      span.setAttribute('keyhook.handled', result.handled);
+      return result;
+    },
+  );
+}
+
+async function advance(
   deps: AgentDeps,
   args: { organizationId: string; jobId: string; messageId?: string | null },
 ): Promise<{ handled: string[] }> {

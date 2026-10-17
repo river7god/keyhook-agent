@@ -1,0 +1,11 @@
+id: over-budget-rejected
+description: 'Rejected approval escalates'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: 'Needs a new cylinder, $2,100 incl GST.'
+  - pm: reject
+expect:
+  state: [ESCALATED]
+  actions: [request_approval]
+  forbidden: [approve_spend]

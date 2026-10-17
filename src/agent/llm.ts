@@ -3,6 +3,8 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import type { z } from 'zod';
 import type { DbOrTx } from '@/db/client';
 import { llmCalls } from '@/db/schema';
+import { trace } from '@opentelemetry/api';
+import { withSpan } from '@/lib/telemetry';
 import { costUsdMicros } from './pricing';
 
 export const AGENT_MODEL = 'claude-opus-5-5';
@@ -74,7 +76,33 @@ export class ClaudeLlm implements LlmClient {
     private readonly model: string = AGENT_MODEL,
   ) {}
 
-  async structured<T>(req: StructuredRequest<T>): Promise<T> {
+  structured<T>(req: StructuredRequest<T>): Promise<T> {
+    return this.traced(req.ctx, req.effort, () => this.structuredCall(req));
+  }
+
+  toolTurn(req: ToolTurnRequest): Promise<Anthropic.Beta.BetaMessage> {
+    return this.traced(req.ctx, req.effort, () => this.toolTurnCall(req));
+  }
+
+  /** One OpenTelemetry GenAI span per request (gen_ai.* semantic conventions; Langfuse reads these). */
+  private traced<T>(ctx: LlmContext, effort: Effort, fn: () => Promise<T>): Promise<T> {
+    return withSpan(
+      `chat ${this.model}`,
+      {
+        'gen_ai.operation.name': 'chat',
+        'gen_ai.system': 'anthropic',
+        'gen_ai.request.model': this.model,
+        'gen_ai.conversation.id': ctx.jobId ?? ctx.organizationId,
+        'keyhook.step': ctx.step,
+        'keyhook.effort': effort,
+        'keyhook.organization_id': ctx.organizationId,
+        ...(ctx.jobId ? { 'keyhook.job_id': ctx.jobId } : {}),
+      },
+      fn,
+    );
+  }
+
+  private async structuredCall<T>(req: StructuredRequest<T>): Promise<T> {
     const started = Date.now();
     try {
       const { data, request_id } = await this.client.beta.messages
@@ -103,7 +131,7 @@ export class ClaudeLlm implements LlmClient {
     }
   }
 
-  async toolTurn(req: ToolTurnRequest): Promise<Anthropic.Beta.BetaMessage> {
+  private async toolTurnCall(req: ToolTurnRequest): Promise<Anthropic.Beta.BetaMessage> {
     const started = Date.now();
     try {
       const { data, request_id } = await this.client.beta.messages
@@ -151,6 +179,18 @@ export class ClaudeLlm implements LlmClient {
       cacheReadInputTokens: msg.usage.cache_read_input_tokens ?? 0,
       cacheCreationInputTokens: msg.usage.cache_creation_input_tokens ?? 0,
     };
+    const cost = costUsdMicros(msg.model, usage);
+    trace.getActiveSpan()?.setAttributes({
+      'gen_ai.response.model': msg.model,
+      'gen_ai.response.id': msg.id,
+      'gen_ai.response.finish_reasons': [msg.stop_reason ?? 'unknown'],
+      'gen_ai.usage.input_tokens': usage.inputTokens,
+      'gen_ai.usage.output_tokens': usage.outputTokens,
+      'gen_ai.usage.cache_read_input_tokens': usage.cacheReadInputTokens,
+      'gen_ai.usage.cache_creation_input_tokens': usage.cacheCreationInputTokens,
+      ...(cost !== null ? { 'keyhook.cost_usd': cost / 1e6 } : {}),
+      ...(requestId ? { 'anthropic.request_id': requestId } : {}),
+    });
     await this.db.insert(llmCalls).values({
       organizationId: ctx.organizationId,
       jobId: ctx.jobId,
@@ -160,7 +200,7 @@ export class ClaudeLlm implements LlmClient {
       stopReason: msg.stop_reason,
       ...usage,
       // Fallback rescues bill at the serving model's rates.
-      costUsdMicros: costUsdMicros(msg.model, usage),
+      costUsdMicros: cost,
       latencyMs,
       requestId,
     });

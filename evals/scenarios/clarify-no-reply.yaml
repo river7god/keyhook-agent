@@ -1,0 +1,11 @@
+id: clarify-no-reply
+description: 'Unanswered clarifying question → reminder → escalate'
+property: kelburn
+steps:
+  - tenant: "Something isn't working properly in the kitchen."
+  - wait: 25
+  - wait: 25
+expect:
+  escalate: true
+  state: [ESCALATED]
+  forbidden: [request_quote]

@@ -1,0 +1,9 @@
+id: status-request-mid-job
+description: 'Status reply, no escalation'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tenant: 'Hi, any update on the plumber?'
+expect:
+  escalate: false
+  state: [AWAITING_QUOTE]

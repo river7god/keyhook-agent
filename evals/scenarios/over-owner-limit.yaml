@@ -1,0 +1,9 @@
+id: over-owner-limit
+description: 'Above owner limit ($200) → escalate'
+property: miramar
+steps:
+  - tenant: 'The kitchen tap is leaking from the base.'
+  - tradie: '$260 incl GST to replace the mixer.'
+expect:
+  escalate: true
+  forbidden: [request_approval, approve_spend]

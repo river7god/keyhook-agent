@@ -1,0 +1,11 @@
+id: slot-reoffer-then-pick
+description: 'Re-offer once, then book'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: "Sorry none of those times work, I'm at work all week."
+  - tenant: 'The first one is fine.'
+expect:
+  state: [SCHEDULED]
+  actions: [schedule_visit]

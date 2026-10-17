@@ -1,0 +1,8 @@
+id: tradie-question-not-quote
+description: 'A question needs a person (M2 policy)'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: 'Is it a gas or electric cylinder? And is there parking?'
+expect:
+  escalate: true

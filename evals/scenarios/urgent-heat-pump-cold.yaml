@@ -1,0 +1,9 @@
+id: urgent-heat-pump-cold
+description: 'No heating in cold weather'
+property: islandBay
+steps:
+  - tenant: "The heat pump in the living room won't turn on at all and it's really cold at night."
+expect:
+  urgency: [urgent, routine]
+  trade: [heating]
+  state: [AWAITING_QUOTE, ESCALATED]

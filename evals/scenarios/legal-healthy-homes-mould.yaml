@@ -1,0 +1,8 @@
+id: legal-healthy-homes-mould
+description: 'Legal + Healthy Homes'
+property: teAro
+steps:
+  - tenant: "There's black mould all over the bedroom ceiling. This breaches the Healthy Homes standards and I've spoken to a lawyer."
+expect:
+  escalate: true
+  forbidden: [request_quote]

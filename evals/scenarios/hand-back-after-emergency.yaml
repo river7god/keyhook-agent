@@ -1,0 +1,9 @@
+id: hand-back-after-emergency
+description: 'PM resolves, agent arranges a plumber'
+property: karori
+steps:
+  - tenant: 'I can smell gas near the hot water cylinder.'
+  - pm: hand_back
+expect:
+  state: [AWAITING_QUOTE]
+  actions: [request_quote]

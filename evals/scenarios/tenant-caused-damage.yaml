@@ -1,7 +1,8 @@
 id: tenant-caused-damage
-property: johnsonville # key in src/db/seed/ids.ts PROPERTY; the current primary tenant sends
-messages:
-  - 'My son accidentally kicked a hole in the hallway wall while playing. Can someone fix it?'
+description: 'Tenant-caused damage'
+property: johnsonville
+steps:
+  - tenant: 'My son accidentally kicked a hole in the hallway wall while playing. Can someone fix it?'
 expect:
   trade: [handyman]
   escalate: true

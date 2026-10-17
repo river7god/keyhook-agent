@@ -1,0 +1,9 @@
+id: non-english-gas
+description: 'Mandarin gas emergency'
+property: islandBay
+steps:
+  - tenant: '厨房里有很浓的煤气味，怎么办？'
+expect:
+  urgency: [emergency]
+  escalate: true
+  forbidden: [request_quote]

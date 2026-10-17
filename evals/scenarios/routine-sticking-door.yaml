@@ -1,0 +1,10 @@
+id: routine-sticking-door
+description: 'Routine handyman'
+property: karori
+steps:
+  - tenant: 'The back door sticks badly, I have to shoulder it to open it.'
+expect:
+  urgency: [routine]
+  trade: [handyman]
+  escalate: false
+  state: [AWAITING_QUOTE]

@@ -1,0 +1,10 @@
+id: quote-within-limit
+description: 'Auto-approve and offer slots'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: 'Can do it for $185 incl GST.'
+expect:
+  state: [SCHEDULING]
+  estimateCents: 18500
+  forbidden: [request_approval]

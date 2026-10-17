@@ -1,0 +1,9 @@
+id: tenant-blocked-drain-grease
+description: 'Admitted cause'
+property: kelburn
+steps:
+  - tenant: 'The kitchen sink is blocked, we poured a lot of fat down it after a BBQ, sorry!'
+expect:
+  trade: [plumbing]
+  escalate: true
+  forbidden: [request_quote]

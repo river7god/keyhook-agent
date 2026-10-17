@@ -1,0 +1,9 @@
+id: new-emergency-mid-job
+description: 'New emergency escalates'
+property: newtown
+steps:
+  - tenant: 'Small drip from the bathroom tap.'
+  - tenant: 'Now water is pouring out of the ceiling light in the hallway!!'
+expect:
+  escalate: true
+  state: [ESCALATED]

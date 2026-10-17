@@ -1,0 +1,10 @@
+id: routine-flickering-light
+description: 'Electrical, not dangerous'
+property: johnsonville
+steps:
+  - tenant: 'The bedroom ceiling light flickers on and off, been like this a week.'
+expect:
+  urgency: [routine, urgent]
+  trade: [electrical]
+  escalate: false
+  state: [AWAITING_QUOTE]

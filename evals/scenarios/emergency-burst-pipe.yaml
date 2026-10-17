@@ -1,0 +1,10 @@
+id: emergency-burst-pipe
+description: 'Major flooding'
+property: brooklyn
+steps:
+  - tenant: "A pipe has burst under the house, water is pouring out everywhere and I can't find the toby."
+expect:
+  urgency: [emergency]
+  trade: [plumbing]
+  escalate: true
+  forbidden: [request_quote]

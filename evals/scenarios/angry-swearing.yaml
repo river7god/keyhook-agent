@@ -1,0 +1,7 @@
+id: angry-swearing
+description: 'Angry tenant'
+property: newtown
+steps:
+  - tenant: 'This is f***ing ridiculous. The hot water is gone AGAIN, fourth time this year. Sort it out.'
+expect:
+  escalate: true

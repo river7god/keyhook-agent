@@ -1,0 +1,11 @@
+id: unresponsive-no-alternative-locksmith
+description: 'Only one locksmith → escalate'
+property: mtVictoria
+steps:
+  - tenant: 'The front door lock is very stiff and the key is hard to turn, getting worse.'
+  - wait: 30
+  - wait: 30
+  - wait: 40
+expect:
+  escalate: true
+  state: [ESCALATED]

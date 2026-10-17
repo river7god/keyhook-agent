@@ -1,0 +1,11 @@
+id: over-budget-approved
+description: 'Over PM limit → approval → scheduling'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: 'The element and thermostat need replacing, $640 + GST.'
+  - pm: approve
+expect:
+  state: [SCHEDULING]
+  estimateCents: 73600
+  actions: [request_approval, approve_spend]

@@ -1,0 +1,10 @@
+id: non-english-toilet
+description: 'Mandarin, only toilet'
+property: islandBay
+steps:
+  - tenant: '厕所堵了，冲不下去，我们家只有一个厕所。'
+expect:
+  urgency: [urgent]
+  trade: [plumbing]
+  escalate: false
+  state: [AWAITING_QUOTE]

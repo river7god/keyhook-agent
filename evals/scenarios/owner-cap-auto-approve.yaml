@@ -1,0 +1,9 @@
+id: owner-cap-auto-approve
+description: 'PM limit capped by owner limit but within it'
+property: miramar
+steps:
+  - tenant: 'The kitchen tap is leaking from the base.'
+  - tradie: '$190 incl GST to replace the washer and cartridge.'
+expect:
+  state: [SCHEDULING]
+  estimateCents: 19000

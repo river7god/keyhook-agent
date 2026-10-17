@@ -1,0 +1,8 @@
+id: multi-issue-different-trades
+description: 'Two trades → PM splits'
+property: brooklyn
+steps:
+  - tenant: "The kitchen tap is dripping and also the bedroom window latch is broken so it won't close."
+expect:
+  escalate: true
+  forbidden: [request_quote]

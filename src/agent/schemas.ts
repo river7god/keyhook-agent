@@ -24,7 +24,11 @@ export const triageOutput = z.object({
     outOfScope: z
       .boolean()
       .describe('Not a maintenance issue, or asks for something outside the agent’s tools'),
-    multipleIssues: z.boolean(),
+    multipleIssues: z
+      .boolean()
+      .describe(
+        'True only if the issues need different trades or separate visits; several items for one tradie is false',
+      ),
   }),
   tenantReply: z
     .string()

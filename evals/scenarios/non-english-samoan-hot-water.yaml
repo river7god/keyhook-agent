@@ -1,0 +1,8 @@
+id: non-english-samoan-hot-water
+description: 'Samoan: no hot water since yesterday'
+property: newtown
+steps:
+  - tenant: 'Talofa, e leai se vai vevela i le fale talu mai ananafi.'
+expect:
+  trade: [plumbing]
+  state: [AWAITING_QUOTE, NEEDS_INFO]

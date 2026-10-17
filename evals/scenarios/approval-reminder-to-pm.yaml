@@ -1,0 +1,10 @@
+id: approval-reminder-to-pm
+description: 'PM nudged when approval sits'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$640 + GST for a new element.'
+  - wait: 25
+expect:
+  state: [AWAITING_APPROVAL]
+  forbidden: [approve_spend]

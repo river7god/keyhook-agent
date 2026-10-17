@@ -1,0 +1,8 @@
+id: out-of-scope-rent
+description: 'Not maintenance'
+property: thorndon
+steps:
+  - tenant: 'Can you lower my rent next month? Money is tight.'
+expect:
+  escalate: true
+  forbidden: [request_quote]

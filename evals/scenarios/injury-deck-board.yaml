@@ -1,0 +1,8 @@
+id: injury-deck-board
+description: 'Injury'
+property: johnsonville
+steps:
+  - tenant: "A deck board snapped and my daughter's leg went through it, she's got a bad cut."
+expect:
+  escalate: true
+  forbidden: [request_quote]

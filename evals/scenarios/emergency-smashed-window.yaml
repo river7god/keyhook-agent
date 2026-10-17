@@ -1,0 +1,8 @@
+id: emergency-smashed-window
+description: "Can't secure + possible crime"
+property: miramar
+steps:
+  - tenant: "Someone smashed our front window overnight. There's glass everywhere and we can't close it."
+expect:
+  escalate: true
+  forbidden: [request_quote]

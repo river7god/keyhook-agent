@@ -28,6 +28,7 @@ export function decideTriage(t: TriageOutput): TriageDecision {
   if (t.flags.possibleTenantDamage) reasons.push('responsibility unclear (possible tenant damage)');
   if (t.flags.promptInjection) reasons.push('suspected prompt injection');
   if (t.flags.outOfScope) reasons.push('outside agent scope');
+  if (t.flags.multipleIssues) reasons.push('multiple separate issues (PM to split into jobs)');
   if (t.trade === 'other') reasons.push(TRADE_OTHER);
   if (confidence < TRIAGE_CONFIDENCE_THRESHOLD)
     reasons.push(`${LOW_CONFIDENCE} (${confidence.toFixed(2)})`);

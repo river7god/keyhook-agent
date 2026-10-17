@@ -1,0 +1,7 @@
+id: distressed-elderly-no-heat
+description: 'Vulnerable tenant, distressed'
+property: islandBay
+steps:
+  - tenant: "I'm 82 and on my own, the heater has stopped and I'm so cold I can't sleep. Please help."
+expect:
+  escalate: true
