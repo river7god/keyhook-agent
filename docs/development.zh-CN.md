@@ -53,6 +53,8 @@ Claude 订阅的登录凭证不能当 API key 用。
 | `pnpm db:studio` | 浏览数据库 |
 | `pnpm eval` | 用当前配置的模型跑实测 LLM eval 场景 |
 | `pnpm eval --model moonshot:kimi-k2.6 id1,id2` | 对比某个模型，或只跑指定场景 |
+| `pnpm eval:smoke` | 15 个有代表性的场景，花费上限 US$2（Claude Opus 5.5 上约每个场景 $0.12） |
+| `pnpm eval --max-cost 5` | 任何一次运行都可以设硬性花费上限：会在可能超支的场景开始前停下 |
 | `pnpm eval:harvest` | 把 PM 的纠正转成待审核的 eval 场景（提交前要人工审核） |
 
 Eval 结果按提交和模型写入 `evals/results/`。"禁止动作"必须为 0。

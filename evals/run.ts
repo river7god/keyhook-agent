@@ -123,12 +123,18 @@ async function main() {
   } catch {
     /* CI provides env */
   }
-  // Usage: pnpm eval [filter] [--model provider:model] [--include-unreviewed]
+  // Usage: pnpm eval [filter] [--model provider:model] [--max-cost usd] [--include-unreviewed]
   const args = process.argv.slice(2);
   const modelIdx = args.indexOf('--model');
+  const costIdx = args.indexOf('--max-cost');
+  const maxCostMicros = costIdx >= 0 ? Number(args[costIdx + 1]) * 1e6 : Infinity;
+  if (Number.isNaN(maxCostMicros)) throw new Error('--max-cost needs a number of USD');
   const model: ModelRef = modelIdx >= 0 ? parseModelRef(args[modelIdx + 1] ?? '') : DEFAULT_MODEL;
   const filter = args.filter(
-    (a, i) => !a.startsWith('--') && (modelIdx < 0 || i !== modelIdx + 1),
+    (a, i) =>
+      !a.startsWith('--') &&
+      (modelIdx < 0 || i !== modelIdx + 1) &&
+      (costIdx < 0 || i !== costIdx + 1),
   )[0];
   const keyEnv = PROVIDERS[model.provider].apiKeyEnv;
   if (!process.env[keyEnv]) {
@@ -149,7 +155,20 @@ async function main() {
   const { db, close } = createDb(evalUrl, { max: 4 });
   const results: ScenarioResult[] = [];
   try {
+    // Budget: stop before a scenario that would likely cross --max-cost (unpriced calls count at
+    // UNKNOWN_LLM_CALL_COST_USD, default $0.05, as in the simulator budget).
+    const unknownCallMicros = Number(process.env.UNKNOWN_LLM_CALL_COST_USD ?? 0.05) * 1e6;
+    const spentMicros = () =>
+      results.reduce((n, r) => n + r.costUsdMicros + r.unpricedCalls * unknownCallMicros, 0);
     for (const s of scenarios) {
+      const spent = spentMicros();
+      const perScenario = results.length ? spent / results.length : 0;
+      if (spent + perScenario > maxCostMicros) {
+        console.log(
+          `■ budget: spent $${(spent / 1e6).toFixed(2)} of $${(maxCostMicros / 1e6).toFixed(2)}; skipping ${String(scenarios.length - results.length)} remaining scenario(s)`,
+        );
+        break;
+      }
       process.stdout.write(`• ${s.id} … `);
       const r = await runScenario(db, s, new RoutingLlm(db, null, model));
       results.push(r);

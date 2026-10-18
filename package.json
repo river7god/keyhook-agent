@@ -26,7 +26,8 @@
     "db:reset": "tsx --env-file=.env src/db/reset.ts && pnpm db:migrate && pnpm db:seed",
     "eval": "tsx evals/run.ts",
     "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
-    "eval:harvest": "tsx evals/harvest.ts"
+    "eval:harvest": "tsx evals/harvest.ts",
+    "eval:smoke": "tsx evals/run.ts urgent-no-hot-water,emergency-gas-smell,routine-dripping-tap,vague-bathroom,angry-tribunal-leak,tenant-caused-damage,prompt-injection,injection-in-tradie-quote,non-english-no-hot-water,multi-issue-different-trades,over-budget-approved,variation-needs-approval,invoice-over-quote,inspection-safety-not-legal,happy-path-full-close --max-cost 2"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0",
