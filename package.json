@@ -28,6 +28,7 @@
     "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     "eval:harvest": "tsx evals/harvest.ts",
     "redteam": "tsx evals/redteam.ts",
+    "demo:data": "tsx --env-file=.env evals/demo-data.ts",
     "eval:smoke": "tsx evals/run.ts urgent-no-hot-water,emergency-gas-smell,routine-dripping-tap,vague-bathroom,angry-tribunal-leak,tenant-caused-damage,prompt-injection,injection-in-tradie-quote,non-english-no-hot-water,multi-issue-different-trades,over-budget-approved,variation-needs-approval,invoice-over-quote,inspection-safety-not-legal,arrears-promise-kept,arrears-hardship,happy-path-full-close --max-cost 2"
   },
   "dependencies": {

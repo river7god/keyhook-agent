@@ -28,6 +28,8 @@ type ChatResponse = OpenAI.Chat.Completions.ChatCompletion;
  * handler code is provider-agnostic. Structured output: native JSON Schema where supported,
  * otherwise JSON mode + schema in the prompt; always validated with Zod, one repair attempt.
  */
+const TRUNCATION_ATTEMPTS = 2;
+
 export class OpenAICompatibleLlm implements LlmClient {
   private readonly client: OpenAI;
 
@@ -143,19 +145,26 @@ export class OpenAICompatibleLlm implements LlmClient {
       'messages' | 'tools' | 'tool_choice' | 'response_format'
     >,
   ): Promise<ChatResponse> {
-    const started = Date.now();
+    let started = Date.now();
     const limit = { [this.provider.maxTokensParam]: 16_000 };
     try {
-      const { data, request_id } = await this.client.chat.completions
-        .create({
-          model: this.model,
-          ...body,
-          ...limit,
-          ...(this.provider.reasoningEffort ? { reasoning_effort: effort } : {}),
-        })
-        .withResponse();
-      await this.record(ctx, data, Date.now() - started, request_id ?? null);
-      return data;
+      // Reasoning models occasionally loop until the output budget runs out. These calls have no
+      // side effects, so a truncated answer is retried once before it becomes an error.
+      for (let attempt = 1; ; attempt++) {
+        const { data, request_id } = await this.client.chat.completions
+          .create({
+            model: this.model,
+            ...body,
+            ...limit,
+            ...(this.provider.reasoningEffort ? { reasoning_effort: effort } : {}),
+          })
+          .withResponse();
+        await this.record(ctx, data, Date.now() - started, request_id ?? null);
+        if (data.choices[0]?.finish_reason !== 'length' || attempt >= TRUNCATION_ATTEMPTS) {
+          return data;
+        }
+        started = Date.now();
+      }
     } catch (err) {
       if (err instanceof OpenAI.APIError) {
         await this.db.insert(llmCalls).values({

@@ -247,17 +247,18 @@ function stepsOf(s: Scenario): Step[] {
   return s.steps ?? (s.messages ?? []).map((tenant) => ({ tenant }));
 }
 
-export async function runScenario(
+/**
+ * Play a scenario's steps against the database as it is (no reseed): the real agent handles each
+ * message, approval, payment or time jump. Shared by the eval runner and `pnpm demo:data`.
+ */
+export async function playSteps(
   db: Db,
   s: Scenario,
-  llm: LlmClient = new RoutingLlm(db, null),
-): Promise<ScenarioResult> {
-  const started = Date.now();
+  opts: { llm: LlmClient; start: Date; decidedBy: string; label: string },
+): Promise<{ jobId: string | null; caseId: string | null; stoppedEarly?: string }> {
   const org = ORG.harbourCity;
-  let clock = SEED_TIME;
-  const deps: AgentDeps = { db, llm, now: () => clock };
-  await db.execute(sql`TRUNCATE TABLE llm_calls, audit_log RESTART IDENTITY CASCADE`);
-  await seed(db, SEED_TIME);
+  let clock = opts.start;
+  const deps: AgentDeps = { db, llm: opts.llm, now: () => clock };
   const tenantId = primaryTenantFor(currentTenancyFor(PROPERTY[s.property]).id);
   const [property] = await db
     .select({ pmId: properties.propertyManagerId })
@@ -269,129 +270,146 @@ export async function runScenario(
   const tenancyId = currentTenancyFor(PROPERTY[s.property]).id;
   const findCase = async () => (await findOpenCase(db, org, { tenancyId }))?.id ?? caseId;
   let stoppedEarly: string | undefined;
-  try {
-    const steps = stepsOf(s);
-    for (const [i, st] of steps.entries()) {
-      // The agent may hand the job to a PM (or finish) earlier than the script expects — e.g.
-      // flagging an injection at triage. Remaining steps are moot; score the outcome as is.
-      if (jobId && !('pm' in st && st.pm === 'hand_back')) {
-        const current = await getJob(db, org, jobId);
-        if (
-          current.state === 'ESCALATED' ||
-          current.state === 'CLOSED' ||
-          current.state === 'CANCELLED'
-        ) {
-          stoppedEarly = `${current.state} before step ${i + 1}/${steps.length}`;
-          break;
-        }
-      }
-      if (caseId && !jobId) {
-        const c = await getCase(db, org, caseId);
-        if (c.state === 'ESCALATED' || c.state === 'RESOLVED' || c.state === 'CLOSED') {
-          stoppedEarly = `${c.state} before step ${String(i + 1)}/${String(steps.length)}`;
-          break;
-        }
-      }
-      if ('arrears_check' in st) {
-        await sweepArrears(deps, org);
-        caseId = await findCase();
-      } else if ('payment' in st) {
-        await recordPayment(db, {
-          organizationId: org,
-          tenancyId,
-          amountCents: Math.round(st.payment * 100),
-          date: nzDate(clock),
-          reference: 'Eval payment',
-          actor: { type: 'system', id: null },
-        });
-        if (caseId) await advanceArrears(deps, { organizationId: org, caseId });
-      } else if (s.arrears && 'tenant' in st) {
-        const r = await receiveMessage(db, {
-          organizationId: org,
-          senderType: 'tenant',
-          senderId: tenantId,
-          jobId: null,
-          body: st.tenant,
-        });
-        const routed =
-          r.kind === 'unrouted'
-            ? await routeInbound(deps, { organizationId: org, messageId: r.messageId })
-            : r.kind === 'arrears'
-              ? { kind: 'arrears' as const, caseId: r.arrearsCaseId }
-              : { kind: 'job' as const, jobId: r.jobId };
-        if (routed.kind === 'arrears') {
-          caseId = routed.caseId;
-          await advanceArrears(deps, { organizationId: org, caseId, messageId: r.messageId });
-        } else {
-          await advanceJob(deps, {
-            organizationId: org,
-            jobId: routed.jobId,
-            messageId: r.messageId,
-          });
-        }
-      } else if ('inspection' in st) {
-        if (jobId || !property) throw new Error('inspection must be the first step');
-        const job = await createAgencyJob(db, {
-          organizationId: org,
-          propertyId: PROPERTY[s.property],
-          source: 'inspection',
-          actor: { type: 'pm', id: property.pmId },
-          title: 'Inspection finding',
-          description: st.inspection,
-          reason: 'Eval: inspection finding',
-        });
-        jobId = job.id;
-        await advanceJob(deps, { organizationId: org, jobId });
-      } else if ('tenant' in st || 'tradie' in st) {
-        const job = jobId ? await getJob(db, org, jobId) : null;
-        const sender =
-          'tenant' in st
-            ? { senderType: 'tenant' as const, senderId: tenantId, body: st.tenant }
-            : {
-                senderType: 'tradie' as const,
-                senderId: job?.assignedTradieId ?? '',
-                body: st.tradie,
-              };
-        if (sender.senderType === 'tradie' && !sender.senderId)
-          throw new Error('tradie step but no tradie assigned');
-        const m = await ingestMessage(db, { organizationId: org, jobId, ...sender });
-        jobId = m.jobId;
-        await advanceJob(deps, { organizationId: org, jobId, messageId: m.messageId });
-      } else if ('pm' in st) {
-        if (!jobId || !property) throw new Error('pm step before a job exists');
-        if (st.pm === 'hand_back') {
-          await handBackJob(db, {
-            organizationId: org,
-            jobId,
-            propertyManagerId: property.pmId,
-            note: null,
-            now: clock,
-          });
-        } else {
-          const [pending] = await db
-            .select({ id: approvals.id })
-            .from(approvals)
-            .where(and(eq(approvals.jobId, jobId), eq(approvals.status, 'pending')));
-          if (!pending) throw new Error(`pm ${st.pm}: no pending approval`);
-          await recordApprovalDecision(db, {
-            organizationId: org,
-            approvalId: pending.id,
-            decision: st.pm === 'approve' ? 'approved' : 'rejected',
-            decidedBy: 'eval-pm',
-            note: null,
-            now: clock,
-          });
-        }
-        await advanceJob(deps, { organizationId: org, jobId });
-      } else {
-        clock = new Date(clock.getTime() + st.wait * 3_600_000);
-        for (const fu of await listDueFollowUps(db, clock)) await handleFollowUp(deps, fu.id);
-        if (s.arrears) {
-          await sweepArrears(deps, org);
-          caseId = await findCase();
-        }
+  const steps = stepsOf(s);
+  for (const [i, st] of steps.entries()) {
+    // The agent may hand the job to a PM (or finish) earlier than the script expects — e.g.
+    // flagging an injection at triage. Remaining steps are moot; score the outcome as is.
+    if (jobId && !('pm' in st && st.pm === 'hand_back')) {
+      const current = await getJob(db, org, jobId);
+      if (
+        current.state === 'ESCALATED' ||
+        current.state === 'CLOSED' ||
+        current.state === 'CANCELLED'
+      ) {
+        stoppedEarly = `${current.state} before step ${i + 1}/${steps.length}`;
+        break;
       }
     }
+    if (caseId && !jobId) {
+      const c = await getCase(db, org, caseId);
+      if (c.state === 'ESCALATED' || c.state === 'RESOLVED' || c.state === 'CLOSED') {
+        stoppedEarly = `${c.state} before step ${String(i + 1)}/${String(steps.length)}`;
+        break;
+      }
+    }
+    if ('arrears_check' in st) {
+      await sweepArrears(deps, org);
+      caseId = await findCase();
+    } else if ('payment' in st) {
+      await recordPayment(db, {
+        organizationId: org,
+        tenancyId,
+        amountCents: Math.round(st.payment * 100),
+        date: nzDate(clock),
+        reference: `${opts.label} payment`,
+        actor: { type: 'system', id: null },
+      });
+      if (caseId) await advanceArrears(deps, { organizationId: org, caseId });
+    } else if (s.arrears && 'tenant' in st) {
+      const r = await receiveMessage(db, {
+        organizationId: org,
+        senderType: 'tenant',
+        senderId: tenantId,
+        jobId: null,
+        body: st.tenant,
+      });
+      const routed =
+        r.kind === 'unrouted'
+          ? await routeInbound(deps, { organizationId: org, messageId: r.messageId })
+          : r.kind === 'arrears'
+            ? { kind: 'arrears' as const, caseId: r.arrearsCaseId }
+            : { kind: 'job' as const, jobId: r.jobId };
+      if (routed.kind === 'arrears') {
+        caseId = routed.caseId;
+        await advanceArrears(deps, { organizationId: org, caseId, messageId: r.messageId });
+      } else {
+        await advanceJob(deps, {
+          organizationId: org,
+          jobId: routed.jobId,
+          messageId: r.messageId,
+        });
+      }
+    } else if ('inspection' in st) {
+      if (jobId || !property) throw new Error('inspection must be the first step');
+      const job = await createAgencyJob(db, {
+        organizationId: org,
+        propertyId: PROPERTY[s.property],
+        source: 'inspection',
+        actor: { type: 'pm', id: property.pmId },
+        title: 'Inspection finding',
+        description: st.inspection,
+        reason: `${opts.label}: inspection finding`,
+      });
+      jobId = job.id;
+      await advanceJob(deps, { organizationId: org, jobId });
+    } else if ('tenant' in st || 'tradie' in st) {
+      const job = jobId ? await getJob(db, org, jobId) : null;
+      const sender =
+        'tenant' in st
+          ? { senderType: 'tenant' as const, senderId: tenantId, body: st.tenant }
+          : {
+              senderType: 'tradie' as const,
+              senderId: job?.assignedTradieId ?? '',
+              body: st.tradie,
+            };
+      if (sender.senderType === 'tradie' && !sender.senderId)
+        throw new Error('tradie step but no tradie assigned');
+      const m = await ingestMessage(db, { organizationId: org, jobId, ...sender });
+      jobId = m.jobId;
+      await advanceJob(deps, { organizationId: org, jobId, messageId: m.messageId });
+    } else if ('pm' in st) {
+      if (!jobId || !property) throw new Error('pm step before a job exists');
+      if (st.pm === 'hand_back') {
+        await handBackJob(db, {
+          organizationId: org,
+          jobId,
+          propertyManagerId: property.pmId,
+          note: null,
+          now: clock,
+        });
+      } else {
+        const [pending] = await db
+          .select({ id: approvals.id })
+          .from(approvals)
+          .where(and(eq(approvals.jobId, jobId), eq(approvals.status, 'pending')));
+        if (!pending) throw new Error(`pm ${st.pm}: no pending approval`);
+        await recordApprovalDecision(db, {
+          organizationId: org,
+          approvalId: pending.id,
+          decision: st.pm === 'approve' ? 'approved' : 'rejected',
+          decidedBy: opts.decidedBy,
+          note: null,
+          now: clock,
+        });
+      }
+      await advanceJob(deps, { organizationId: org, jobId });
+    } else {
+      clock = new Date(clock.getTime() + st.wait * 3_600_000);
+      for (const fu of await listDueFollowUps(db, clock)) await handleFollowUp(deps, fu.id);
+      if (s.arrears) {
+        await sweepArrears(deps, org);
+        caseId = await findCase();
+      }
+    }
+  }
+  return { jobId, caseId, ...(stoppedEarly ? { stoppedEarly } : {}) };
+}
+
+export async function runScenario(
+  db: Db,
+  s: Scenario,
+  llm: LlmClient = new RoutingLlm(db, null),
+): Promise<ScenarioResult> {
+  const started = Date.now();
+  await db.execute(sql`TRUNCATE TABLE llm_calls, audit_log RESTART IDENTITY CASCADE`);
+  await seed(db, SEED_TIME);
+  try {
+    const { jobId, caseId, stoppedEarly } = await playSteps(db, s, {
+      llm,
+      start: SEED_TIME,
+      decidedBy: 'eval-pm',
+      label: 'Eval',
+    });
     if (s.arrears) {
       if (!caseId) throw new Error('no arrears case');
       return {

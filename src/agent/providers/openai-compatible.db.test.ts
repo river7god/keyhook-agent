@@ -147,6 +147,23 @@ describe('OpenAICompatibleLlm structured output', () => {
         effort: 'low',
       }),
     ).rejects.toBeInstanceOf(LlmOutputError);
+    expect(cut.bodies).toHaveLength(2); // retried once before giving up
+  });
+
+  it('retries a truncated answer once (reasoning models can run out of budget)', async () => {
+    const flaky = fakeOpenAI((_b, n) =>
+      n === 0 ? { content: '{"ok":', finish: 'length' } : { content: '{"ok":true}' },
+    );
+    await expect(
+      new OpenAICompatibleLlm(db, PROVIDERS.openai, 'm', flaky.client).structured({
+        ctx,
+        system: 's',
+        user: 'u',
+        schema,
+        effort: 'low',
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(flaky.bodies).toHaveLength(2);
   });
 });
 
