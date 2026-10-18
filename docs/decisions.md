@@ -330,3 +330,17 @@ untrusted data. When the notes are too vague to brief a tradie, the agent escala
 instead of asking the tenant. Inspection photos are not attached yet (follow-up).
 **Reason:** Confirmed with the product owner (2026-10-18): contact the current tenant. Reusing the
 tenant column keeps every downstream step unchanged.
+
+### 2026-10-18 — M8 (R7): Portfolio Monitor, rules only, PM decides
+**Decision:** A daily Inngest cron (`portfolio-monitor`, 06:00 Pacific/Auckland, one step per
+organization, run under `withOrg`) and a "Scan now" button count jobs per property and trade
+over 365 days. Cancelled jobs and the monitor's own `agent_detected` jobs are excluded. At ≥ 3
+jobs it stores a `monitor_findings` row (RLS) with the evidence job ids, a summary and a
+recommendation, and audits `monitor.finding`. A partial unique index allows one open finding per
+property + trade. A dismissed or opened finding is raised again only when a job not in its
+evidence appears. The PM opens a finding as a job (`agent_detected`, tenant linked as for
+inspections; the agent then triages and quotes as usual, approval limits still apply) or dismisses
+it with a note. No model call: the rule is exact and the text is built from the job history.
+Compliance-expiry triggers wait for a compliance data source.
+**Reason:** agents.md puts "whether to open a job" and major capital decisions with the PM.
+Deterministic rules are cheaper and easier to audit than a model for counting.

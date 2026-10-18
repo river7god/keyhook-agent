@@ -85,6 +85,13 @@
       "when": 1792287407452,
       "tag": "0011_m7_variations_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792289198284,
+      "tag": "0012_m8_portfolio_monitor",
+      "breakpoints": true
     }
   ]
 }

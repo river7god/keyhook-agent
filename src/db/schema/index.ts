@@ -16,3 +16,4 @@ export * from './sessions';
 export * from './agent-feedback';
 export * from './media';
 export * from './invoices';
+export * from './monitor-findings';

@@ -82,7 +82,7 @@ be autonomous while "spend money" needs approval. This is the origin of the tool
 | **Applications** | Reactive | Collect and verify documents, build comparison summaries | ✅ | Out of scope |
 | **Inspections** | Proactive | Schedule, send statutory notices, draft report from photos/notes, raise follow-up jobs | ✅ | Out of scope |
 | **Tenancy lifecycle** | Proactive | Renewals, rent reviews, bond lodgement, exit process | ✅ | Out of scope |
-| **Portfolio Monitor** | Proactive | Detect repeated faults, compliance gaps, upcoming deadlines | ✅ ("before the PM knows") | **Proposed next** (seed fixture exists) |
+| **Portfolio Monitor** | Proactive | Detect repeated faults, compliance gaps, upcoming deadlines | ✅ ("before the PM knows") | **Done (M8)**: repeated faults; compliance checks need a data source |
 | **Owner Comms / Reporting** | Human-invoked + scheduled | Monthly reports, approval requests, cost explanations | Implied | Later |
 
 ### 4.2 Internal (engineering)
