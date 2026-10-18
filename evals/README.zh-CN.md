@@ -26,6 +26,7 @@ steps:
   - tradie: "$640 + GST."   # 由该工单当前分配的师傅发送
   - pm: approve             # approve | reject | hand_back（以该房产的 PM 身份）
   - wait: 25                # 推进模拟时间（小时），并执行到期的跟进
+  - inspection: '笔记'      # 只能作为第一步：PM 录入一条巡检发现（spec §12 R4）
 expect:
   state: [SCHEDULING]       # 可接受的最终状态
   estimateCents: 73600

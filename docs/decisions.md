@@ -318,3 +318,15 @@ requested and when it waits for approval (never the amount).
 **Reason:** These are the Keyhook workflows the maintenance agent touches (spec §12 R2, R3, R5,
 R6). Reusing the approvals table and policy keeps one approval gate in code; not changing job
 state for a variation avoids cancelling a visit that can mostly go ahead.
+
+### 2026-10-18 — M8 (R4): inspection findings become work orders
+**Decision:** A PM logs a finding (`POST /api/v1/inspection-findings`, Portfolio page) and
+`createAgencyJob` opens a job with `source: inspection`. If the property is let, the current
+tenancy's primary contact is linked in `reported_by_tenant_id` (here meaning "the job's tenant
+contact"), so the usual tenant steps work: the tenant is told the inspection found the issue, then
+offered visit times and asked to confirm. A vacant property has no tenant; the agent quotes as
+usual and hands visit arrangements to the PM. The finding notes are shown to the model as
+untrusted data. When the notes are too vague to brief a tradie, the agent escalates to the PM
+instead of asking the tenant. Inspection photos are not attached yet (follow-up).
+**Reason:** Confirmed with the product owner (2026-10-18): contact the current tenant. Reusing the
+tenant column keeps every downstream step unchanged.

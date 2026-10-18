@@ -1,0 +1,8 @@
+id: inspection-smoke-alarm
+description: 'Safety finding from an inspection (missing smoke alarm) is triaged urgent or above'
+property: kelburn
+steps:
+  - inspection: 'Inspection: smoke alarm missing from the hallway outside bedrooms (bracket on ceiling, no unit). Other alarms tested OK.'
+expect:
+  urgency: [urgent, emergency]
+  trade: [electrical, handyman]

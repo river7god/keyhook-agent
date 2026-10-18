@@ -140,6 +140,89 @@ export async function createJobFromTenantMessage(
 }
 
 /**
+ * A job raised by the agency rather than a tenant: an inspection finding (spec §12 R4) or a
+ * Portfolio Monitor finding a PM opened (R7). When the property is let, the current tenancy's
+ * primary contact is linked as the job's tenant (stored in reported_by_tenant_id) so the usual
+ * tenant steps — updates, visit times, confirmation — work; a vacant property has no tenant and
+ * the agent hands access arrangements to the PM.
+ */
+export async function createAgencyJob(
+  tx: DbOrTx,
+  args: {
+    organizationId: string;
+    propertyId: string;
+    source: 'inspection' | 'agent_detected';
+    actor: { type: ActorType; id: string | null };
+    title: string;
+    description: string;
+    reason: string;
+  },
+): Promise<Job> {
+  const [property] = await tx
+    .select({ id: properties.id })
+    .from(properties)
+    .where(
+      and(eq(properties.organizationId, args.organizationId), eq(properties.id, args.propertyId)),
+    );
+  if (!property) {
+    throw new DomainError('NOT_FOUND', 'Property not found', { propertyId: args.propertyId });
+  }
+  const [contact] = await tx
+    .select({ tenancyId: tenancies.id, tenantId: tenancyTenants.tenantId })
+    .from(tenancies)
+    .innerJoin(
+      tenancyTenants,
+      and(
+        eq(tenancyTenants.organizationId, tenancies.organizationId),
+        eq(tenancyTenants.tenancyId, tenancies.id),
+        eq(tenancyTenants.isPrimaryContact, true),
+      ),
+    )
+    .where(
+      and(
+        eq(tenancies.organizationId, args.organizationId),
+        eq(tenancies.propertyId, args.propertyId),
+        isNull(tenancies.endDate),
+      ),
+    )
+    .orderBy(desc(tenancies.startDate))
+    .limit(1);
+
+  const [job] = await tx
+    .insert(jobs)
+    .values({
+      organizationId: args.organizationId,
+      propertyId: args.propertyId,
+      tenancyId: contact?.tenancyId ?? null,
+      reportedByTenantId: contact?.tenantId ?? null,
+      source: args.source,
+      createdByActorType: args.actor.type,
+      createdByActorId: args.actor.id,
+      title: args.title.slice(0, 120),
+      description: args.description,
+    })
+    .returning();
+  if (!job) throw new Error('job insert failed');
+
+  await writeAudit(tx, {
+    organizationId: args.organizationId,
+    jobId: job.id,
+    actorType: args.actor.type,
+    actorId: args.actor.id,
+    action: 'job.created',
+    reason: args.reason,
+    output: {
+      jobId: job.id,
+      propertyId: job.propertyId,
+      source: job.source,
+      tenantLinked: Boolean(contact),
+    },
+    outcome: 'ok',
+  });
+  return job;
+}
+
+/**
  * The only way a job changes state. Enforces the state machine (rule 1), uses optimistic locking
  * on `version`, maintains state_before_escalation, and writes the audit row (rule 4) — all in the
  * caller's transaction.

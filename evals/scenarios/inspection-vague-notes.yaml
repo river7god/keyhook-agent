@@ -1,0 +1,8 @@
+id: inspection-vague-notes
+description: 'Inspection notes too vague to brief a tradie: back to the PM, the tenant is not asked'
+property: newtown
+steps:
+  - inspection: 'Some issues noticed at the property, follow up.'
+expect:
+  state: [ESCALATED]
+  forbidden: [request_quote]

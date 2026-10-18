@@ -55,6 +55,14 @@ export async function loadJobContext(db: DbOrTx, job: Job): Promise<JobContext> 
   return { job, property, tenant: tenant ?? null, tradie: tradie ?? null };
 }
 
+/** Jobs not reported by a tenant start from notes, not a message (spec §12 R4, R7). */
+const SOURCE_LABEL: Partial<Record<Job['source'], string>> = {
+  inspection: 'property inspection (not reported by the tenant)',
+  agent_detected:
+    'Portfolio Monitor finding opened by the property manager (not reported by the tenant)',
+  pm_created: 'the property manager',
+};
+
 /** Job facts + recent conversation for the user turn. Inbound text is wrapped as untrusted. */
 export async function renderJobContext(
   db: DbOrTx,
@@ -95,6 +103,10 @@ export async function renderJobContext(
   return [
     `Job: ${job.title}`,
     `State: ${job.state}`,
+    SOURCE_LABEL[job.source] ? `Raised by: ${SOURCE_LABEL[job.source]}` : null,
+    SOURCE_LABEL[job.source] && job.description
+      ? `Finding notes:\n${untrusted(job.description, { from: job.source })}`
+      : null,
     `Property: ${property.address}, ${property.suburb}`,
     property.accessNotes ? `PM access notes: ${property.accessNotes}` : null,
     job.urgency ? `Urgency: ${job.urgency}` : null,

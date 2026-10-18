@@ -37,7 +37,7 @@ import { ORG, PROPERTY } from '@/db/seed/ids';
 import { seed } from '@/db/seed/seed';
 import { listDueFollowUps } from '@/domain/follow-ups';
 import { ingestMessage } from '@/domain/inbound';
-import { getJob } from '@/domain/jobs';
+import { createAgencyJob, getJob } from '@/domain/jobs';
 import { flushTelemetry, registerTelemetry } from '@/lib/telemetry';
 import { JOB_STATES } from '@/workflows/job-states';
 
@@ -45,6 +45,8 @@ const step = z.union([
   z.strictObject({ tenant: z.string().min(1) }),
   z.strictObject({ tradie: z.string().min(1) }),
   z.strictObject({ pm: z.enum(['approve', 'reject', 'hand_back']) }),
+  /** A PM logs an inspection finding for the scenario's property (spec §12 R4); opens the job. */
+  z.strictObject({ inspection: z.string().min(10) }),
   /** Advance simulated time and run every follow-up that is then due. */
   z.strictObject({ wait: z.number().positive() }),
 ]);
@@ -233,7 +235,20 @@ export async function runScenario(
           break;
         }
       }
-      if ('tenant' in st || 'tradie' in st) {
+      if ('inspection' in st) {
+        if (jobId || !property) throw new Error('inspection must be the first step');
+        const job = await createAgencyJob(db, {
+          organizationId: org,
+          propertyId: PROPERTY[s.property],
+          source: 'inspection',
+          actor: { type: 'pm', id: property.pmId },
+          title: 'Inspection finding',
+          description: st.inspection,
+          reason: 'Eval: inspection finding',
+        });
+        jobId = job.id;
+        await advanceJob(deps, { organizationId: org, jobId });
+      } else if ('tenant' in st || 'tradie' in st) {
         const job = jobId ? await getJob(db, org, jobId) : null;
         const sender =
           'tenant' in st

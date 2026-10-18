@@ -55,7 +55,7 @@ That missing middle is what Keyhook-agent does.
 | Tenant photos/video on requests | Media request + analysis | Done — photos (M6); video planned |
 | Quote **variations** approved by owner | Variation flow | Done (M7) |
 | Invoices matched to work orders | Invoice vs approved amount check | Done (M7) — text and photo |
-| Inspection findings → maintenance jobs | `source: inspection` exists; intake API | **Planned (R4)** |
+| Inspection findings → maintenance jobs | `POST /api/v1/inspection-findings` + Portfolio page | Done (M8) |
 | Owner portal updates | Owner notifications at approval / completion | Done (M7) — via outbox |
 | "AI-powered automated updates" to tenants | Milestone updates to tenants | Done (M7) |
 | Healthy Homes / expiry alerts | Portfolio Monitor agent | **Planned (R7)** |

@@ -25,6 +25,7 @@ steps:
   - tradie: "$640 + GST."   # sent by the job's currently assigned tradie
   - pm: approve             # approve | reject | hand_back (as the property's PM)
   - wait: 25                # advance simulated time (hours) and run due follow-ups
+  - inspection: 'notes'     # first step only: a PM logs an inspection finding (spec §12 R4)
 expect:
   state: [SCHEDULING]       # accepted final states
   estimateCents: 73600

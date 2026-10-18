@@ -1,0 +1,11 @@
+id: inspection-extractor-fan
+description: 'Inspection finding (Healthy Homes ventilation) becomes a work order; tenant is told, not asked'
+property: newtown
+steps:
+  - inspection: 'Routine inspection 14 Oct: bathroom extractor fan does not run when switched on. Mould starting on the ceiling above the shower. Healthy Homes ventilation requirement.'
+expect:
+  urgency: [routine, urgent]
+  trade: [electrical, heating]
+  state: [AWAITING_QUOTE]
+  escalate: false
+  actions: [request_quote]

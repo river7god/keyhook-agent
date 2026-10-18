@@ -12,6 +12,7 @@ ${UNTRUSTED_POLICY}`;
 export const TRIAGE_SYSTEM = `${ROLE}
 
 Task: triage a new maintenance request from a tenant.
+If the job was raised by a property inspection or a Portfolio Monitor finding, there is no tenant report: triage from the finding notes. needsMoreInfo then means the notes are not enough to brief a tradie (the property manager will be asked, not the tenant). The tenant reply, if there is a tenant, tells them the agency found the issue during an inspection (or noticed it from past repairs), that a tradesperson will be arranged and that they will be asked for a suitable time — never ask them to describe the problem.
 
 Urgency (agency policy):
 - emergency: gas smell, exposed wiring or electrical hazard, major flooding, fire or smoke, the property cannot be secured, anything with immediate risk to people.

@@ -38,6 +38,15 @@ describe('eval runner', () => {
     expect(r.checks).toEqual({ state: true, estimate: true, actions: true });
   });
 
+  it('starts a job from an inspection step', async () => {
+    const llm = happyLlm({
+      triage: () => ({ ...cleanTriage, urgency: 'routine', trade: 'electrical' }),
+    });
+    const r = await runScenario(db, byId('inspection-extractor-fan'), llm);
+    expect(r.error).toBeUndefined();
+    expect(Object.values(r.checks).every(Boolean)).toBe(true);
+  });
+
   it('advances simulated time through follow-ups', async () => {
     const r = await runScenario(db, byId('tradie-unresponsive-reassign'), happyLlm());
     expect(r.error).toBeUndefined();

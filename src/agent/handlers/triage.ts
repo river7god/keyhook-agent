@@ -63,6 +63,14 @@ async function triage(deps: AgentDeps, job: Job, msg: Message | null): Promise<S
     effort: 'medium',
   });
   let decision = decideTriage(out);
+  // Inspection / monitor notes are the PM's, not the tenant's — unclear notes go back to the PM.
+  if (decision.action === 'clarify' && job.source !== 'tenant_message') {
+    decision = {
+      action: 'escalate',
+      reasons: [...decision.reasons, 'finding notes need more detail'],
+      recommendation: `Add detail to the finding: ${out.missingInfo.join('; ') || 'what and where the issue is'}.`,
+    };
+  }
   if (decision.action === 'clarify' && job.clarifyRounds >= policy.clarify.maxRounds) {
     decision = {
       action: 'escalate',
@@ -107,7 +115,9 @@ async function triage(deps: AgentDeps, job: Job, msg: Message | null): Promise<S
         whatHasBeenDone:
           job.clarifyRounds > 0
             ? `Triaged and asked ${job.clarifyRounds} clarifying question round(s).`
-            : 'Triaged the request and acknowledged the tenant.',
+            : job.source === 'tenant_message'
+              ? 'Triaged the request and acknowledged the tenant.'
+              : 'Triaged the finding notes; the tenant has not been contacted.',
         recommendation: decision.recommendation,
       });
     } else {
@@ -126,7 +136,12 @@ async function triage(deps: AgentDeps, job: Job, msg: Message | null): Promise<S
         });
       }
     }
-    if (ctx.tenant && !out.flags.promptInjection) {
+    const tenantReported = job.source === 'tenant_message';
+    if (
+      ctx.tenant &&
+      !out.flags.promptInjection &&
+      (tenantReported || decision.action !== 'escalate')
+    ) {
       must(await executeTool(sendMessageTool, tc, { recipient: 'tenant', body: out.tenantReply }));
     }
   });
