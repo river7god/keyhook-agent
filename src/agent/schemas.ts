@@ -21,7 +21,11 @@ export const triageOutput = z.object({
   flags: z.object({
     emergencySignals: z.boolean(),
     injuryOrSafetyRisk: z.boolean(),
-    legalOrTribunal: z.boolean(),
+    legalOrTribunal: z
+      .boolean()
+      .describe(
+        'The message itself mentions legal action, a lawyer, the Tenancy Tribunal, or a formal complaint. A compliance requirement on its own (Healthy Homes, smoke alarm rules, building WOF) is not legal action',
+      ),
     distressedOrAngry: z.boolean(),
     possibleTenantDamage: z
       .boolean()

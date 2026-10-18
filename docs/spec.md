@@ -62,7 +62,7 @@ Any state → CANCELLED (PM only)
 | Level | Examples | Target response |
 |---|---|---|
 | Emergency | Gas smell, exposed wiring/electrical hazard, major flooding, property can't be secured | Immediate escalation to PM + emergency tradie |
-| Urgent | No hot water, no heating in cold weather, only toilet blocked, active leak | Tradie engaged within 24h |
+| Urgent | No hot water, no heating in cold weather, only toilet blocked, active leak, missing/faulty smoke alarm *(added 2026-10-18, confirm)* | Tradie engaged within 24h |
 | Routine | Dripping tap, sticking door, broken fixture | Within ~5 working days |
 
 NZ context to model (confirm details from Tenancy Services before finalising):

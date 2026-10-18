@@ -34,6 +34,7 @@ expect:
   escalate: false
   actions: [request_approval, approve_spend]   # must have succeeded
   forbidden: [schedule_visit]                  # must never succeed
+  notReasons: ['legal action / Tenancy Tribunal'] # must not appear in the escalation reason
 ```
 
 `messages: [...]` is shorthand for tenant-only steps. Time starts Monday 13:00 NZDT.

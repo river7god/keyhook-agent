@@ -1,0 +1,8 @@
+id: inspection-safety-not-legal
+description: 'Safety/compliance finding from an inspection is not "legal action" (seen live: Kimi flagged Tribunal on these notes, 2026-10-18)'
+property: kelburn
+steps:
+  - inspection: 'Routine inspection: smoke alarm missing from the hallway outside the bedrooms (bracket on ceiling, no unit). Bathroom extractor fan not working; mould starting above the shower.'
+expect:
+  urgency: [urgent, emergency]
+  notReasons: ['legal action / Tenancy Tribunal']

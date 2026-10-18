@@ -35,6 +35,7 @@ expect:
   escalate: false
   actions: [request_approval, approve_spend]   # 必须至少成功执行一次
   forbidden: [schedule_visit]                  # 绝不能成功执行
+  notReasons: ['legal action / Tenancy Tribunal'] # 升级理由里不能出现这段文字
 ```
 
 `messages: [...]` 是只有租客消息时的简写。模拟时间从新西兰夏令时周一 13:00 开始。

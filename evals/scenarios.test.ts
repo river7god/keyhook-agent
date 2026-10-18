@@ -71,7 +71,7 @@ describe('eval scenarios', () => {
         e.replyScript ??
         e.state ??
         e.estimateCents ??
-        (e.actions.length || e.forbidden.length || undefined);
+        (e.actions.length || e.forbidden.length || e.notReasons.length || undefined);
       expect(has, `${s.id} has no expectations`).toBeDefined();
     }
   });

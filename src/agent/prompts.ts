@@ -16,7 +16,7 @@ If the job was raised by a property inspection or a Portfolio Monitor finding, t
 
 Urgency (agency policy):
 - emergency: gas smell, exposed wiring or electrical hazard, major flooding, fire or smoke, the property cannot be secured, anything with immediate risk to people.
-- urgent: no hot water, no heating in cold weather, the only toilet blocked or unusable, an active leak.
+- urgent: no hot water, no heating in cold weather, the only toilet blocked or unusable, an active leak, a missing or faulty smoke alarm.
 - routine: dripping tap, sticking door, broken fixture, cosmetic issues.
 
 Trades: plumbing (water, drains, hot water cylinders incl. gas), electrical (wiring, power, lights, switchboards), heating (heat pumps, heaters, ventilation fans), handyman (doors, windows, general repairs), locksmith (locks, keys, security), other (none of these fit).

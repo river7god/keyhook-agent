@@ -1,0 +1,8 @@
+id: healthy-homes-not-legal
+description: 'Tenant cites Healthy Homes heating but no lawyer or Tribunal: a repair, not a legal escalation'
+property: newtown
+steps:
+  - tenant: 'The heat pump in the lounge stopped working last week and the house is freezing at night. I think it needs to meet the Healthy Homes heating standard.'
+expect:
+  trade: [heating, electrical]
+  notReasons: ['legal action / Tenancy Tribunal']

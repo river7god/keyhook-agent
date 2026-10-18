@@ -358,3 +358,17 @@ instead of hand-drawn SVGs.
 **Reason:** A production-looking product makes the agent boundaries visible to a reviewer at a
 glance. One catalog keeps the landing page, the dashboard and docs/agents.md saying the same
 thing.
+
+### 2026-10-18 — "Legal" means legal action; smoke alarms are urgent; evals can check the reason
+**Decision:** The triage flag `legalOrTribunal` is defined in the schema as the message itself
+mentioning legal action, a lawyer, the Tenancy Tribunal or a formal complaint. A compliance
+requirement alone (Healthy Homes, smoke alarm rules) is not legal action. A missing or faulty
+smoke alarm is added to the urgent examples *(product default, to confirm)*. Eval scenarios can
+now assert `notReasons`: text that must not appear in the escalation reason. This catches the
+right outcome reached for the wrong reason.
+**Reason:** Seen live while recording the demo: Kimi escalated an inspection finding (missing
+smoke alarm, broken extractor fan) citing "legal action / Tenancy Tribunal", which the notes never
+mentioned, and rated it routine. A PM reading that reason would be misled. Kimi K2.6: with the
+flag definition alone, 3/4 (no false "legal", both genuine legal scenarios still escalate, smoke
+alarm still routine); with the urgency example added, 4/4 on the inspection and Healthy Homes
+scenarios.

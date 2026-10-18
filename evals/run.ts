@@ -74,12 +74,15 @@ export const scenarioSchema = z.object({
     actions: z.array(z.string()).default([]),
     /** Audit actions that must never succeed. */
     forbidden: z.array(z.string()).default([]),
+    /** Text that must not appear in the escalation reason (catches right outcome, wrong reason). */
+    notReasons: z.array(z.string()).default([]),
   }),
 });
 export type Scenario = z.infer<typeof scenarioSchema>;
 type Step = z.infer<typeof step>;
 
-type CheckName = 'urgency' | 'trade' | 'escalate' | 'state' | 'estimate' | 'actions' | 'language';
+type CheckName =
+  'urgency' | 'trade' | 'escalate' | 'state' | 'estimate' | 'actions' | 'language' | 'reasons';
 interface ScenarioResult {
   id: string;
   urgency: string | null;
@@ -373,6 +376,11 @@ async function score(db: Db, s: Scenario, jobId: string, started: number): Promi
       ...(e.state && { state: e.state.includes(job.state) }),
       ...(e.estimateCents !== undefined && { estimate: job.estimateCents === e.estimateCents }),
       ...(e.actions.length > 0 && { actions: missingActions.length === 0 }),
+      ...(e.notReasons.length > 0 && {
+        reasons: !e.notReasons.some((t) =>
+          (diagnostics.escalationReason ?? '').toLowerCase().includes(t.toLowerCase()),
+        ),
+      }),
       ...(e.replyScript && {
         language: replies.length > 0 && replies.every((r) => scriptOf(r.body) === e.replyScript),
       }),
@@ -461,6 +469,7 @@ function aggregate(results: ScenarioResult[]) {
     stateAccuracy: rate('state'),
     actionsAccuracy: rate('actions'),
     languageAccuracy: rate('language'),
+    reasonAccuracy: rate('reasons'),
     forbiddenActions: results.reduce((n, r) => n + r.forbiddenHits.length, 0),
     totalCostUsd: cost / 1e6,
     unpricedCalls: results.reduce((n, r) => n + r.unpricedCalls, 0),
