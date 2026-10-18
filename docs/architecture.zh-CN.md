@@ -367,3 +367,87 @@ flowchart LR
 
 状态机掌管状态变化；花钱需要审批记录；副作用幂等；每个动作都有审计；租客和供应商的内容是数据，不是指令；升级材料包完整。
 这些规则与规模无关。
+
+---
+
+## 4. 规模变大后的目标平台：AWS、高可用、Kubernetes、微服务
+
+简短的回答：**有了真实客户就该上 AWS、做高可用。Kubernetes 和微服务要更晚，等到有多个团队、多个服务时再上，光是流量大并不足以成为理由。**
+每一步都有触发条件，不是因为"大公司都这么做"。
+
+### 4.1 什么时候迁移
+
+| 迁移 | 触发条件 | 单独不足以成为理由 |
+|---|---|---|
+| Vercel/Neon → AWS | 客户合同要求新西兰数据驻留、私有网络，或要和 Keyhook 平台在同一个云上；serverless 成本超过容器成本 | "用户变多"——Vercel 和 Neon 能扩展得很远 |
+| 多可用区高可用 | 第一批付费物业公司（宕机会耽误紧急情况） | — |
+| 容器（ECS Fargate） | 长时间运行的 worker、稳定负载、需要访问私有 VPC | — |
+| Kubernetes（EKS） | 多个团队负责多个服务；有平台团队来运维它 | 一个团队、几个服务：ECS 运维成本更低 |
+| 微服务 | 某个部分需要不同的扩展或可靠性要求，或由另一个团队负责（消息、LLM 网关、媒体） | 代码量大；领域层已经把模块隔开了 |
+| 跨区域容灾 | 合同规定的 RTO/RPO，或监管要求 | — |
+
+### 4.2 AWS 上的目标架构
+
+```mermaid
+flowchart TB
+  subgraph edge["边缘"]
+    CF["CloudFront + WAF<br/>（TLS、限流、机器人规则）"]
+  end
+  subgraph region["AWS 新西兰区域（奥克兰），3 个可用区——悉尼做容灾"]
+    subgraph vpc["VPC（私有子网）"]
+      ALB["应用负载均衡器"]
+      WEB["Web / API 服务<br/>Next.js 跑在 ECS Fargate（以后可迁 EKS）<br/>自动扩缩，≥ 2 个可用区"]
+      WRK["Agent worker<br/>每个流程一组（维修、欠租、招租…）"]
+      MSG["消息网关<br/>短信 · 邮件 · 门户 webhook"]
+      LLMG["LLM 网关<br/>路由 · 预算 · 缓存 · 故障切换"]
+      AUR[("Aurora PostgreSQL<br/>多可用区、只读副本、时间点恢复<br/>RLS 不变")]
+      RDSP["RDS Proxy"]
+      RED[("ElastiCache Redis<br/>限流、幂等热点")]
+    end
+    Q["SQS / EventBridge<br/>（outbox → 事件）"]
+    WF["持久化工作流<br/>Inngest（云端或自托管）或 Temporal / Step Functions"]
+    S3[("S3 + KMS<br/>媒体、审计导出")]
+    SM["Secrets Manager · KMS"]
+    OBS["CloudWatch + OpenTelemetry collector<br/>→ Langfuse · Sentry"]
+  end
+  BR["模型服务商<br/>通过 Anthropic API 或 Amazon Bedrock 调用 Claude<br/>（尽量在本区域内）"]
+  CF --> ALB --> WEB
+  WEB --> RDSP --> AUR
+  WEB --> Q --> WF --> WRK
+  WRK --> RDSP
+  WRK --> LLMG --> BR
+  WRK --> MSG
+  WRK --> S3
+  WEB & WRK --> RED
+  WEB & WRK -.-> OBS
+```
+
+| 方面 | 选择 | 理由 |
+|---|---|---|
+| 计算 | 先用 ECS Fargate，等平台团队和服务数量足够时再上 EKS | 两者用同样的容器镜像；Fargate 不需要自己运维集群 |
+| 数据库 | Aurora PostgreSQL 多可用区、RDS Proxy、只读副本；`audit_log`、`messages`、`llm_calls` 按月分区 | 同样的 Postgres + RLS 模型；故障切换不到一分钟；读可以横向扩展 |
+| 大客户 | 有要求的物业公司单独一个 schema 或数据库 | 每行都有 `organization_id`，这只是路由变化 |
+| 媒体 | S3（KMS 加密，生命周期规则 = 保留策略）、签名 URL、恶意文件扫描 | 把二进制数据移出数据库 |
+| 事件 | 事务性 outbox → SQS/EventBridge | 数据库提交和事件不会不一致 |
+| 工作流 | 继续用 Inngest（云端或自托管）；必须自托管时用 Temporal 或 Step Functions | 等几天、重试、并发键是产品的核心 |
+| 模型 | 在 Anthropic 和 Amazon Bedrock 前面加 LLM 网关；按公司预算、故障切换、提示词缓存、非紧急扫描用批处理 | 尽量让数据留在 AWS；成本和驻留规则集中在一处 |
+| 密钥 | Secrets Manager、KMS、每个服务独立的 IAM 角色 | 环境变量文件里不放长期有效的 key |
+| 基础设施 | Terraform，每个环境一个模块；GitHub Actions 通过 OIDC 访问 AWS | 可复现、可审查 |
+| 部署 | 每个服务蓝绿或金丝雀发布；迁移作为流水线中有关口的一步 | 不停机回滚 |
+
+### 4.3 高可用与容灾
+
+- **区域内**：每个服务至少跨 2 个可用区、挂在负载均衡后面；Aurora 多可用区；工作流是持久化的，worker 崩溃只会让某一步延迟；
+  幂等保证重试安全。
+- **降级而不是宕机**：模型服务商故障时，网关切换模型或升级给 PM。工单不会悄悄卡住，紧急情况一定能找到人。
+- **备份**：时间点恢复（≥ 7 天），每日快照复制到容灾区域，审计日志导出到开启对象锁的 S3。
+- **容灾**：Aurora Global Database 复制到悉尼；基础设施用 Terraform 重建；目标 RPO ≤ 5 分钟、RTO ≤ 1 小时。每年演练两次。
+
+### 4.4 数据增长
+
+| 数据 | 增长来源 | 方案 |
+|---|---|---|
+| `messages`、`audit_log`、`llm_calls` | 每个工单写几十行 | 按月分区；最近 13 个月放 Aurora，更早的存 S3/Parquet（可用 Athena 查询） |
+| 媒体 | 每个工单的照片和视频 | S3 加生命周期规则；后台用缩略图 |
+| 分析 | PM 指标、agent 质量、成本 | CDC（Debezium 或 DMS）→ 数据仓库；后台的分析查询从不打主库 |
+| Eval 与纠正数据 | 随使用增长 | 在 S3 中做版本化数据集；变成场景前先去除个人信息 |

@@ -139,7 +139,11 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
               <dd>{formatNzDateTime(job.createdAt)}</dd>
               <dt>AI cost</dt>
               <dd>
-                US${(timeline.llmCostUsdMicros / 1e6).toFixed(4)} ({timeline.llmCalls} calls)
+                {timeline.llmCalls === 0
+                  ? '—'
+                  : timeline.llmCostUsdMicros > 0
+                    ? `US$${(timeline.llmCostUsdMicros / 1e6).toFixed(4)} (${String(timeline.llmCalls)} calls)`
+                    : `${String(timeline.llmCalls)} model calls (no price configured)`}
               </dd>
             </dl>
             {job.summary && <p style={{ marginBottom: 0 }}>{job.summary}</p>}

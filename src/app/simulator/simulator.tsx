@@ -1,5 +1,6 @@
 'use client';
 
+import { ImagePlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AgentActivityBadge, type ActivityView } from '../_lib/agent-activity-badge';
 import { downscaleToBase64 } from '../_lib/downscale';
@@ -240,8 +241,11 @@ export function Simulator({ personas }: Props) {
             }
           />
         </label>
-        <label className="field">
-          <span>Photos (optional)</span>
+        <label className="file-pick">
+          <ImagePlus size={16} />
+          {photos.length
+            ? `${photos.length} photo${photos.length > 1 ? 's' : ''} attached`
+            : 'Add photos'}
           <input
             type="file"
             accept="image/*"
@@ -322,9 +326,11 @@ export function Simulator({ personas }: Props) {
               {shown.job.scheduledStart && (
                 <span className="chip">visit {nz(shown.job.scheduledStart)}</span>
               )}
-              <span className="chip">
-                AI cost US${(shown.llmCostUsdMicros / 1_000_000).toFixed(4)}
-              </span>
+              {shown.llmCostUsdMicros > 0 && (
+                <span className="chip">
+                  AI cost US${(shown.llmCostUsdMicros / 1_000_000).toFixed(4)}
+                </span>
+              )}
             </div>
             <ol className="thread">
               {shown.messages.map((m) => (

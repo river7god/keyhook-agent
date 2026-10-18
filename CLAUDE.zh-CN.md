@@ -32,7 +32,7 @@ src/adapters/    消息适配器（开发环境用 mock 发件箱；之后接短
 src/lib/         env、金额（分/NZD）、时间（UTC ↔ Pacific/Auckland）
 src/test/        测试数据库工具 + fixtures（DB 测试文件为 *.db.test.ts）
 evals/           场景文件 + promptfoo 配置
-docs/            spec、架构、路线图、agent 目录、决策日志（每份都有 .zh-CN.md 译本）
+docs/            spec、架构、运维、路线图、agent 目录、决策日志、开发指南（每份都有 .zh-CN.md 译本）
 ```
 
 ## 不可违反的规则

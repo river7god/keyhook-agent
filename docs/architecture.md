@@ -399,3 +399,91 @@ flowchart LR
 The state machine owns transitions; money needs an approval record; side effects are idempotent;
 every action is audited; tenant and supplier content is data, never instructions; escalation
 packages are complete. These rules do not depend on scale.
+
+---
+
+## 4. Target platform at scale: AWS, high availability, Kubernetes, microservices
+
+Short answer: **yes to AWS and high availability once there are real customers. Kubernetes and
+microservices come later, when there are several teams and services, not because of traffic
+alone.** Each move has a trigger; none is done "because big companies do it".
+
+### 4.1 When to move
+
+| Move | Trigger | Not a reason on its own |
+|---|---|---|
+| Vercel/Neon → AWS | Customer contracts need NZ data residency, private networking, or a single cloud with Keyhook's platform; serverless cost passes container cost | "More users" — Vercel and Neon scale far |
+| Multi-AZ high availability | First paying agencies (an outage blocks emergencies) | — |
+| Containers (ECS Fargate) | Long-running workers, steady load, private VPC access | — |
+| Kubernetes (EKS) | Many services owned by several teams; a platform team exists to run it | One team, a handful of services: ECS is cheaper to operate |
+| Microservices | A part needs a different scaling or reliability profile, or another team owns it (messaging, LLM gateway, media) | Code size; the domain layer already keeps modules apart |
+| Cross-region DR | Contractual RTO/RPO, or regulator expectations | — |
+
+### 4.2 Target architecture on AWS
+
+```mermaid
+flowchart TB
+  subgraph edge["Edge"]
+    CF["CloudFront + WAF<br/>(TLS, rate limits, bot rules)"]
+  end
+  subgraph region["AWS NZ region (Auckland), 3 AZs — Sydney as DR"]
+    subgraph vpc["VPC (private subnets)"]
+      ALB["Application Load Balancer"]
+      WEB["Web / API service<br/>Next.js on ECS Fargate (→ EKS later)<br/>autoscaled, ≥ 2 AZs"]
+      WRK["Agent workers<br/>per workflow (maintenance, arrears, letting…)"]
+      MSG["Messaging gateway<br/>SMS · email · portal webhooks"]
+      LLMG["LLM gateway<br/>routing · budgets · cache · fallbacks"]
+      AUR[("Aurora PostgreSQL<br/>Multi-AZ, read replicas, PITR<br/>RLS unchanged")]
+      RDSP["RDS Proxy"]
+      RED[("ElastiCache Redis<br/>rate limits, idempotency hot path")]
+    end
+    Q["SQS / EventBridge<br/>(outbox → events)"]
+    WF["Durable workflows<br/>Inngest (cloud or self-hosted) or Temporal / Step Functions"]
+    S3[("S3 + KMS<br/>media, audit exports")]
+    SM["Secrets Manager · KMS"]
+    OBS["CloudWatch + OpenTelemetry collector<br/>→ Langfuse · Sentry"]
+  end
+  BR["Model providers<br/>Claude via Anthropic API or Amazon Bedrock<br/>(in-region where available)"]
+  CF --> ALB --> WEB
+  WEB --> RDSP --> AUR
+  WEB --> Q --> WF --> WRK
+  WRK --> RDSP
+  WRK --> LLMG --> BR
+  WRK --> MSG
+  WRK --> S3
+  WEB & WRK --> RED
+  WEB & WRK -.-> OBS
+```
+
+| Concern | Choice | Why |
+|---|---|---|
+| Compute | ECS Fargate first, EKS when the platform team and service count justify it | Same container images either way; Fargate has no cluster to run |
+| Database | Aurora PostgreSQL Multi-AZ, RDS Proxy, read replicas; partition `audit_log`, `messages`, `llm_calls` by month | Same Postgres + RLS model; failover in under a minute; reads scale out |
+| Large customers | Schema- or database-per-agency for those who require it | `organization_id` is on every row, so this is a routing change |
+| Media | S3 (KMS-encrypted, lifecycle rule = retention policy), signed URLs, malware scan | Takes bytes out of the database |
+| Events | Transactional outbox → SQS/EventBridge | A database commit and its event can't diverge |
+| Workflows | Keep Inngest (cloud or self-hosted); Temporal or Step Functions if self-hosting is required | Waiting days, retries and concurrency keys are the core of the product |
+| Models | LLM gateway in front of Anthropic and Amazon Bedrock; per-org budgets, fallbacks, prompt caching, batch for non-urgent scans | Keeps data on AWS where possible; one place for cost and residency rules |
+| Secrets & keys | Secrets Manager, KMS, IAM roles per service | No long-lived keys in env files |
+| Infrastructure | Terraform, one module per environment; GitHub Actions with OIDC to AWS | Reproducible, reviewable changes |
+| Deployment | Blue/green or canary per service; migrations as a gated pipeline step | Rollback without downtime |
+
+### 4.3 High availability and disaster recovery
+
+- **Within the region**: every service on ≥ 2 AZs behind the load balancer; Aurora Multi-AZ;
+  workflows are durable, so a worker crash only delays a step; idempotency makes retries safe.
+- **Degradation, not outage**: if a model provider fails, the gateway switches model or
+  escalates to a PM. Jobs never stall silently, and emergencies always reach a person.
+- **Backups**: point-in-time recovery (≥ 7 days), daily snapshots copied to the DR region,
+  audit log exported to S3 with object lock.
+- **DR**: Aurora Global Database to Sydney; infrastructure re-created from Terraform; target
+  RPO ≤ 5 min, RTO ≤ 1 h. Rehearsed twice a year.
+
+### 4.4 Data growth
+
+| Data | Growth driver | Plan |
+|---|---|---|
+| `messages`, `audit_log`, `llm_calls` | Every job writes dozens of rows | Monthly partitions; hot 13 months in Aurora, older in S3/Parquet (queryable with Athena) |
+| Media | Photos and video per job | S3 with lifecycle rules; thumbnails for the dashboard |
+| Analytics | PM KPIs, agent quality, cost | CDC (Debezium or DMS) → warehouse; the dashboard never queries the primary for analytics |
+| Eval and correction data | Grows with use | Versioned dataset in S3; personal data scrubbed before it becomes a scenario |

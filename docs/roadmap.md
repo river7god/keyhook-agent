@@ -157,3 +157,36 @@ are assist-only and come last.
   needed to sell the next agent.
 - **Moat**: the eval set, the correction history and the outcome data (supplier performance,
   approval patterns) get better with every job, and they can't be copied from a prompt.
+
+## 7. What the product still needs before real customers
+
+The agent loop works end to end. A product that agencies pay for also needs the pieces around it.
+Grouped by who feels the gap:
+
+| For | Gap | Why it matters | First version |
+|---|---|---|---|
+| Property managers | **Mobile approvals and push alerts** | Approvals and emergencies happen away from a desk | One-tap approve/reject from a notification, with the escalation package |
+| | **Unified inbox / handover** | When a PM takes over, the conversation must continue in one place | Escalated jobs open a PM thread; the agent stays quiet until handed back |
+| | **Policy settings UI** | Limits, quiet hours, supplier preferences and autonomy level are config today | Settings page per agency with an audit trail of changes |
+| | **ROI dashboard** | The buyer needs proof: hours saved, jobs closed without a PM, response times | Weekly report from the audit log and job transitions |
+| Tenants | **Real channels** | Tenants won't use a simulator | SMS (NZ numbers), email, Keyhook tenant portal; WhatsApp later |
+| | **Multilingual by default** | Wellington and Auckland renters are diverse | Already replies in the tenant's language; add translation for the PM view |
+| Suppliers | **Supplier portal / links** | Quotes, times and invoices by link instead of free text | Signed link per work order: accept, quote, pick times, upload invoice |
+| Owners | **Owner approvals in their portal** | Today the PM approves on the owner's behalf | Approval request with photos, quote and recommendation; owner taps approve |
+| Keyhook platform | **Integration** | Properties, suppliers and approvals live in Keyhook | Adapters for work orders, suppliers, owner approvals, invoices; webhooks back |
+| Trust | **Privacy and security programme** | Agencies hold personal data under the Privacy Act | Data map, retention per data type, access requests, DPIA, pen test, SOC 2 path |
+| | **Production monitoring of quality** | Evals catch regressions before release; production needs live signals | Sample and review conversations; alert on escalation-rate changes |
+| Business | **Usage metering and pricing** | Model cost scales with use | Per-agency usage, budgets and plan limits; price per property or per closed job |
+
+### Product questions to settle with customers
+
+1. **How much autonomy will agencies accept at launch?** Start with "act with approval" for
+   new agencies, and widen it per agency based on its own metrics.
+2. **Who owns the supplier relationship?** Agencies have preferred suppliers and terms. The
+   agent should rank within the agency's list, not shop around.
+3. **Tenant-caused damage and costs**: who decides, and how is it explained to the tenant?
+   Today it always goes to a PM.
+4. **After-hours emergencies**: does the agency want the agent to dispatch an emergency
+   supplier directly at night, within a cap, and tell the PM in the morning?
+5. **What counts as success for the buyer?** Fewer hires, faster fixes, fewer complaints or
+   better Healthy Homes compliance. Pick the metric the ROI dashboard leads with.

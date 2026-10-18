@@ -805,6 +805,29 @@ table.audit td {
   opacity: 0.8;
   margin-top: 4px;
 }
+.file-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 7px 14px;
+  border: 1px dashed var(--gray-300);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--brand-600);
+  background: var(--gray-50);
+}
+.file-pick:hover {
+  border-color: var(--brand-300);
+}
+.file-pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
 .thumbs {
   display: flex;
   gap: 6px;
