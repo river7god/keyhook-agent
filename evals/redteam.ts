@@ -10,6 +10,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { asc } from 'drizzle-orm';
+import { format, resolveConfig } from 'prettier';
 import { stringify } from 'yaml';
 import { z } from 'zod';
 import type { LlmClient } from '@/agent/llm';
@@ -277,10 +278,10 @@ export async function runRedTeam(args: {
     if (failed && args.outDir) {
       mkdirSync(args.outDir, { recursive: true });
       const file = path.join(args.outDir, `${s.id}.yaml`);
-      writeFileSync(
-        file,
-        `# Found by the red-team agent (${date}). Review the expectation, then set reviewed: true.\n# Why it failed: ${reasons.join(' | ').replace(/\n/g, ' ')}\n${stringify(s)}`,
-      );
+      const text = `# Found by the red-team agent (${date}). Review the expectation, then set reviewed: true.\n# Why it failed: ${reasons.join(' | ').replace(/\n/g, ' ')}\n${stringify(s)}`;
+      // Written in the repo's style so `pnpm check` stays green.
+      const style = (await resolveConfig(file)) ?? {};
+      writeFileSync(file, await format(text, { ...style, parser: 'yaml' }));
       written.push(file);
     }
   }

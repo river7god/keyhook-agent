@@ -17,6 +17,7 @@ English | [简体中文](README.zh-CN.md)
 
 <p align="center">
   <a href="https://keyhook-agent.vercel.app"><b>Live demo</b></a> (login on request) ·
+  <a href="docs/agent-design.md">Agent design</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/operations.md">Operations</a> ·
   <a href="docs/roadmap.md">Product roadmap</a> ·
@@ -185,6 +186,7 @@ Full analysis, prioritisation and open product questions: [`docs/roadmap.md`](do
 | | |
 |---|---|
 | [Product spec](docs/spec.md) | State machine, urgency and escalation policy, tools, evals, milestones |
+| [Agent design](docs/agent-design.md) | Production-agent problems and how they're solved: code vs model, durability, tool gateway, human-in-the-loop, injection, sandboxing, evals, frameworks (LangGraph, DeerFlow) |
 | [Architecture](docs/architecture.md) | Business and technical architecture; AWS / HA / Kubernetes path |
 | [Operations](docs/operations.md) | CI/CD, observability, runtime automation, SLOs |
 | [Roadmap](docs/roadmap.md) | Agents across the tenancy lifecycle; letting & listing exposure; product gaps |

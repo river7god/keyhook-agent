@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://keyhook-agent.vercel.app"><b>在线演示</b></a>（登录方式可索取）·
+  <a href="docs/agent-design.zh-CN.md">Agent 设计</a> ·
   <a href="docs/architecture.zh-CN.md">架构</a> ·
   <a href="docs/operations.zh-CN.md">运维</a> ·
   <a href="docs/roadmap.zh-CN.md">产品路线图</a> ·
@@ -178,6 +179,7 @@ flowchart LR
 | | |
 |---|---|
 | [产品规格](docs/spec.zh-CN.md) | 状态机、紧急程度与升级策略、工具、eval、里程碑 |
+| [Agent 设计](docs/agent-design.zh-CN.md) | 生产级 agent 的问题与解决方式：代码与模型的分工、持久化、工具网关、人在环中、注入、沙箱、评测、框架（LangGraph、DeerFlow） |
 | [架构](docs/architecture.zh-CN.md) | 业务与技术架构；AWS / 高可用 / Kubernetes 路线 |
 | [运维](docs/operations.zh-CN.md) | CI/CD、可观测性、运行时自动化、SLO |
 | [路线图](docs/roadmap.zh-CN.md) | 租约生命周期上的各个 agent；招租与房源曝光；产品缺口 |

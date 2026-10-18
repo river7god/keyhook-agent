@@ -32,7 +32,7 @@ src/adapters/    messaging adapters (mock outbox in dev; SMS/email later)
 src/lib/         env, money (cents/NZD), time (UTC ↔ Pacific/Auckland)
 src/test/        test DB helpers + fixtures (DB tests are *.db.test.ts)
 evals/           scenario files + promptfoo config
-docs/            spec, architecture, operations, roadmap, agent catalog, decisions, development (each with a .zh-CN.md translation)
+docs/            spec, agent design, architecture, operations, roadmap, agent catalog, decisions, development (each with a .zh-CN.md translation)
 ```
 
 ## Non-negotiable rules

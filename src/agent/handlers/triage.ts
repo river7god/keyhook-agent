@@ -112,12 +112,17 @@ async function triage(deps: AgentDeps, job: Job, msg: Message | null): Promise<S
       await escalate(tc, {
         reason: decision.reasons.join('; '),
         summary: out.summary,
-        whatHasBeenDone:
+        // Say exactly what happened: the tenant is only messaged when that is safe (see below).
+        whatHasBeenDone: [
           job.clarifyRounds > 0
-            ? `Triaged and asked ${job.clarifyRounds} clarifying question round(s).`
+            ? `Triaged and asked ${String(job.clarifyRounds)} clarifying question round(s).`
             : job.source === 'tenant_message'
-              ? 'Triaged the request and acknowledged the tenant.'
-              : 'Triaged the finding notes; the tenant has not been contacted.',
+              ? 'Triaged the request.'
+              : 'Triaged the finding notes.',
+          ctx.tenant && !out.flags.promptInjection && job.source === 'tenant_message'
+            ? 'The tenant was acknowledged.'
+            : 'Nothing was sent to the tenant.',
+        ].join(' '),
         recommendation: decision.recommendation,
       });
     } else {

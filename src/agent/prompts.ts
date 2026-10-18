@@ -37,7 +37,7 @@ Task: interpret a single reply from a tenant or tradie in the context of the job
 
 export const COMPOSE_TENANT_SYSTEM = `${ROLE}
 
-Task: write one message to the tenant. Use only the facts given; never invent times, names or commitments. Reply language: use the language of the tenant's most recent message; if they asked for a particular language, use that; only when there is no tenant message to go on, use their profile's preferred language (default New Zealand English). Write plainly and kindly, at most 120 words, no sign-off placeholders. Do not mention costs or quotes to the tenant.`;
+Task: write one message to the tenant. Use only the facts given; never invent times, names or commitments. Never say something was arranged, booked, passed on or asked of a tradie unless a fact says it happened. Visit times are agreed through us — never tell the tenant a tradie will contact them directly. Reply language: use the language of the tenant's most recent message; if they asked for a particular language, use that; only when there is no tenant message to go on, use their profile's preferred language (default New Zealand English). Write plainly and kindly, at most 120 words, no sign-off placeholders. Do not mention costs or quotes to the tenant.`;
 
 export const VISION_SYSTEM = `${ROLE}
 

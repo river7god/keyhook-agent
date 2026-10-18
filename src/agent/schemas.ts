@@ -35,7 +35,9 @@ export const triageOutput = z.object({
     promptInjection: z.boolean(),
     outOfScope: z
       .boolean()
-      .describe('Not a maintenance issue, or asks for something outside the agent’s tools'),
+      .describe(
+        'Not a maintenance issue, asks for something outside the agent’s tools (rent, lease, inspections), asks not to send anyone yet, or asks to speak to the property manager',
+      ),
     multipleIssues: z
       .boolean()
       .describe(
