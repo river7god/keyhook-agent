@@ -344,3 +344,17 @@ it with a note. No model call: the rule is exact and the text is built from the 
 Compliance-expiry triggers wait for a compliance data source.
 **Reason:** agents.md puts "whether to open a job" and major capital decisions with the PM.
 Deterministic rules are cheaper and easier to audit than a model for counting.
+
+### 2026-10-18 — Product UI: one design system, public landing, agent catalog page
+**Decision:** The UI uses one token-based stylesheet (`globals.css`). It follows the visual
+language of modern NZ property-management software: navy brand scale, blue accent, Inter via
+`next/font`, soft cards. It uses its own wordmark and no third-party logos or assets. Signed-in
+pages share an app shell (`AppShell`: sidebar with live counts for items needing the PM,
+approvals and monitor findings). `/` is now a public landing page listing every agent, whether
+live, next or planned, with its trigger, autonomy and where a person decides. That catalog data
+(`agent-catalog.ts`) also drives `/dashboard/agents`, which adds 30-day live numbers per agent
+(`agentStats`). New dependency: `lucide-react` (MIT, tree-shaken) for a consistent icon set
+instead of hand-drawn SVGs.
+**Reason:** A production-looking product makes the agent boundaries visible to a reviewer at a
+glance. One catalog keeps the landing page, the dashboard and docs/agents.md saying the same
+thing.

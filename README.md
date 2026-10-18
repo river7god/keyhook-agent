@@ -48,7 +48,7 @@ It never opens a job on its own.
 |---|---|
 | Eval scenarios | **72** YAML scenarios: emergencies, vague requests, angry tenants, tenant-caused damage, over-budget work, unresponsive suppliers, prompt injection, non-English messages, variations, invoices, inspections |
 | Live eval baseline (Kimi K2.6, 60 scenarios, 2026-10-17) | 54/60 passed · urgency **100 %** · trade **100 %** · escalation recall **97 %** · forbidden actions **0** |
-| Automated tests | **257** (unit + Postgres-backed, incl. RLS, concurrency, idempotency, injection) |
+| Automated tests | **259** (unit + Postgres-backed, incl. RLS, concurrency, idempotency, injection) |
 | Architecture decisions recorded | **41**, each with date, decision and reason ([`decisions.md`](docs/decisions.md)) |
 | Milestones | M0–M8 shipped: core loop → follow-ups → dashboard → evals → deploy & hardening → photos → variations & invoices → inspections & monitor |
 

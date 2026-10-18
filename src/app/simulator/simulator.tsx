@@ -170,74 +170,78 @@ export function Simulator({ personas }: Props) {
   const people = senderType === 'tenant' ? personas.tenants : personas.tradies;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) 2fr', gap: '1.5rem' }}>
-      <section>
-        <fieldset style={{ border: 'none', padding: 0 }}>
-          <legend style={{ fontWeight: 600 }}>Act as</legend>
+    <div className="sim">
+      <section className="card stack">
+        <div className="segmented" role="radiogroup" aria-label="Act as">
           {(['tenant', 'tradie'] as const).map((t) => (
-            <label key={t} style={{ marginRight: 12 }}>
+            <label key={t} className={senderType === t ? 'on' : undefined}>
               <input
                 type="radio"
                 checked={senderType === t}
                 onChange={() => {
                   switchSender(t);
                 }}
-              />{' '}
-              {t}
+              />
+              {t === 'tenant' ? 'Tenant' : 'Supplier'}
             </label>
           ))}
-        </fieldset>
-        <select
-          value={senderId}
-          onChange={(e) => {
-            setSenderId(e.target.value);
-            setJobId(null);
-          }}
-          style={{ width: '100%', margin: '8px 0', padding: 6 }}
-        >
-          {people.map((p) => (
-            <option key={p.id} value={p.id}>
-              {'address' in p
-                ? `${p.name} — ${p.address}, ${p.suburb}${p.language !== 'en' ? ` (${p.language})` : ''}`
-                : p.name}
-            </option>
-          ))}
-        </select>
+        </div>
+        <label className="field">
+          <span>{senderType === 'tenant' ? 'Tenant' : 'Supplier'}</span>
+          <select
+            value={senderId}
+            onChange={(e) => {
+              setSenderId(e.target.value);
+              setJobId(null);
+            }}
+          >
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {'address' in p
+                  ? `${p.name} — ${p.address}, ${p.suburb}${p.language !== 'en' ? ` (${p.language})` : ''}`
+                  : p.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <label style={{ display: 'block', fontWeight: 600, marginTop: 8 }}>Job</label>
-        <select
-          value={jobId ?? ''}
-          onChange={(e) => {
-            setJobId(e.target.value || null);
-          }}
-          style={{ width: '100%', margin: '8px 0', padding: 6 }}
-        >
-          {senderType === 'tenant' && <option value="">➕ Report a new issue</option>}
-          {senderType === 'tradie' && openJobs.length === 0 && (
-            <option value="">(no jobs assigned)</option>
-          )}
-          {openJobs.map((j) => (
-            <option key={j.id} value={j.id}>
-              {j.title} — {j.state}
-            </option>
-          ))}
-        </select>
+        <label className="field">
+          <span>Work order</span>
+          <select
+            value={jobId ?? ''}
+            onChange={(e) => {
+              setJobId(e.target.value || null);
+            }}
+          >
+            {senderType === 'tenant' && <option value="">+ Report a new issue</option>}
+            {senderType === 'tradie' && openJobs.length === 0 && (
+              <option value="">(no jobs assigned)</option>
+            )}
+            {openJobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title} — {j.state}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <textarea
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-          }}
-          rows={5}
-          placeholder={
-            senderType === 'tenant'
-              ? 'e.g. There is no hot water since this morning'
-              : 'e.g. I can do it for $220 incl GST'
-          }
-          style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-        />
-        <label style={{ display: 'block', marginTop: 8 }}>
-          Photos{' '}
+        <label className="field">
+          <span>Message</span>
+          <textarea
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+            }}
+            rows={5}
+            placeholder={
+              senderType === 'tenant'
+                ? 'e.g. There is no hot water since this morning'
+                : 'e.g. I can do it for $220 incl GST'
+            }
+          />
+        </label>
+        <label className="field">
+          <span>Photos (optional)</span>
           <input
             type="file"
             accept="image/*"
@@ -255,15 +259,10 @@ export function Simulator({ personas }: Props) {
           />
         </label>
         {photos.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+          <div className="thumbs">
             {photos.map((p) => (
               // eslint-disable-next-line @next/next/no-img-element -- local data: preview
-              <img
-                key={p.name}
-                src={`data:image/jpeg;base64,${p.b64}`}
-                alt={p.name}
-                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6 }}
-              />
+              <img key={p.name} src={`data:image/jpeg;base64,${p.b64}`} alt={p.name} />
             ))}
           </div>
         )}
@@ -275,91 +274,78 @@ export function Simulator({ personas }: Props) {
             !senderId ||
             (senderType === 'tradie' && !jobId)
           }
-          style={{ marginTop: 8, padding: '8px 16px' }}
         >
-          {sending ? 'Sending…' : 'Send'}
+          {sending ? 'Sending…' : 'Send message'}
         </button>
-        {error && <p style={{ color: '#b00020' }}>{error}</p>}
-        {notice && <p style={{ color: '#9a6200' }}>{notice}</p>}
+        {error && <p className="error">{error}</p>}
+        {notice && <p style={{ color: 'var(--warn)' }}>{notice}</p>}
       </section>
 
-      <section>
+      <section className="card">
         {!shown ? (
           pending ? (
-            <div>
-              <p
-                className="pending-msg"
-                style={{
-                  padding: 10,
-                  borderRadius: 8,
-                  background: '#eef3ff',
-                  marginRight: '15%',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {pending.body}
-              </p>
-              <AgentActivityBadge
-                activity={{
-                  working: true,
-                  waitingSince: pending.at,
-                  lastStep: null,
-                  stalled: false,
-                }}
-              />
-            </div>
+            <ol className="thread">
+              <li className="bubble in pending-msg">{pending.body}</li>
+              <li>
+                <AgentActivityBadge
+                  activity={{
+                    working: true,
+                    waitingSince: pending.at,
+                    lastStep: null,
+                    stalled: false,
+                  }}
+                />
+              </li>
+            </ol>
           ) : (
-            <p style={{ color: '#777' }}>Send a message or pick a job to see the conversation.</p>
+            <p className="sub" style={{ margin: 0 }}>
+              Send a message or pick a work order to see the conversation.
+            </p>
           )
         ) : (
           <>
-            <h2 style={{ marginTop: 0 }}>{shown.job.title}</h2>
-            <p>
-              <strong>{shown.job.state}</strong>
-              {shown.job.urgency && ` · ${shown.job.urgency}`}
-              {shown.job.trade && ` · ${shown.job.trade}`}
-              {shown.job.estimateCents !== null &&
-                ` · $${(shown.job.estimateCents / 100).toFixed(2)}`}
-              {shown.job.scheduledStart && ` · visit ${nz(shown.job.scheduledStart)}`}
-              {` · LLM cost US$${(shown.llmCostUsdMicros / 1_000_000).toFixed(4)}`}
-            </p>
-            <ol style={{ listStyle: 'none', padding: 0 }}>
+            <h2>
+              {shown.job.title}
+              <span className="spacer" />
+              <span className={`badge ${shown.job.state}`}>
+                {shown.job.state.replaceAll('_', ' ')}
+              </span>
+            </h2>
+            <div className="row sub" style={{ marginBottom: 14 }}>
+              {shown.job.urgency && (
+                <span className={`badge ${shown.job.urgency}`}>{shown.job.urgency}</span>
+              )}
+              {shown.job.trade && <span className="chip">{shown.job.trade}</span>}
+              {shown.job.estimateCents !== null && (
+                <span className="chip">${(shown.job.estimateCents / 100).toFixed(2)}</span>
+              )}
+              {shown.job.scheduledStart && (
+                <span className="chip">visit {nz(shown.job.scheduledStart)}</span>
+              )}
+              <span className="chip">
+                AI cost US${(shown.llmCostUsdMicros / 1_000_000).toFixed(4)}
+              </span>
+            </div>
+            <ol className="thread">
               {shown.messages.map((m) => (
                 <li
                   key={m.id}
-                  style={{
-                    margin: '8px 0',
-                    padding: 10,
-                    borderRadius: 8,
-                    background:
-                      m.direction === 'inbound'
-                        ? '#eef3ff'
-                        : m.recipientType === 'pm'
-                          ? '#fff3e0'
-                          : '#f1f8e9',
-                    marginLeft: m.direction === 'inbound' ? 0 : '15%',
-                    marginRight: m.direction === 'inbound' ? '15%' : 0,
-                    whiteSpace: 'pre-wrap',
-                  }}
+                  className={`bubble ${m.direction === 'inbound' ? 'in' : `out ${m.recipientType}`}`}
                 >
-                  <small style={{ color: '#555' }}>
+                  <span className="who">
                     {m.direction === 'inbound'
-                      ? `${m.senderType} → agent`
-                      : `agent → ${m.recipientType}`}{' '}
+                      ? `${m.senderType === 'tradie' ? 'supplier' : m.senderType} → agent`
+                      : `agent → ${m.recipientType === 'tradie' ? 'supplier' : m.recipientType}`}{' '}
                     · {nz(m.createdAt)}
-                  </small>
-                  <div>{m.body}</div>
+                  </span>
+                  {m.body}
                   {shown.media
                     .filter((p) => p.messageId === m.id)
                     .map((p) => (
-                      <figure key={p.id} style={{ margin: '8px 0 0' }}>
+                      <figure key={p.id} style={{ margin: 0 }}>
                         {/* eslint-disable-next-line @next/next/no-img-element -- authenticated API image */}
-                        <img
-                          src={`/api/v1/media/${p.id}`}
-                          alt="Attached photo"
-                          style={{ maxWidth: 220, borderRadius: 6 }}
-                        />
-                        <figcaption style={{ fontSize: 12, color: '#555' }}>
+                        <img src={`/api/v1/media/${p.id}`} alt="Attached photo" />
+                        <figcaption>
                           {!p.analysis
                             ? 'Analysing photo…'
                             : 'unavailable' in p.analysis
@@ -375,22 +361,12 @@ export function Simulator({ personas }: Props) {
                 </li>
               ))}
               {pending && (
-                <li
-                  className="pending-msg"
-                  style={{
-                    margin: '8px 0',
-                    padding: 10,
-                    borderRadius: 8,
-                    background: '#eef3ff',
-                    marginRight: '15%',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  <small style={{ color: '#555' }}>{senderType} → agent · sending…</small>
-                  <div>{pending.body}</div>
+                <li className="bubble in pending-msg">
+                  <span className="who">{senderType} → agent · sending…</span>
+                  {pending.body}
                 </li>
               )}
-              <li style={{ margin: '8px 0' }}>
+              <li>
                 <AgentActivityBadge
                   activity={
                     sending
@@ -405,8 +381,8 @@ export function Simulator({ personas }: Props) {
                 />
               </li>
             </ol>
-            <details>
-              <summary>Audit trail ({shown.audit.length})</summary>
+            <details style={{ marginTop: 16 }}>
+              <summary className="sub">Audit trail ({shown.audit.length})</summary>
               <ul style={{ fontSize: 13 }}>
                 {shown.audit.map((a) => (
                   <li key={a.id}>

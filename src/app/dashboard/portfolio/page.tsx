@@ -1,3 +1,4 @@
+import { ClipboardCheck, Radar } from 'lucide-react';
 import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
@@ -8,6 +9,7 @@ import { FindingActions, ScanNow } from './finding-actions';
 import { InspectionForm } from './inspection-form';
 
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Portfolio' };
 
 /** Agency-raised work: Portfolio Monitor findings (R7) and inspection findings (R4). */
 export default async function PortfolioPage() {
@@ -21,10 +23,15 @@ export default async function PortfolioPage() {
 
   return (
     <main className="page">
-      <h1>Portfolio</h1>
+      <div className="page-head">
+        <div>
+          <h1>Portfolio</h1>
+          <p className="sub">Work the agency raises itself: monitor findings and inspections.</p>
+        </div>
+      </div>
       <div className="card">
         <h2>
-          Portfolio Monitor <ScanNow />
+          <Radar size={18} /> Portfolio Monitor <span className="spacer" /> <ScanNow />
         </h2>
         <p className="sub">
           Repeated faults: 3 or more jobs of the same trade at one property in 12 months. The
@@ -33,13 +40,18 @@ export default async function PortfolioPage() {
         {findings.length === 0 ? (
           <p>No open findings.</p>
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ul className="list">
             {findings.map((f) => (
-              <li key={f.id} style={{ borderTop: '1px solid #eee', padding: '10px 0' }}>
-                <strong>
-                  {f.address}, {f.suburb}
-                </strong>{' '}
-                · {f.trade} · detected {formatNzDateTime(f.detectedAt)}
+              <li key={f.id}>
+                <div className="row">
+                  <strong style={{ color: 'var(--text)' }}>
+                    {f.address}, {f.suburb}
+                  </strong>
+                  <span className="badge urgent">repeated {f.trade} fault</span>
+                  <span className="sub" style={{ margin: 0 }}>
+                    detected {formatNzDateTime(f.detectedAt)}
+                  </span>
+                </div>
                 <p style={{ margin: '6px 0' }}>{f.summary}</p>
                 <p className="recommendation" style={{ margin: '6px 0' }}>
                   {f.recommendation}
@@ -51,7 +63,9 @@ export default async function PortfolioPage() {
         )}
       </div>
       <div className="card">
-        <h2>Log an inspection finding</h2>
+        <h2>
+          <ClipboardCheck size={18} /> Log an inspection finding
+        </h2>
         <p className="sub">
           The agent turns it into a work order: triage, quote, and — if the property is let — it
           tells the tenant and asks them for a visit time.

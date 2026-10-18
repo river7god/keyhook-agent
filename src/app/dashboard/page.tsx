@@ -1,3 +1,4 @@
+import { Bot, CircleAlert, CircleCheck, ClipboardCheck, MessageSquareText } from 'lucide-react';
 import Link from 'next/link';
 import { z } from 'zod';
 import { requirePageUser } from '@/app/_lib/session';
@@ -9,6 +10,7 @@ import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Work orders' };
 
 const query = z.object({
   bucket: z.enum(['needs_pm', 'active', 'done']).catch('needs_pm'),
@@ -37,8 +39,47 @@ export default async function DashboardPage({
 
   return (
     <main className="page">
-      <h1>Jobs</h1>
-      <p className="sub">{user.organizationName}</p>
+      <div className="page-head">
+        <div>
+          <h1>Work orders</h1>
+          <p className="sub">
+            {user.organizationName} · the agent runs the job; you see what needs a person.
+          </p>
+        </div>
+        <Link href="/dashboard/portfolio" className="button secondary">
+          <ClipboardCheck size={16} /> Log inspection finding
+        </Link>
+        <Link href="/simulator" className="button">
+          <MessageSquareText size={16} /> Open simulator
+        </Link>
+      </div>
+
+      <div className="stats">
+        <div className="stat">
+          <div className="label">
+            <CircleAlert size={15} /> Needs you
+          </div>
+          <div className="value">{counts.needs_pm}</div>
+          <div className="hint">
+            {counts.byState.ESCALATED ?? 0} escalated · {counts.byState.AWAITING_APPROVAL ?? 0}{' '}
+            approvals
+          </div>
+        </div>
+        <div className="stat">
+          <div className="label">
+            <Bot size={15} /> Agent working
+          </div>
+          <div className="value">{counts.active}</div>
+          <div className="hint">quoting, scheduling, chasing</div>
+        </div>
+        <div className="stat">
+          <div className="label">
+            <CircleCheck size={15} /> Done
+          </div>
+          <div className="value">{counts.done}</div>
+          <div className="hint">closed or cancelled</div>
+        </div>
+      </div>
 
       <div className="tabs" role="navigation" aria-label="Job buckets">
         {TABS.map((t) => (

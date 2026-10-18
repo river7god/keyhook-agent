@@ -30,14 +30,14 @@ export function LoginForm({ next }: { next: string }) {
 
   return (
     <form
-      className="card stack"
+      className="stack"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <label>
-        Email
+      <label className="field">
+        <span>Email</span>
         <input
           type="email"
           autoComplete="username"
@@ -49,8 +49,8 @@ export function LoginForm({ next }: { next: string }) {
           style={{ width: '100%' }}
         />
       </label>
-      <label>
-        Password
+      <label className="field">
+        <span>Password</span>
         <input
           type="password"
           autoComplete="current-password"
@@ -62,7 +62,9 @@ export function LoginForm({ next }: { next: string }) {
           style={{ width: '100%' }}
         />
       </label>
-      <button disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      <button disabled={busy} style={{ marginTop: 6 }}>
+        {busy ? 'Signing in…' : 'Sign in'}
+      </button>
       {error && <p className="error">{error}</p>}
     </form>
   );

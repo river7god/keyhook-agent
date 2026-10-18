@@ -8,6 +8,7 @@ import { listAudit } from '@/domain/dashboard';
 import { formatNzDateTime } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Audit log' };
 
 const PAGE = 100;
 const query = z.object({
@@ -42,10 +43,14 @@ export default async function AuditPage({
 
   return (
     <main className="page">
-      <h1>Audit log</h1>
-      <p className="sub">
-        Every agent, PM and system action — who, what, why, inputs and outputs. Append-only.
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>Audit log</h1>
+          <p className="sub">
+            Every agent, PM and system action — who, what, why, inputs and outputs. Append-only.
+          </p>
+        </div>
+      </div>
 
       <form className="tabs" action="/dashboard/audit">
         <input
@@ -90,7 +95,11 @@ export default async function AuditPage({
                 <td>
                   <code>{r.action}</code>
                 </td>
-                <td>{r.outcome}</td>
+                <td>
+                  <span className={`pill ${r.outcome === 'ok' ? 'ok' : 'danger'}`}>
+                    {r.outcome}
+                  </span>
+                </td>
                 <td>{r.reason}</td>
                 <td>
                   {r.jobId ? (

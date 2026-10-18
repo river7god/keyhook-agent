@@ -50,15 +50,24 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
 
   return (
     <main className="page">
-      <p className="sub">
-        <Link href="/dashboard">← Jobs</Link>
+      <p className="sub" style={{ marginBottom: 8 }}>
+        <Link href="/dashboard">Work orders</Link> / {ctx.property.address}
       </p>
-      <h1>{job.title}</h1>
-      <p className="sub">
-        <span className={`badge ${job.state}`}>{job.state.replaceAll('_', ' ')}</span>{' '}
-        {job.urgency && <span className={`badge ${job.urgency}`}>{job.urgency}</span>}{' '}
-        {ctx.property.address}, {ctx.property.suburb}
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>{job.title}</h1>
+          <div className="row">
+            <span className={`badge ${job.state}`}>{job.state.replaceAll('_', ' ')}</span>
+            {job.urgency && <span className={`badge ${job.urgency}`}>{job.urgency}</span>}
+            {job.source !== 'tenant_message' && (
+              <span className="chip">{job.source.replace('_', ' ')}</span>
+            )}
+            <span className="sub" style={{ margin: 0 }}>
+              {ctx.property.address}, {ctx.property.suburb}
+            </span>
+          </div>
+        </div>
+      </div>
 
       <AutoRefresh active={activity.working} />
       {activity.working && (
@@ -91,6 +100,11 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
 
           <div className="card">
             <h2>Timeline</h2>
+            {timeline.items.length === 0 && (
+              <p className="sub" style={{ margin: 0 }}>
+                No activity recorded — this job predates the agent.
+              </p>
+            )}
             <ol className="timeline">
               {timeline.items.map((item) => (
                 <TimelineEntry key={item.id} item={item} photos={photos} />
@@ -111,7 +125,7 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
               <dd>
                 {ctx.tenant ? `${ctx.tenant.fullName} (${ctx.tenant.preferredLanguage})` : '—'}
               </dd>
-              <dt>Tradie</dt>
+              <dt>Supplier</dt>
               <dd>{ctx.tradie?.businessName ?? '—'}</dd>
               <dt>Estimate</dt>
               <dd>
@@ -179,7 +193,7 @@ function PhotoFigure({ p }: { p: Photo }) {
         <img
           src={`/api/v1/media/${p.id}`}
           alt="Attached photo"
-          style={{ maxWidth: 240, borderRadius: 6 }}
+          style={{ maxWidth: 240, borderRadius: 10 }}
         />
       </a>
       <figcaption className="sub" style={{ margin: 0 }}>

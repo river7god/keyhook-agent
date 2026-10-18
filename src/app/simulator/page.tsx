@@ -5,6 +5,7 @@ import { listPersonas } from '@/domain/personas';
 import { Simulator } from './simulator';
 
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Message simulator' };
 
 export default async function SimulatorPage() {
   const user = await requirePageUser();
@@ -12,19 +13,16 @@ export default async function SimulatorPage() {
     listPersonas(tx, user.organizationId),
   );
   return (
-    <main
-      style={{
-        fontFamily: 'system-ui, sans-serif',
-        padding: '1rem',
-        maxWidth: 1200,
-        margin: '0 auto',
-      }}
-    >
-      <h1 style={{ marginBottom: 4 }}>Message simulator</h1>
-      <p style={{ marginTop: 0, color: '#555' }}>
-        Act as a tenant or tradie of {user.organizationName}. Messages go through the same path real
-        SMS/email would. No real messages are sent (mock outbox).
-      </p>
+    <main className="page">
+      <div className="page-head">
+        <div>
+          <h1>Message simulator</h1>
+          <p className="sub">
+            Act as a tenant or supplier of {user.organizationName}. Messages take the same path real
+            SMS or email would; nothing leaves the mock outbox.
+          </p>
+        </div>
+      </div>
       <Simulator personas={personas} />
     </main>
   );

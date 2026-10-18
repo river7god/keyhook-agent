@@ -6,6 +6,7 @@ import { listFeedback } from '@/domain/feedback';
 import { formatNzDateTime } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Corrections' };
 
 const show = (v: object) =>
   Object.entries(v as Record<string, unknown>)
@@ -21,11 +22,15 @@ export default async function FeedbackPage() {
   );
   return (
     <main className="page">
-      <h1>Agent corrections</h1>
-      <p className="sub">
-        PM corrections of the agent. Each becomes an eval scenario (<code>pnpm eval:harvest</code>)
-        so the same mistake is caught before the next release.
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>Agent corrections</h1>
+          <p className="sub">
+            PM corrections of the agent. Each becomes an eval scenario (
+            <code>pnpm eval:harvest</code>) so the same mistake is caught before the next release.
+          </p>
+        </div>
+      </div>
       <div className="table-wrap">
         <table className="audit">
           <thead>
