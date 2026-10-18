@@ -13,10 +13,12 @@ import {
 import { writeAudit } from '@/domain/audit';
 import { DomainError } from '@/domain/errors';
 import { recordHandBackCorrections } from '@/domain/feedback';
+import { getCase, transitionCase } from '@/domain/arrears';
 import { getJob, transitionJob } from '@/domain/jobs';
 import { queueOutbound } from '@/domain/messages';
 import { formatNzd } from '@/lib/money';
 import { approveSpendTool, approveVariationTool } from '@/tools/approval-tools';
+import { sendArrearsNoticeTool } from '@/tools/arrears-tools';
 import { executeTool } from '@/tools/execute';
 
 /**
@@ -35,7 +37,7 @@ export async function recordApprovalDecision(
     note: string | null;
     now: Date;
   },
-): Promise<{ jobId: string; state: string }> {
+): Promise<{ jobId: string | null; arrearsCaseId: string | null; state: string }> {
   return db.transaction(async (tx) => {
     const [approval] = await tx
       .update(approvals)
@@ -60,6 +62,7 @@ export async function recordApprovalDecision(
     await writeAudit(tx, {
       organizationId: args.organizationId,
       jobId: approval.jobId,
+      arrearsCaseId: approval.arrearsCaseId,
       actorType: 'pm',
       actorId: args.decidedBy,
       action: `approval.${args.decision}`,
@@ -68,6 +71,18 @@ export async function recordApprovalDecision(
       outcome: 'ok',
     });
 
+    if (approval.arrearsCaseId) {
+      return decideArrearsNotice(tx, {
+        organizationId: args.organizationId,
+        approvalId: approval.id,
+        caseId: approval.arrearsCaseId,
+        decision: args.decision,
+        pm,
+        note: args.note,
+        now: args.now,
+      });
+    }
+    if (!approval.jobId) throw new Error(`Approval ${approval.id} has no subject`);
     const job = await getJob(tx, args.organizationId, approval.jobId);
     if (args.decision === 'approved') {
       const r = await executeTool(
@@ -108,8 +123,70 @@ export async function recordApprovalDecision(
       });
     }
     const after = await getJob(tx, args.organizationId, job.id);
-    return { jobId: after.id, state: after.state };
+    return { jobId: after.id, arrearsCaseId: null, state: after.state };
   });
+}
+
+/**
+ * Arrears notice decision: approval sends the templated 14-day notice through the approval-level
+ * tool; rejection hands the case to the PM. If the case moved on while the notice waited (a
+ * promise, or paid up), the notice is not sent and the reason is audited.
+ */
+async function decideArrearsNotice(
+  tx: DbOrTx,
+  args: {
+    organizationId: string;
+    approvalId: string;
+    caseId: string;
+    decision: 'approved' | 'rejected';
+    pm: { type: 'pm'; id: string };
+    note: string | null;
+    now: Date;
+  },
+): Promise<{ jobId: null; arrearsCaseId: string; state: string }> {
+  const c = await getCase(tx, args.organizationId, args.caseId);
+  const done = (state: string) => ({ jobId: null, arrearsCaseId: c.id, state });
+  if (c.state !== 'NOTICE_PENDING') {
+    await writeAudit(tx, {
+      organizationId: args.organizationId,
+      arrearsCaseId: c.id,
+      actorType: 'pm',
+      actorId: args.pm.id,
+      action: 'arrears.notice_superseded',
+      reason: `Case is ${c.state}; notice not sent`,
+      input: { approvalId: args.approvalId, decision: args.decision },
+      outcome: 'ok',
+    });
+    return done(c.state);
+  }
+  if (args.decision === 'approved') {
+    const r = await executeTool(
+      sendArrearsNoticeTool,
+      {
+        db: tx,
+        organizationId: args.organizationId,
+        jobId: null,
+        arrearsCaseId: c.id,
+        actor: args.pm,
+        reason: 'PM approved the 14-day notice to remedy',
+        idempotencyScope: `arrears:${c.id}:approval:${args.approvalId}`,
+        now: args.now,
+      },
+      { approvalId: args.approvalId },
+    );
+    if (!r.ok) throw new DomainError('CONFLICT', r.error.message, { code: r.error.code });
+  } else {
+    await transitionCase(tx, {
+      organizationId: args.organizationId,
+      caseId: c.id,
+      to: 'ESCALATED',
+      actor: args.pm,
+      reason: `PM rejected the notice${args.note ? `: ${args.note}` : ''}`,
+      patch: { escalationReason: 'PM rejected the 14-day notice; PM handling' },
+      now: args.now,
+    });
+  }
+  return done((await getCase(tx, args.organizationId, c.id)).state);
 }
 
 export async function listPendingApprovals(db: DbOrTx, organizationId: string) {

@@ -10,7 +10,16 @@ import {
   sql,
 } from 'drizzle-orm';
 import type { DbOrTx } from '@/db/client';
-import { approvals, auditLog, invoices, jobs, media, messages, monitorFindings } from '@/db/schema';
+import {
+  approvals,
+  arrearsCases,
+  auditLog,
+  invoices,
+  jobs,
+  media,
+  messages,
+  monitorFindings,
+} from '@/db/schema';
 
 /** Live numbers per shipped agent for the Agents page, over the last `days` days. */
 export async function agentStats(db: DbOrTx, organizationId: string, now: Date, days = 30) {
@@ -106,8 +115,22 @@ export async function agentStats(db: DbOrTx, organizationId: string, now: Date, 
         .then(one),
     ]);
 
+  const [arrears] = await db
+    .select({
+      open: sql<number>`count(*) filter (where ${arrearsCases.state} not in ('RESOLVED', 'CLOSED'))::int`,
+      promised: sql<number>`count(*) filter (where ${arrearsCases.state} = 'PROMISED')::int`,
+      resolved: sql<number>`count(*) filter (where ${arrearsCases.state} = 'RESOLVED' and ${arrearsCases.closedAt} >= ${since.toISOString()})::int`,
+    })
+    .from(arrearsCases)
+    .where(eq(arrearsCases.organizationId, org));
+
   return {
     days,
+    arrears: {
+      open: arrears?.open ?? 0,
+      promised: arrears?.promised ?? 0,
+      resolved: arrears?.resolved ?? 0,
+    },
     maintenance: { open: open?.n ?? 0, closed: closed?.n ?? 0, escalated: escalated?.n ?? 0 },
     vision: { analysed: photos?.n ?? 0 },
     variations: {

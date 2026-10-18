@@ -78,7 +78,7 @@ be autonomous while "spend money" needs approval. This is the origin of the tool
 |---|---|---|---|---|
 | **Inbox / Router** | Reactive | Classify every inbound message; route to the right agent or a PM | Implied | Later |
 | **Maintenance** | Reactive | Request → triage → tradie → quote → approval → schedule → confirm → close | ✅ | **v1 (spec)** |
-| **Arrears** | Reactive + proactive | Late-rent reminders, payment plans, draft formal notices | ✅ | Later (2nd workflow, spec §4) |
+| **Arrears** | Reactive + proactive | Late-rent reminders, payment plans, draft formal notices | ✅ | **Done (M9)** |
 | **Applications** | Reactive | Collect and verify documents, build comparison summaries | ✅ | Out of scope |
 | **Inspections** | Proactive | Schedule, send statutory notices, draft report from photos/notes, raise follow-up jobs | ✅ | Out of scope |
 | **Tenancy lifecycle** | Proactive | Renewals, rent reviews, bond lodgement, exit process | ✅ | Out of scope |
@@ -117,7 +117,7 @@ The cost of the 2nd and 3rd agent depends on platform reuse — which is why spe
 | Domain | Agent acts autonomously | Agent prepares, person approves | Person only |
 |---|---|---|---|
 | Maintenance | Triage, clarifying questions, find tradie, request quote, schedule, chase, confirm completion | Spend above the effective PM limit; unclear responsibility (possible tenant-caused damage) | On-site emergency decisions (agent notifies immediately); conversations with an injured or angry tenant |
-| Arrears **(proposed)** | Friendly reminders, record promises to pay, track payment plans | Formal notices (agent drafts) | Applying to the Tenancy Tribunal; hardship and family-violence situations |
+| Arrears **(implemented M9; thresholds proposed)** | Friendly reminders, record promises to pay, track payment plans | Formal notices (agent drafts) | Applying to the Tenancy Tribunal; hardship and family-violence situations |
 | Applications **(proposed)** | Collect documents, check completeness, build comparisons | Shortlist | **Final tenant selection** — Human Rights Act (anti-discrimination) and Privacy Act risk; the model never decides |
 | Inspections **(proposed)** | Schedule, send notices, draft report, raise maintenance jobs | Final report sent to owner | Findings of tenant fault; bond deductions |
 | Tenancy lifecycle **(proposed)** | Expiry reminders, bond lodgement, document preparation | Rent increase amount; renewal terms | Ending a tenancy; bond disputes |

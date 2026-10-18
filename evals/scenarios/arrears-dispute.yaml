@@ -1,0 +1,11 @@
+id: arrears-dispute
+description: 'Tenant says the rent was paid: check the ledger with a person, do not repeat the demand'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+  - tenant: 'I paid it on Monday by internet banking — please check your records.'
+expect:
+  arrearsState: [ESCALATED]
+  escalate: true
+  forbidden: [record_promise]

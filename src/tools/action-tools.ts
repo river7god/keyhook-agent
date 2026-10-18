@@ -6,7 +6,7 @@ import { DomainError } from '@/domain/errors';
 import { getJob, transitionJob } from '@/domain/jobs';
 import { queueOutbound } from '@/domain/messages';
 import { rankedTradiesForJob } from './read-tools';
-import { defineTool } from './types';
+import { defineTool, jobIdOf } from './types';
 
 const agent = { type: 'agent' as const };
 
@@ -20,7 +20,7 @@ export const sendMessageTool = defineTool({
     body: z.string().min(1).max(1200),
   }),
   async run(ctx, input) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     const recipientId =
       input.recipient === 'tenant' ? job.reportedByTenantId : job.assignedTradieId;
     if (!recipientId) {
@@ -28,7 +28,7 @@ export const sendMessageTool = defineTool({
     }
     const msg = await queueOutbound(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       recipientType: input.recipient,
       recipientId,
       body: input.body,
@@ -61,7 +61,7 @@ export const requestQuoteTool = defineTool({
     selectionReason: z.string().min(3).max(300),
   }),
   async run(ctx, input) {
-    const ranked = await rankedTradiesForJob(ctx.db, ctx.organizationId, ctx.jobId, ctx.now);
+    const ranked = await rankedTradiesForJob(ctx.db, ctx.organizationId, jobIdOf(ctx), ctx.now);
     if (!ranked.selectableTradieIds.includes(input.tradieId)) {
       throw new DomainError('VALIDATION', 'Tradie is not selectable under the current policy', {
         selectableTradieIds: ranked.selectableTradieIds,
@@ -69,7 +69,7 @@ export const requestQuoteTool = defineTool({
     }
     await transitionJob(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       to: 'AWAITING_QUOTE',
       actor: agent,
       reason: `Quote requested: ${input.selectionReason}`,
@@ -77,7 +77,7 @@ export const requestQuoteTool = defineTool({
     });
     const msg = await queueOutbound(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       recipientType: 'tradie',
       recipientId: input.tradieId,
       body: input.messageToTradie,
@@ -102,7 +102,7 @@ export const scheduleVisitTool = defineTool({
     accessNotes: z.string().max(500).nullable(),
   }),
   async run(ctx, input) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     if (!job.assignedTradieId) throw new DomainError('VALIDATION', 'No tradie assigned');
     const [slot] = await ctx.db
       .update(tradieAvailability)
@@ -120,7 +120,7 @@ export const scheduleVisitTool = defineTool({
       throw new DomainError('CONFLICT', 'Slot is no longer available', { slotId: input.slotId });
     await transitionJob(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       to: 'SCHEDULED',
       actor: agent,
       reason: 'Tenant confirmed visit slot',
@@ -150,7 +150,7 @@ export const escalateTool = defineTool({
   async run(ctx, input) {
     const job = await transitionJob(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       to: 'ESCALATED',
       actor: agent,
       reason: input.reason,
@@ -164,7 +164,7 @@ export const escalateTool = defineTool({
     if (property) {
       await queueOutbound(ctx.db, {
         organizationId: ctx.organizationId,
-        jobId: ctx.jobId,
+        jobId: jobIdOf(ctx),
         recipientType: 'pm',
         recipientId: property.pmId,
         body: `Escalated: ${job.title} (${property.address})\nWhy: ${input.reason}\n\n${input.summary}\n\nDone so far: ${input.whatHasBeenDone || '—'}\nRecommended: ${input.recommendation}`,
@@ -178,7 +178,7 @@ export const escalateTool = defineTool({
       .where(
         and(
           eq(messages.organizationId, ctx.organizationId),
-          eq(messages.jobId, ctx.jobId),
+          eq(messages.jobId, jobIdOf(ctx)),
           eq(messages.direction, 'inbound'),
         ),
       )
@@ -186,7 +186,7 @@ export const escalateTool = defineTool({
       .limit(5);
     await writeAudit(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       actorType: 'agent',
       action: 'job.escalation_package',
       reason: input.reason,
@@ -208,7 +208,7 @@ export const addNoteTool = defineTool({
   permission: 'auto',
   input: z.strictObject({ text: z.string().min(1).max(1000) }),
   run(ctx, input) {
-    return Promise.resolve({ noted: input.text.length, jobId: ctx.jobId });
+    return Promise.resolve({ noted: input.text.length, jobId: jobIdOf(ctx) });
   },
 });
 

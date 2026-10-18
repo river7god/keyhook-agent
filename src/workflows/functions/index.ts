@@ -1,3 +1,4 @@
+import { arrearsAdvance, arrearsSweep, arrearsSweepNow, inboundRoute } from './arrears';
 import { followUpHandler, followUpSweeper } from './follow-ups';
 import { jobAdvance } from './job-advance';
 import { mediaRetention } from './media-retention';
@@ -12,4 +13,8 @@ export const functions = [
   followUpHandler,
   mediaRetention,
   portfolioMonitor,
+  arrearsAdvance,
+  arrearsSweep,
+  arrearsSweepNow,
+  inboundRoute,
 ];

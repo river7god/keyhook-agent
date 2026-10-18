@@ -382,3 +382,26 @@ limits and the daily model budget.
 **Reason:** Reviewers don't ask for credentials; a demo they can't open is a demo nobody sees. A
 shared guest in one demo agency is enough. A sandbox per visitor would mean cloning seed data
 on every visit.
+
+### 2026-10-18 — M9: arrears agent on the shared platform; first inbox router
+**Decision:** Arrears is a second workflow with its own state machine (`OPEN → REMINDED →
+PROMISED → NOTICE_PENDING → NOTICE_SENT`, plus `ESCALATED`, `RESOLVED`, `CLOSED`), reusing the
+tool gateway, idempotency, audit log, approvals, outbox, model routing and evals. To make that
+possible, `ToolContext`, messages, audit rows and approvals can belong to a work order **or** an
+arrears case (DB check: exactly one for approvals). Balances are computed from a rent ledger
+(FIFO, NZ calendar dates) and never stored as the truth. Policy in code, per agency:
+- friendly reminder after a 2-day grace period, then every 3 days (at most 2);
+- the agent may accept a promise up to 7 days ahead, or a plan that clears within 8 weeks;
+- broken promises are followed up;
+- the 14-day notice to remedy is drafted from a fixed template (never model-written) and only
+  sent by an `approval`-level tool after a PM approves it;
+- 21 days in arrears, hardship, family violence, disputes, anger or injection all escalate.
+
+A tenant with an open case who writes without a thread goes through an inbox router (one cheap
+model call: rent vs maintenance); everyone else is unchanged. All thresholds are *proposed*.
+NZ law to verify with Tenancy Services: the 14-day notice, and Tribunal termination at 21 days
+(RTA s55, s56).
+**Reason:** The role names arrears, and a second agent that costs one state machine, a few tools
+and nine eval scenarios is the strongest evidence the platform is reusable. Kimi K2.6 on the 9
+arrears scenarios: 8/9 at first. "Money's a bit tight" was over-read as hardship. With the
+hardship boundary made explicit in the prompt and schema: 9/9, and real hardship still escalates.

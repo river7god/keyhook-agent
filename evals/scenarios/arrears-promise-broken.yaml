@@ -1,0 +1,12 @@
+id: arrears-promise-broken
+description: 'Promise for Wednesday not kept: the agent follows up, no notice yet'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+  - tenant: "I'll get it to you on Wednesday."
+  - wait: 96
+expect:
+  arrearsState: [REMINDED]
+  actions: [record_promise]
+  forbidden: [send_arrears_notice]

@@ -2,7 +2,7 @@ import { and, count, eq } from 'drizzle-orm';
 import type { ReactNode } from 'react';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
-import { approvals, monitorFindings } from '@/db/schema';
+import { approvals, arrearsCases, monitorFindings } from '@/db/schema';
 import { stateCounts } from '@/domain/dashboard';
 import { Brand } from './brand';
 import { LogoutButton } from './logout-button';
@@ -11,7 +11,7 @@ import { SidebarNav, type NavCounts } from './sidebar-nav';
 
 async function navCounts(organizationId: string): Promise<NavCounts> {
   return withOrg(getDb(), organizationId, async (tx) => {
-    const [states, [a], [f]] = await Promise.all([
+    const [states, [a], [f], [ar]] = await Promise.all([
       stateCounts(tx, organizationId),
       tx
         .select({ n: count() })
@@ -26,8 +26,19 @@ async function navCounts(organizationId: string): Promise<NavCounts> {
             eq(monitorFindings.status, 'open'),
           ),
         ),
+      tx
+        .select({ n: count() })
+        .from(arrearsCases)
+        .where(
+          and(eq(arrearsCases.organizationId, organizationId), eq(arrearsCases.state, 'ESCALATED')),
+        ),
     ]);
-    return { needsPm: states.needs_pm, approvals: a?.n ?? 0, findings: f?.n ?? 0 };
+    return {
+      needsPm: states.needs_pm,
+      approvals: a?.n ?? 0,
+      findings: f?.n ?? 0,
+      arrears: ar?.n ?? 0,
+    };
   });
 }
 

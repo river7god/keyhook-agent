@@ -7,3 +7,10 @@ export const perJobConcurrency = {
   limit: 1,
   scope: 'env' as const,
 };
+
+/** Same guarantee for arrears cases: one run per case at a time. */
+export const perArrearsCaseConcurrency = {
+  key: '"arrears-" + event.data.caseId',
+  limit: 1,
+  scope: 'env' as const,
+};

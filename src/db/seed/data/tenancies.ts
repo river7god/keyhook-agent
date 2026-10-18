@@ -172,14 +172,34 @@ const tenancySpecs: SeedTenancy[] = [
   },
 ];
 
+/** Rent for current tenancies (cents NZD per period). */
+export const RENT: Record<string, { cents: number; frequency: 'weekly' | 'fortnightly' }> = {
+  [PROPERTY.teAro]: { cents: 52_000, frequency: 'weekly' },
+  [PROPERTY.newtown]: { cents: 61_000, frequency: 'weekly' },
+  [PROPERTY.kelburn]: { cents: 55_000, frequency: 'weekly' },
+  [PROPERTY.karori]: { cents: 68_000, frequency: 'weekly' },
+  [PROPERTY.islandBay]: { cents: 58_000, frequency: 'weekly' },
+  [PROPERTY.miramar]: { cents: 116_000, frequency: 'fortnightly' },
+  [PROPERTY.brooklyn]: { cents: 54_000, frequency: 'weekly' },
+  [PROPERTY.thorndon]: { cents: 72_000, frequency: 'weekly' },
+  [PROPERTY.mtVictoria]: { cents: 64_000, frequency: 'weekly' },
+  [PROPERTY.johnsonville]: { cents: 50_000, frequency: 'weekly' },
+  [PROPERTY.aroValley]: { cents: 47_000, frequency: 'weekly' },
+};
+
 /** Stable ids assigned by position; exported so jobs/tests can find e.g. the Newtown tenancy. */
-export const tenancyRows = tenancySpecs.map((t, i) => ({
-  id: seedId('tenancy', i + 1),
-  organizationId: t.organizationId,
-  propertyId: t.propertyId,
-  startDate: t.startDate,
-  endDate: t.endDate ?? null,
-}));
+export const tenancyRows = tenancySpecs.map((t, i) => {
+  const rent = t.endDate ? undefined : RENT[t.propertyId];
+  return {
+    id: seedId('tenancy', i + 1),
+    organizationId: t.organizationId,
+    propertyId: t.propertyId,
+    startDate: t.startDate,
+    endDate: t.endDate ?? null,
+    rentCents: rent?.cents ?? null,
+    rentFrequency: rent?.frequency ?? null,
+  };
+});
 
 export const tenantRows = tenancySpecs
   .flatMap((t) =>

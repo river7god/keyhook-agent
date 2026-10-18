@@ -11,6 +11,7 @@ const KIND = {
   tenancy: 6,
   tradie: 7,
   job: 8,
+  arrearsCase: 9,
 } as const;
 
 export function seedId(kind: keyof typeof KIND, n: number): string {

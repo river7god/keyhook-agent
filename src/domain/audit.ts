@@ -6,6 +6,7 @@ import { activeTraceId } from '@/lib/telemetry';
 export interface AuditEntry {
   organizationId: string;
   jobId?: string | null;
+  arrearsCaseId?: string | null;
   actorType: ActorType;
   actorId?: string | null;
   /** Tool name or event, e.g. "send_message", "job.transition". */
@@ -27,6 +28,7 @@ export async function writeAudit(db: DbOrTx, entry: AuditEntry): Promise<void> {
   await db.insert(auditLog).values({
     organizationId: entry.organizationId,
     jobId: entry.jobId ?? null,
+    arrearsCaseId: entry.arrearsCaseId ?? null,
     actorType: entry.actorType,
     actorId: entry.actorId ?? null,
     action: entry.action,

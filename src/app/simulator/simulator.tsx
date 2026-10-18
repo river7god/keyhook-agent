@@ -70,6 +70,20 @@ const nz = (iso: string) =>
     timeStyle: 'short',
   }).format(new Date(iso));
 
+/** The inbox router places some tenant messages asynchronously; poll until it has. */
+async function waitForRouting(messageId: string): Promise<string | null> {
+  for (let i = 0; i < 60; i++) {
+    const res = await fetch(`/api/v1/simulator/messages/${messageId}`);
+    if (res.ok) {
+      const m = (await res.json()) as { jobId: string | null; arrearsCaseId: string | null };
+      if (m.jobId) return m.jobId;
+      if (m.arrearsCaseId) return `arrears:${m.arrearsCaseId}`;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return null;
+}
+
 export function Simulator({ personas }: Props) {
   const [senderType, setSenderType] = useState<'tenant' | 'tradie'>('tenant');
   const [senderId, setSenderId] = useState(personas.tenants[0]?.id ?? '');
@@ -105,7 +119,11 @@ export function Simulator({ personas }: Props) {
     if (!jobId) return;
     let cancelled = false;
     const tick = () =>
-      fetch(`/api/v1/simulator/jobs/${jobId}`)
+      fetch(
+        jobId.startsWith('arrears:')
+          ? `/api/v1/simulator/arrears/${jobId.slice('arrears:'.length)}`
+          : `/api/v1/simulator/jobs/${jobId}`,
+      )
         .then((res) => (res.ok ? (res.json() as Promise<Snapshot>) : null))
         .then((data) => {
           if (data && !cancelled) setSnapshot(data);
@@ -140,24 +158,34 @@ export function Simulator({ personas }: Props) {
         body: JSON.stringify({
           senderType,
           senderId,
-          jobId,
+          jobId: jobId?.startsWith('arrears:') ? null : jobId,
+          arrearsCaseId: jobId?.startsWith('arrears:') ? jobId.slice('arrears:'.length) : null,
           body: text,
           images: photos.map((p) => p.b64),
         }),
       });
       const data = (await res.json()) as {
+        kind?: 'job' | 'arrears' | 'unrouted';
         jobId?: string;
+        arrearsCaseId?: string;
+        messageId?: string;
         images?: { rejected: { index: number; reason: string }[] };
         error?: { message: string };
       };
-      if (!res.ok || !data.jobId) throw new Error(data.error?.message ?? `HTTP ${res.status}`);
+      if (!res.ok || !data.kind) throw new Error(data.error?.message ?? `HTTP ${res.status}`);
+      const thread =
+        data.kind === 'job'
+          ? (data.jobId ?? null)
+          : data.kind === 'arrears'
+            ? `arrears:${data.arrearsCaseId ?? ''}`
+            : await waitForRouting(data.messageId ?? '');
       const rejected = data.images?.rejected ?? [];
       setNotice(
         rejected.length ? `Photo not accepted: ${rejected.map((r) => r.reason).join('; ')}` : null,
       );
       setText('');
       setPhotos([]);
-      setJobId(data.jobId);
+      setJobId(thread);
       setJobsVersion((v) => v + 1);
       setRefresh((v) => v + 1); // fetch the snapshot now, not on the next 2s tick
     } catch (e) {

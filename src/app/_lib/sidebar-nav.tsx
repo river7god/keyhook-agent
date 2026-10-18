@@ -4,6 +4,7 @@ import {
   Bot,
   CircleCheck,
   Flag,
+  HandCoins,
   House,
   LayoutDashboard,
   MessageSquareText,
@@ -25,6 +26,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: '/dashboard', label: 'Work orders', icon: LayoutDashboard, badge: 'needsPm' },
       { href: '/dashboard/approvals', label: 'Approvals', icon: CircleCheck, badge: 'approvals' },
+      { href: '/dashboard/arrears', label: 'Arrears', icon: HandCoins, badge: 'arrears' },
       { href: '/dashboard/portfolio', label: 'Portfolio', icon: House, badge: 'findings' },
     ],
   },
@@ -44,7 +46,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-export type NavCounts = { needsPm: number; approvals: number; findings: number };
+export type NavCounts = { needsPm: number; approvals: number; findings: number; arrears: number };
 
 function isActive(path: string, href: string) {
   if (href === '/dashboard') return path === '/dashboard' || path.startsWith('/dashboard/jobs');

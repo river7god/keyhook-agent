@@ -59,7 +59,7 @@ That missing middle is what Keyhook-agent does.
 | Owner portal updates | Owner notifications at approval / completion | Done (M7) — via outbox |
 | "AI-powered automated updates" to tenants | Milestone updates to tenants | Done (M7) |
 | Healthy Homes / expiry alerts | Portfolio Monitor agent | Partly done (M8): repeated faults; compliance expiry needs a data source |
-| Automated arrears reminders | Arrears workflow on the same platform | **Planned (R8)** |
+| Automated arrears reminders | Arrears workflow on the same platform | Done (M9) |
 | Listings, screening, e-signing, trust accounting, reporting | — | Out of scope: Keyhook platform, integrate via ports |
 
 ## 4. Pitch and talking points

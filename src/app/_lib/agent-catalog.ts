@@ -144,12 +144,18 @@ export const AGENTS: AgentInfo[] = [
     id: 'arrears',
     name: 'Arrears',
     icon: HandCoins,
-    status: 'next',
+    status: 'live',
     trigger: 'Proactive',
     autonomy: 'Acts with approval',
-    summary: 'Friendly reminders, promises to pay and payment plans; drafts formal notices.',
-    does: ['Reminders on missed rent', 'Tracks payment plans', 'Drafts notices for review'],
-    humanDecides: 'Formal notices, Tribunal, hardship',
+    summary:
+      'Spots missed rent daily, sends friendly reminders, agrees short promises and payment plans within policy, and follows up.',
+    does: [
+      'Promises within 7 days, plans that clear in 8 weeks',
+      'Follows up broken promises; thanks on payment',
+      'Drafts the 14-day notice from a fixed template',
+    ],
+    humanDecides: 'Formal notices, hardship, disputes, Tribunal',
+    href: '/dashboard/arrears',
   },
   {
     id: 'inbox',

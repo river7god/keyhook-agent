@@ -1,10 +1,13 @@
 import type { Db } from '@/db/client';
 import {
+  arrearsCases,
   jobs,
+  messages,
   organizations,
   owners,
   properties,
   propertyManagers,
+  rentLedger,
   tenancies,
   tenancyTenants,
   tenants,
@@ -17,6 +20,7 @@ import { availabilityRows } from './data/availability';
 import { jobRows } from './data/jobs';
 import { organizationRows, ownerRows, propertyManagerRows } from './data/organizations';
 import { propertyRows } from './data/properties';
+import { arrearsCaseRows, arrearsMessageRows, rentLedgerRows } from './data/rent';
 import { tenancyRows, tenancyTenantRows, tenantRows } from './data/tenancies';
 import { tradieRows } from './data/tradies';
 
@@ -38,6 +42,9 @@ export async function seed(db: Db, now: Date = new Date()): Promise<void> {
     await tx.insert(tradies).values(tradieRows);
     await tx.insert(jobs).values(jobRows);
     await tx.insert(tradieAvailability).values(availabilityRows(now));
+    await tx.insert(rentLedger).values(rentLedgerRows(now));
+    await tx.insert(arrearsCases).values(arrearsCaseRows(now));
+    await tx.insert(messages).values(arrearsMessageRows(now));
   });
 }
 

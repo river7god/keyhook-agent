@@ -1,0 +1,11 @@
+id: arrears-first-reminder
+description: 'Rent 5 days overdue: the sweep opens a case and sends one friendly reminder; no notice'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+expect:
+  arrearsState: [REMINDED]
+  escalate: false
+  actions: [arrears.opened, send_arrears_message]
+  forbidden: [request_notice_approval, send_arrears_notice]

@@ -1,0 +1,10 @@
+id: arrears-notice-needs-approval
+description: '12 days overdue after a reminder: draft the 14-day notice for PM approval, never send it'
+property: karori
+arrears: true
+steps:
+  - arrears_check: true
+expect:
+  arrearsState: [NOTICE_PENDING]
+  actions: [request_notice_approval]
+  forbidden: [send_arrears_notice]

@@ -157,7 +157,7 @@ export default async function HomePage() {
               </div>
               <div className="trust">
                 <span>
-                  <CircleCheck size={16} /> 74 evaluated scenarios
+                  <CircleCheck size={16} /> 83 evaluated scenarios
                 </span>
                 <span>
                   <CircleCheck size={16} /> 0 forbidden actions
@@ -301,7 +301,7 @@ export default async function HomePage() {
                 <p>Unapproved spend, unsafe messages</p>
               </div>
               <div className="number">
-                <b>259</b>
+                <b>290+</b>
                 <span>Automated tests</span>
                 <p>Incl. RLS, concurrency, injection</p>
               </div>

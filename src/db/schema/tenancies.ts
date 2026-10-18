@@ -5,6 +5,7 @@ import {
   date,
   foreignKey,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -13,6 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { id, organizationId, timestamps } from './columns';
+import { rentFrequencyEnum } from './enums';
 import { organizations } from './organizations';
 import { properties } from './properties';
 
@@ -40,6 +42,9 @@ export const tenancies = pgTable(
     startDate: date({ mode: 'string' }).notNull(),
     /** Null = periodic / ongoing. */
     endDate: date({ mode: 'string' }),
+    /** Rent per period, integer cents NZD (spec §12 R8). Null = not managed here. */
+    rentCents: integer(),
+    rentFrequency: rentFrequencyEnum(),
     ...timestamps,
   },
   (t) => [

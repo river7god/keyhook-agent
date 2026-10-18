@@ -26,7 +26,7 @@ describe('agentStats', () => {
     const s = await agentStats(db, org, now);
     expect(s.maintenance.open).toBe(1);
     expect(s.maintenance.escalated).toBe(0);
-    expect(s.updates.sent).toBe(2); // acknowledgement + quote requested
+    expect(s.updates.sent).toBe(3); // acknowledgement + quote requested + seeded Karori rent reminder
     expect(s.monitor.open).toBeGreaterThanOrEqual(1);
     // Seeded closed jobs are months old: outside the 30-day window.
     expect(s.maintenance.closed).toBe(0);

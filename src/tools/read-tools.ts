@@ -9,7 +9,7 @@ import {
   rankCandidates,
 } from '@/domain/tradie-selection';
 import { formatNzDateTime } from '@/lib/time';
-import { defineTool } from './types';
+import { defineTool, jobIdOf } from './types';
 
 export const getPropertyTool = defineTool({
   name: 'get_property',
@@ -18,7 +18,7 @@ export const getPropertyTool = defineTool({
   permission: 'read',
   input: z.strictObject({}),
   async run(ctx) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     const [p] = await ctx.db
       .select({
         address: properties.addressLine1,
@@ -42,7 +42,7 @@ export const listJobsForPropertyTool = defineTool({
   permission: 'read',
   input: z.strictObject({ limit: z.number().int().min(1).max(20) }),
   async run(ctx, input) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     const rows = await ctx.db
       .select({
         title: jobs.title,
@@ -78,7 +78,7 @@ export const searchTradiesTool = defineTool({
   permission: 'read',
   input: z.strictObject({}),
   async run(ctx) {
-    return rankedTradiesForJob(ctx.db, ctx.organizationId, ctx.jobId, ctx.now);
+    return rankedTradiesForJob(ctx.db, ctx.organizationId, jobIdOf(ctx), ctx.now);
   },
 });
 

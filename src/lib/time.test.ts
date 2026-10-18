@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
+  daysBetween,
+  nzDate,
   formatNzDate,
   formatNzDateTime,
   outsideQuietHours,
@@ -58,5 +61,17 @@ describe('outsideQuietHours', () => {
     expect(outsideQuietHours(early, quiet)).toEqual(
       zonedToUtc({ year: 2026, month: 10, day: 20, hour: 8 }),
     );
+  });
+});
+
+describe('calendar dates', () => {
+  it('uses the NZ date, not the UTC date', () => {
+    // 11:30 UTC on 18 Oct = 00:30 NZDT on 19 Oct.
+    expect(nzDate(new Date('2026-10-18T11:30:00Z'))).toBe('2026-10-19');
+  });
+  it('adds and counts calendar days across month ends', () => {
+    expect(addDays('2026-10-30', 3)).toBe('2026-11-02');
+    expect(daysBetween('2026-10-30', '2026-11-02')).toBe(3);
+    expect(daysBetween('2026-11-02', '2026-10-30')).toBe(-3);
   });
 });

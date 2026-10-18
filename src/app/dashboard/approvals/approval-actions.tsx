@@ -38,7 +38,7 @@ export function ApprovalActions({ approvalId }: { approvalId: string }) {
       <button disabled={busy} onClick={() => void decide('approved')}>
         Approve
       </button>
-      <button disabled={busy} onClick={() => void decide('rejected')}>
+      <button className="secondary" disabled={busy} onClick={() => void decide('rejected')}>
         Reject
       </button>
       {error && <span style={{ color: '#b00020' }}>{error}</span>}

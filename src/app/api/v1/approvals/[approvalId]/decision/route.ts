@@ -3,6 +3,7 @@ import { recordApprovalDecision } from '@/agent/pm-actions';
 import { requireApiUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
+import { deliverQueuedForCase } from '@/domain/messages';
 import { inngest } from '@/workflows/client';
 import { jobAdvanceRequested } from '@/workflows/events';
 import { ok, toErrorResponse } from '../../../_lib/respond';
@@ -33,13 +34,21 @@ export async function POST(
         now: new Date(),
       }),
     );
-    await inngest.send(
-      jobAdvanceRequested.create({
-        organizationId: user.organizationId,
-        jobId: result.jobId,
-        messageId: null,
-      }),
-    );
+    if (result.jobId) {
+      await inngest.send(
+        jobAdvanceRequested.create({
+          organizationId: user.organizationId,
+          jobId: result.jobId,
+          messageId: null,
+        }),
+      );
+    }
+    if (result.arrearsCaseId) {
+      const caseId = result.arrearsCaseId;
+      await withOrg(getDb(), user.organizationId, (tx) =>
+        deliverQueuedForCase(tx, user.organizationId, caseId),
+      );
+    }
     return ok(result);
   } catch (err) {
     return toErrorResponse(err);

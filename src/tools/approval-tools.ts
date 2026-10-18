@@ -6,7 +6,7 @@ import { getJob, patchJob, transitionJob } from '@/domain/jobs';
 import { queueOutbound } from '@/domain/messages';
 import { notifyOwner } from '@/domain/owner-notify';
 import { formatNzd } from '@/lib/money';
-import { defineTool } from './types';
+import { defineTool, jobIdOf } from './types';
 
 /**
  * Ask the PM to approve spend above their auto-approval limit (spec §8, `auto`).
@@ -24,12 +24,12 @@ export const requestApprovalTool = defineTool({
     kind: z.enum(['quote', 'variation']).default('quote'),
   }),
   async run(ctx, input) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     const [approval] = await ctx.db
       .insert(approvals)
       .values({
         organizationId: ctx.organizationId,
-        jobId: ctx.jobId,
+        jobId: jobIdOf(ctx),
         kind: input.kind,
         previousAmountCents: input.kind === 'variation' ? job.estimateCents : null,
         amountCents: input.amountCents,
@@ -41,7 +41,7 @@ export const requestApprovalTool = defineTool({
     if (input.kind === 'quote') {
       await transitionJob(ctx.db, {
         organizationId: ctx.organizationId,
-        jobId: ctx.jobId,
+        jobId: jobIdOf(ctx),
         to: 'AWAITING_APPROVAL',
         actor: { type: 'agent' },
         reason: input.reason,
@@ -68,7 +68,7 @@ export const requestApprovalTool = defineTool({
     if (ctxRow) {
       await queueOutbound(ctx.db, {
         organizationId: ctx.organizationId,
-        jobId: ctx.jobId,
+        jobId: jobIdOf(ctx),
         recipientType: 'pm',
         recipientId: ctxRow.pmId,
         body: `${input.kind === 'variation' ? 'Variation' : 'Approval'} needed: ${job.title} (${ctxRow.address})\n${
@@ -100,7 +100,7 @@ export const approveSpendTool = defineTool({
   permission: 'approval',
   input: z.strictObject({ approvalId: z.uuid() }),
   async run(ctx, input) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     const [approval] = await ctx.db
       .select()
       .from(approvals)
@@ -118,7 +118,7 @@ export const approveSpendTool = defineTool({
     }
     await transitionJob(ctx.db, {
       organizationId: ctx.organizationId,
-      jobId: ctx.jobId,
+      jobId: jobIdOf(ctx),
       to: 'SCHEDULING',
       actor: ctx.actor ?? { type: 'pm' },
       reason: `Spend of ${formatNzd(approval.amountCents)} approved`,
@@ -126,7 +126,7 @@ export const approveSpendTool = defineTool({
     if (job.assignedTradieId) {
       await queueOutbound(ctx.db, {
         organizationId: ctx.organizationId,
-        jobId: ctx.jobId,
+        jobId: jobIdOf(ctx),
         recipientType: 'tradie',
         recipientId: job.assignedTradieId,
         body: `Good news — your quote of ${formatNzd(approval.amountCents)} has been approved. We're confirming a visit time with the tenant and will be in touch shortly.`,
@@ -147,7 +147,7 @@ export const approveVariationTool = defineTool({
   permission: 'approval',
   input: z.strictObject({ approvalId: z.uuid() }),
   async run(ctx, input) {
-    const job = await getJob(ctx.db, ctx.organizationId, ctx.jobId);
+    const job = await getJob(ctx.db, ctx.organizationId, jobIdOf(ctx));
     const [approval] = await ctx.db
       .select()
       .from(approvals)
@@ -171,7 +171,7 @@ export const approveVariationTool = defineTool({
     if (job.assignedTradieId) {
       await queueOutbound(ctx.db, {
         organizationId: ctx.organizationId,
-        jobId: ctx.jobId,
+        jobId: jobIdOf(ctx),
         recipientType: 'tradie',
         recipientId: job.assignedTradieId,
         body: `The variation is approved — new approved total ${formatNzd(approval.amountCents)}. Please go ahead with the extra work.`,

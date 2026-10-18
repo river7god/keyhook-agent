@@ -1,7 +1,11 @@
 import { pgEnum } from 'drizzle-orm/pg-core';
+import { ARREARS_STATES } from '@/workflows/arrears-states';
 import { JOB_STATES } from '@/workflows/job-states';
 
 export const jobStateEnum = pgEnum('job_state', JOB_STATES);
+export const arrearsStateEnum = pgEnum('arrears_state', ARREARS_STATES);
+export const rentFrequencyEnum = pgEnum('rent_frequency', ['weekly', 'fortnightly']);
+export const ledgerKindEnum = pgEnum('ledger_kind', ['charge', 'payment']);
 export const urgencyEnum = pgEnum('urgency', ['emergency', 'urgent', 'routine']);
 /** `other` = could not classify; triage routes these to a PM. `handyman` covers general repairs. */
 export const tradeEnum = pgEnum('trade', [
@@ -58,7 +62,7 @@ export const feedbackKindEnum = pgEnum('feedback_kind', [
   'should_not_have_escalated',
   'other',
 ]);
-export const approvalKindEnum = pgEnum('approval_kind', ['quote', 'variation']);
+export const approvalKindEnum = pgEnum('approval_kind', ['quote', 'variation', 'arrears_notice']);
 export const monitorFindingKindEnum = pgEnum('monitor_finding_kind', ['repeated_fault']);
 export const monitorFindingStatusEnum = pgEnum('monitor_finding_status', [
   'open',

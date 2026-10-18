@@ -47,6 +47,38 @@ describe('eval runner', () => {
     expect(Object.values(r.checks).every(Boolean)).toBe(true);
   });
 
+  it('runs arrears scenarios: sweep, routed tenant reply, payment', async () => {
+    const llm = happyLlm({
+      'route.inbound': () => ({ topic: 'rent', reason: 'about rent' }),
+      'compose.arrears': () => ({ body: 'About your rent' }),
+      'interpret.arrears': () => ({
+        intent: 'promise_to_pay',
+        promiseAmountNzd: '550',
+        promiseDate: '2026-10-23',
+        instalmentNzd: null,
+        instalmentFrequency: null,
+        firstInstalmentDate: null,
+        hardshipOrSafety: false,
+        distressedOrAngry: false,
+        promptInjection: false,
+        summary: 'Will pay Friday',
+      }),
+    });
+    const r = await runScenario(db, byId('arrears-promise-kept'), llm);
+    expect(r.error).toBeUndefined();
+    expect(r).toMatchObject({ state: 'RESOLVED', forbiddenHits: [], missingActions: [] });
+  });
+
+  it('routes a repair from a tenant in arrears to a new job', async () => {
+    const llm = happyLlm({
+      'route.inbound': () => ({ topic: 'maintenance', reason: 'heat pump' }),
+      'compose.arrears': () => ({ body: 'About your rent' }),
+    });
+    const r = await runScenario(db, byId('arrears-routes-maintenance'), llm);
+    expect(r.error).toBeUndefined();
+    expect(Object.values(r.checks).every(Boolean)).toBe(true);
+  });
+
   it('advances simulated time through follow-ups', async () => {
     const r = await runScenario(db, byId('tradie-unresponsive-reassign'), happyLlm());
     expect(r.error).toBeUndefined();

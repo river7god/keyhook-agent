@@ -9,7 +9,9 @@ export type Permission = 'read' | 'auto' | 'approval';
 export interface ToolContext {
   db: DbOrTx;
   organizationId: string;
-  jobId: string;
+  /** What the tool acts on: a work order, or an arrears case (spec §12 R8). Exactly one. */
+  jobId: string | null;
+  arrearsCaseId?: string | null;
   /** Who is acting. Defaults to the agent; PM-initiated actions (approve_spend) pass the PM. */
   actor?: { type: ActorType; id?: string | null };
   /** The "why" recorded in the audit log. */
@@ -18,6 +20,18 @@ export interface ToolContext {
   idempotencyScope: string;
   now: Date;
   traceId?: string | null;
+}
+
+/** For work-order tools: the job this call is about (a programming error if missing). */
+export function jobIdOf(ctx: ToolContext): string {
+  if (!ctx.jobId) throw new Error('This tool needs a work order (ctx.jobId)');
+  return ctx.jobId;
+}
+
+/** For arrears tools: the case this call is about. */
+export function arrearsCaseIdOf(ctx: ToolContext): string {
+  if (!ctx.arrearsCaseId) throw new Error('This tool needs an arrears case (ctx.arrearsCaseId)');
+  return ctx.arrearsCaseId;
 }
 
 export interface ToolDefinition<I, O> {

@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, type SQL } from 'drizzle-orm';
 import { getMessagingAdapter } from '@/adapters/messaging';
 import type { DbOrTx } from '@/db/client';
 import { messages, type ActorType } from '@/db/schema';
@@ -11,7 +11,9 @@ export async function recordInbound(
   tx: DbOrTx,
   args: {
     organizationId: string;
-    jobId: string;
+    /** The conversation it belongs to: a job, an arrears case, or neither yet (to be routed). */
+    jobId: string | null;
+    arrearsCaseId?: string | null;
     senderType: Extract<ActorType, 'tenant' | 'tradie'>;
     senderId: string;
     body: string;
@@ -22,6 +24,7 @@ export async function recordInbound(
     .values({
       organizationId: args.organizationId,
       jobId: args.jobId,
+      arrearsCaseId: args.arrearsCaseId ?? null,
       direction: 'inbound',
       senderType: args.senderType,
       senderId: args.senderId,
@@ -42,7 +45,8 @@ export async function queueOutbound(
   tx: DbOrTx,
   args: {
     organizationId: string;
-    jobId: string;
+    jobId: string | null;
+    arrearsCaseId?: string | null;
     recipientType: Extract<ActorType, 'tenant' | 'tradie' | 'pm' | 'owner'>;
     recipientId: string;
     body: string;
@@ -56,6 +60,7 @@ export async function queueOutbound(
     .values({
       organizationId: args.organizationId,
       jobId: args.jobId,
+      arrearsCaseId: args.arrearsCaseId ?? null,
       direction: 'outbound',
       senderType: args.sender?.type ?? 'agent',
       senderId: args.sender?.id ?? null,
@@ -81,16 +86,19 @@ export async function queueOutbound(
 
 /** Hand queued messages for a job to the messaging adapter (mock outbox in dev — rule 7). */
 export async function deliverQueued(db: DbOrTx, organizationId: string, jobId: string) {
+  return deliver(db, organizationId, eq(messages.jobId, jobId), jobId);
+}
+
+/** Same, for an arrears case conversation. */
+export async function deliverQueuedForCase(db: DbOrTx, organizationId: string, caseId: string) {
+  return deliver(db, organizationId, eq(messages.arrearsCaseId, caseId), null);
+}
+
+async function deliver(db: DbOrTx, organizationId: string, subject: SQL, jobId: string | null) {
   const queued = await db
     .select()
     .from(messages)
-    .where(
-      and(
-        eq(messages.organizationId, organizationId),
-        eq(messages.jobId, jobId),
-        eq(messages.status, 'queued'),
-      ),
-    )
+    .where(and(eq(messages.organizationId, organizationId), subject, eq(messages.status, 'queued')))
     .orderBy(asc(messages.createdAt));
   const adapter = getMessagingAdapter();
   for (const m of queued) {

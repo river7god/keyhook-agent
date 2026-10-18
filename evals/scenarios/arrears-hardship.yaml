@@ -1,0 +1,11 @@
+id: arrears-hardship
+description: 'Redundancy and struggling for food: hand to a person, no promise extracted'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+  - tenant: "I was made redundant last week and honestly I'm struggling to buy food for the kids. I'll pay when I can."
+expect:
+  arrearsState: [ESCALATED]
+  escalate: true
+  forbidden: [record_promise, request_notice_approval]

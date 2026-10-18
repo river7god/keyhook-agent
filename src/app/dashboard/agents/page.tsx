@@ -33,6 +33,12 @@ function liveNumbers(id: string, s: AgentStats): [string, number][] | null {
       ];
     case 'updates':
       return [['updates sent', s.updates.sent]];
+    case 'arrears':
+      return [
+        ['open cases', s.arrears.open],
+        ['promises & plans', s.arrears.promised],
+        ['paid up', s.arrears.resolved],
+      ];
     default:
       return null;
   }

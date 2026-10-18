@@ -40,7 +40,7 @@ what needs judgement or authority. **The PM's role shifts from doing the work to
 | Proactive maintenance | Daily scan | Detects repeated faults, proposes a fix | Whether to open a job | Done (M8) |
 | Variations and invoices | Supplier message / invoice photo | Re-checks the new total against the policy; matches the invoice | Variations above limits; invoice differences | Done (M7) |
 | Owner communication | Approval needed, job closed | Notifies with cost | — | Done (M7, outbox) |
-| Arrears | Missed rent | Reminders, payment plans, drafts notices | Formal notices, Tribunal, hardship | Planned (M9) |
+| Arrears | Missed rent | Reminders, payment plans, drafts notices | Formal notices, Tribunal, hardship, disputes | Done (M9) |
 
 ### 1.3 Bounded contexts
 

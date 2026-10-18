@@ -12,7 +12,7 @@
 import { execSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { advanceJob, type AgentDeps } from '@/agent/advance';
@@ -37,7 +37,14 @@ import { ORG, PROPERTY } from '@/db/seed/ids';
 import { seed } from '@/db/seed/seed';
 import { listDueFollowUps } from '@/domain/follow-ups';
 import { ingestMessage } from '@/domain/inbound';
+import { advanceArrears } from '@/agent/arrears/advance';
+import { routeInbound } from '@/agent/arrears/route';
+import { sweepArrears } from '@/agent/arrears/sweep';
+import { findOpenCase, getCase, recordPayment } from '@/domain/arrears';
+import { receiveMessage } from '@/domain/inbound';
 import { createAgencyJob, getJob } from '@/domain/jobs';
+import { nzDate } from '@/lib/time';
+import { ARREARS_STATES } from '@/workflows/arrears-states';
 import { flushTelemetry, registerTelemetry } from '@/lib/telemetry';
 import { JOB_STATES } from '@/workflows/job-states';
 
@@ -49,6 +56,10 @@ const step = z.union([
   z.strictObject({ inspection: z.string().min(10) }),
   /** Advance simulated time and run every follow-up that is then due. */
   z.strictObject({ wait: z.number().positive() }),
+  /** Run the daily arrears sweep now (spec §12 R8). */
+  z.strictObject({ arrears_check: z.literal(true) }),
+  /** A rent payment (NZD) arrives for the scenario's tenancy today; the agent re-evaluates. */
+  z.strictObject({ payment: z.number().positive() }),
 ]);
 
 export const scenarioSchema = z.object({
@@ -59,6 +70,11 @@ export const scenarioSchema = z.object({
   /** Where the scenario came from, e.g. "agent_feedback:<id>". */
   source: z.string().optional(),
   property: z.enum(Object.keys(PROPERTY) as [keyof typeof PROPERTY, ...(keyof typeof PROPERTY)[]]),
+  /**
+   * Arrears scenario: scored on the arrears case; tenant steps arrive without a thread (like SMS)
+   * and go through the inbox router; `wait` also runs the daily sweep.
+   */
+  arrears: z.boolean().default(false),
   /** Shorthand for tenant-only steps. */
   messages: z.array(z.string()).optional(),
   steps: z.array(step).optional(),
@@ -68,6 +84,7 @@ export const scenarioSchema = z.object({
     escalate: z.boolean().optional(),
     state: z.array(z.enum(JOB_STATES)).optional(),
     estimateCents: z.number().int().optional(),
+    arrearsState: z.array(z.enum(ARREARS_STATES)).optional(),
     /** Script of every agent → tenant message: latin (e.g. English, Samoan) or cjk (Chinese). */
     replyScript: z.enum(['latin', 'cjk']).optional(),
     /** Audit actions that must have succeeded at least once. */
@@ -82,7 +99,15 @@ export type Scenario = z.infer<typeof scenarioSchema>;
 type Step = z.infer<typeof step>;
 
 type CheckName =
-  'urgency' | 'trade' | 'escalate' | 'state' | 'estimate' | 'actions' | 'language' | 'reasons';
+  | 'urgency'
+  | 'trade'
+  | 'escalate'
+  | 'state'
+  | 'estimate'
+  | 'actions'
+  | 'language'
+  | 'reasons'
+  | 'arrearsState';
 interface ScenarioResult {
   id: string;
   urgency: string | null;
@@ -240,6 +265,9 @@ export async function runScenario(
     .where(eq(properties.id, PROPERTY[s.property]));
 
   let jobId: string | null = null;
+  let caseId: string | null = null;
+  const tenancyId = currentTenancyFor(PROPERTY[s.property]).id;
+  const findCase = async () => (await findOpenCase(db, org, { tenancyId }))?.id ?? caseId;
   let stoppedEarly: string | undefined;
   try {
     const steps = stepsOf(s);
@@ -257,7 +285,51 @@ export async function runScenario(
           break;
         }
       }
-      if ('inspection' in st) {
+      if (caseId && !jobId) {
+        const c = await getCase(db, org, caseId);
+        if (c.state === 'ESCALATED' || c.state === 'RESOLVED' || c.state === 'CLOSED') {
+          stoppedEarly = `${c.state} before step ${String(i + 1)}/${String(steps.length)}`;
+          break;
+        }
+      }
+      if ('arrears_check' in st) {
+        await sweepArrears(deps, org);
+        caseId = await findCase();
+      } else if ('payment' in st) {
+        await recordPayment(db, {
+          organizationId: org,
+          tenancyId,
+          amountCents: Math.round(st.payment * 100),
+          date: nzDate(clock),
+          reference: 'Eval payment',
+          actor: { type: 'system', id: null },
+        });
+        if (caseId) await advanceArrears(deps, { organizationId: org, caseId });
+      } else if (s.arrears && 'tenant' in st) {
+        const r = await receiveMessage(db, {
+          organizationId: org,
+          senderType: 'tenant',
+          senderId: tenantId,
+          jobId: null,
+          body: st.tenant,
+        });
+        const routed =
+          r.kind === 'unrouted'
+            ? await routeInbound(deps, { organizationId: org, messageId: r.messageId })
+            : r.kind === 'arrears'
+              ? { kind: 'arrears' as const, caseId: r.arrearsCaseId }
+              : { kind: 'job' as const, jobId: r.jobId };
+        if (routed.kind === 'arrears') {
+          caseId = routed.caseId;
+          await advanceArrears(deps, { organizationId: org, caseId, messageId: r.messageId });
+        } else {
+          await advanceJob(deps, {
+            organizationId: org,
+            jobId: routed.jobId,
+            messageId: r.messageId,
+          });
+        }
+      } else if ('inspection' in st) {
         if (jobId || !property) throw new Error('inspection must be the first step');
         const job = await createAgencyJob(db, {
           organizationId: org,
@@ -314,7 +386,18 @@ export async function runScenario(
       } else {
         clock = new Date(clock.getTime() + st.wait * 3_600_000);
         for (const fu of await listDueFollowUps(db, clock)) await handleFollowUp(deps, fu.id);
+        if (s.arrears) {
+          await sweepArrears(deps, org);
+          caseId = await findCase();
+        }
       }
+    }
+    if (s.arrears) {
+      if (!caseId) throw new Error('no arrears case');
+      return {
+        ...(await scoreArrears(db, s, caseId, started)),
+        ...(stoppedEarly ? { stoppedEarly } : {}),
+      };
     }
     if (!jobId) throw new Error('no job');
     return { ...(await score(db, s, jobId, started)), ...(stoppedEarly ? { stoppedEarly } : {}) };
@@ -336,6 +419,66 @@ export async function runScenario(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/** Arrears scenarios: scored on the case. The audit log and llm_calls hold only this scenario. */
+async function scoreArrears(
+  db: Db,
+  s: Scenario,
+  caseId: string,
+  started: number,
+): Promise<ScenarioResult> {
+  const c = await getCase(db, ORG.harbourCity, caseId);
+  const e = s.expect;
+  const rows = await db
+    .select({ action: auditLog.action, reason: auditLog.reason, outcome: auditLog.outcome })
+    .from(auditLog)
+    // This case, plus routing/maintenance rows (the sweep also acts on other tenancies' cases).
+    .where(or(eq(auditLog.arrearsCaseId, caseId), isNull(auditLog.arrearsCaseId)))
+    .orderBy(asc(auditLog.id));
+  const succeeded = new Set(rows.filter((r) => r.outcome === 'ok').map((r) => r.action));
+  const escalationReason = rows
+    .filter((r) => r.action === 'arrears.escalation_package')
+    .at(-1)?.reason;
+  const [usage] = await db
+    .select({
+      calls: sql<number>`count(*)::int`,
+      micros: sql<number>`coalesce(sum(${llmCalls.costUsdMicros}), 0)::int`,
+      unpriced: sql<number>`count(*) filter (where ${llmCalls.costUsdMicros} is null)::int`,
+    })
+    .from(llmCalls);
+  const escalated = c.state === 'ESCALATED';
+  const missingActions = e.actions.filter((a) => !succeeded.has(a));
+  return {
+    id: s.id,
+    urgency: null,
+    trade: null,
+    state: c.state,
+    escalated,
+    expectedEscalate: e.escalate ?? null,
+    checks: {
+      ...(e.escalate !== undefined && { escalate: escalated === e.escalate }),
+      ...(e.arrearsState && { arrearsState: e.arrearsState.includes(c.state) }),
+      ...(e.actions.length > 0 && { actions: missingActions.length === 0 }),
+      ...(e.notReasons.length > 0 && {
+        reasons: !e.notReasons.some((t) =>
+          (escalationReason ?? '').toLowerCase().includes(t.toLowerCase()),
+        ),
+      }),
+    },
+    missingActions,
+    forbiddenHits: e.forbidden.filter((a) => succeeded.has(a)),
+    llmCalls: usage?.calls ?? 0,
+    unpricedCalls: usage?.unpriced ?? 0,
+    costUsdMicros: usage?.micros ?? 0,
+    diagnostics: {
+      ...(escalationReason ? { escalationReason } : {}),
+      lastAudit: rows
+        .slice(-4)
+        .map((r) => `${r.action}:${r.outcome} (${(r.reason ?? '').slice(0, 80)})`),
+    },
+    latencyMs: Date.now() - started,
+  };
 }
 
 async function score(db: Db, s: Scenario, jobId: string, started: number): Promise<ScenarioResult> {

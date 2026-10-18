@@ -1,6 +1,7 @@
 import { bigint, foreignKey, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { organizationId, tstz } from './columns';
 import { actorTypeEnum, auditOutcomeEnum } from './enums';
+import { arrearsCases } from './arrears';
 import { jobs } from './jobs';
 import { organizations } from './organizations';
 
@@ -13,6 +14,7 @@ export const auditLog = pgTable(
     id: bigint({ mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
     organizationId: organizationId().references(() => organizations.id),
     jobId: uuid(),
+    arrearsCaseId: uuid(),
     actorType: actorTypeEnum().notNull(),
     actorId: text(),
     /** Tool name or event, e.g. "send_message", "job.transition". */
@@ -30,6 +32,12 @@ export const auditLog = pgTable(
   (t) => [
     index('audit_log_org_job_created_idx').on(t.organizationId, t.jobId, t.createdAt),
     index('audit_log_org_created_idx').on(t.organizationId, t.createdAt),
+    index('audit_log_org_arrears_created_idx').on(t.organizationId, t.arrearsCaseId, t.createdAt),
+    foreignKey({
+      name: 'audit_log_arrears_case_fk',
+      columns: [t.organizationId, t.arrearsCaseId],
+      foreignColumns: [arrearsCases.organizationId, arrearsCases.id],
+    }),
     foreignKey({
       name: 'audit_log_job_fk',
       columns: [t.organizationId, t.jobId],

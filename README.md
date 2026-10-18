@@ -12,7 +12,7 @@ English | [简体中文](README.zh-CN.md)
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6" alt="TypeScript strict">
   <img src="https://img.shields.io/badge/Next.js-16-000000" alt="Next.js 16">
   <img src="https://img.shields.io/badge/Postgres-17%20%2B%20RLS-336791" alt="Postgres 17 with RLS">
-  <img src="https://img.shields.io/badge/evals-74%20scenarios-232a59" alt="74 eval scenarios">
+  <img src="https://img.shields.io/badge/evals-83%20scenarios-232a59" alt="83 eval scenarios">
 </p>
 
 <p align="center">
@@ -41,7 +41,7 @@ English | [简体中文](README.zh-CN.md)
 | Agents that progress a maintenance issue **from start to finish** | One state machine from `RECEIVED` to `CLOSED`: triage, supplier, quote, approval, visit, variation, invoice, confirmation |
 | **Escalate when a person needs to be involved** | Code-enforced rules (emergency, spend above limit, low confidence, legal, injury, injection), with a 30-second escalation package |
 | **Keep going until the job is done** | Durable workflows wait days, chase silence, reassign suppliers and close the loop |
-| **Check their own work**; systems that test and improve themselves | 74 eval scenarios, forbidden actions = 0, and PM corrections turned into new scenarios |
+| **Check their own work**; systems that test and improve themselves | 83 eval scenarios, forbidden actions = 0, and PM corrections turned into new scenarios |
 | **Real production software, not demos or chatbots** | Multi-tenant RLS, append-only audit, idempotent tools, CI, tracing, deployed on Vercel + Neon + Inngest |
 | Fewer of the *four people, three systems and nine manual steps* | The PM sees only approvals and escalations; tenant, supplier and owner updates are automatic |
 | Make Keyhook **increasingly capable of doing the work itself** | A shared agent platform: the next agent (arrears, enquiries, letting) is a new state machine plus evals |
@@ -72,7 +72,8 @@ English | [简体中文](README.zh-CN.md)
 | **Inspection intake** | Live | Turns an inspection finding into a work order and tells the tenant | Vague findings |
 | **Portfolio Monitor** | Live | Daily scan for repeated faults (3+ same-trade jobs in 12 months) | Whether it becomes a job |
 | **Tenant & owner updates** | Live | Milestone updates in the tenant’s language; owner told about approvals and final cost | Sensitive conversations |
-| Arrears · Inbox router · Enquiries & letting · Compliance · Bond · … | Next / planned | See [roadmap](docs/roadmap.md) | |
+| **Arrears** | Live | Daily ledger check, friendly reminders, promises (≤ 7 days) and plans (≤ 8 weeks), follow-ups; routes a tenant's message to the rent case or a new job | The 14-day notice (drafted from a template), hardship, disputes, 21 days → Tribunal |
+| Enquiries & letting · Compliance · Bond · … | Planned | See [roadmap](docs/roadmap.md) | |
 
 ## How it stays safe
 
@@ -137,12 +138,12 @@ The smoke set is `pnpm eval:smoke`, capped at US$2; the full Claude run is about
 
 | Engineering | |
 |---|---|
-| Automated tests | **260+**, incl. RLS isolation, concurrency, idempotency, prompt injection, the real Anthropic SDK over a fake HTTP layer |
-| Eval scenarios | **74**: emergencies, vague or angry tenants, tenant damage, over-budget, silent suppliers, injection, non-English, variations, invoices, inspections |
+| Automated tests | **290+**, incl. RLS isolation, concurrency, idempotency, prompt injection, the real Anthropic SDK over a fake HTTP layer |
+| Eval scenarios | **83**: emergencies, vague or angry tenants, tenant damage, over-budget, silent suppliers, injection, non-English, variations, invoices, inspections, arrears (promises, plans, hardship, disputes, notices, routing) |
 
 ## DevOps and automation
 
-- **CI on every push**: format, typecheck, strict lint, 260+ tests against a real Postgres, a
+- **CI on every push**: format, typecheck, strict lint, 290+ tests against a real Postgres, a
   migration drift check, build. **Nightly live evals** with results per commit.
 - **Self-running system**: durable workflows, follow-up sweeper, retention and monitor crons,
   failures escalate instead of failing silently, per-call cost tracking and budgets.
@@ -168,8 +169,8 @@ triggers: [`docs/architecture.md` §3–4](docs/architecture.md#3-evolution-migr
 
 ## Product direction
 
-1. **Next agent: arrears (M9)**, reusing tools, approvals, audit and evals.
-2. **Front door: an inbox router** that classifies every message and routes it to the right agent.
+1. **Done: a second agent on the same platform.** Arrears (M9) reuses tools, approvals, audit and evals. Its first slice of the inbox router decides whether a tenant's message is about rent or a repair.
+2. **Front door: a full inbox router** for every message and agent (today: rent vs maintenance).
 3. **Letting**: facts-only enquiry answers 24/7, viewing bookings, listing copy per channel (Trade
    Me, realestate.co.nz, OneRoof, social), with an anti-discrimination check and PM approval.
 4. **Before real customers**: mobile approvals, real channels, a supplier link portal, owner

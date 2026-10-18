@@ -1,0 +1,12 @@
+id: arrears-promise-kept
+description: 'Tenant promises to pay on Friday, pays, case resolves with a thank-you'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+  - tenant: "So sorry about that, pay day is Friday — I'll pay the full $550 then."
+  - payment: 550
+expect:
+  arrearsState: [RESOLVED]
+  actions: [record_promise]
+  forbidden: [request_notice_approval, send_arrears_notice]

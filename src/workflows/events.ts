@@ -20,3 +20,18 @@ export const jobAdvanceRequested = eventType('job/advance.requested', {
 export const followUpDue = eventType('followup/due', {
   schema: z.object({ ...orgScoped, jobId: z.uuid(), followUpId: z.uuid() }),
 });
+
+/** An arrears case may progress: a tenant replied, or a PM decided (spec §12 R8). */
+export const arrearsAdvanceRequested = eventType('arrears/advance.requested', {
+  schema: z.object({ ...orgScoped, caseId: z.uuid(), messageId: z.uuid().nullable() }),
+});
+
+/** A tenant message arrived without a conversation and the tenant has an open arrears case. */
+export const inboundRouteRequested = eventType('inbound/route.requested', {
+  schema: z.object({ ...orgScoped, messageId: z.uuid() }),
+});
+
+/** Run the arrears sweep for one organization now (dashboard "Run arrears check"). */
+export const arrearsSweepRequested = eventType('arrears/sweep.requested', {
+  schema: z.object({ ...orgScoped }),
+});

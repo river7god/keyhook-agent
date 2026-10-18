@@ -3,7 +3,7 @@ import { approvals } from '@/db/schema';
 import { writeAudit } from '@/domain/audit';
 import { DomainError, isDomainError } from '@/domain/errors';
 import { withIdempotency } from '@/domain/idempotency';
-import type { AnyTool, ToolContext } from './types';
+import { jobIdOf, type AnyTool, type ToolContext } from './types';
 
 export type ToolResult =
   | { ok: true; output: unknown; replayed: boolean }
@@ -29,6 +29,7 @@ export async function executeTool(
     writeAudit(ctx.db, {
       organizationId: ctx.organizationId,
       jobId: ctx.jobId,
+      arrearsCaseId: ctx.arrearsCaseId ?? null,
       actorType: ctx.actor?.type ?? 'agent',
       actorId: ctx.actor?.id ?? null,
       action: tool.name,
@@ -58,7 +59,9 @@ export async function executeTool(
         .where(
           and(
             eq(approvals.organizationId, ctx.organizationId),
-            eq(approvals.jobId, ctx.jobId),
+            ctx.arrearsCaseId
+              ? eq(approvals.arrearsCaseId, ctx.arrearsCaseId)
+              : eq(approvals.jobId, jobIdOf(ctx)),
             eq(approvals.status, 'approved'),
           ),
         )

@@ -3,6 +3,7 @@ import { listPendingApprovals } from '@/agent/pm-actions';
 import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
+import { listPendingNotices } from '@/domain/arrears';
 import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 import { ApprovalActions } from './approval-actions';
@@ -13,8 +14,11 @@ export const metadata = { title: 'Approvals' };
 /** Spend the agent may not approve itself: above the PM's limit, within the owner's. */
 export default async function ApprovalsPage() {
   const user = await requirePageUser();
-  const pending = await withOrg(getDb(), user.organizationId, (tx) =>
-    listPendingApprovals(tx, user.organizationId),
+  const [pending, notices] = await withOrg(getDb(), user.organizationId, (tx) =>
+    Promise.all([
+      listPendingApprovals(tx, user.organizationId),
+      listPendingNotices(tx, user.organizationId),
+    ]),
   );
 
   return (
@@ -23,11 +27,29 @@ export default async function ApprovalsPage() {
         <div>
           <h1>Approvals</h1>
           <p className="sub">
-            Quotes and variations above your auto-approval limit. The owner has been notified.
+            Spend above your auto-approval limit (the owner has been notified) and arrears notices.
+            Nothing here happens until you decide.
           </p>
         </div>
       </div>
-      {pending.length === 0 ? (
+      {notices.map((n) => (
+        <div key={n.id} className="card">
+          <div className="row" style={{ marginBottom: 6 }}>
+            <span className="badge ESCALATED">14-day notice</span>
+            <strong style={{ color: 'var(--text)', fontSize: '1.15rem' }}>
+              {formatNzd(n.amountCents)}
+            </strong>
+            <span style={{ flex: 1 }} />
+            <Link href={`/dashboard/arrears/${n.caseId}`}>{n.tenantName}</Link>
+          </div>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            {n.address}, {n.suburb} · drafted {formatNzDateTime(n.createdAt)} from a fixed template
+          </div>
+          <pre className="notice">{n.reason}</pre>
+          <ApprovalActions approvalId={n.id} />
+        </div>
+      ))}
+      {pending.length === 0 && notices.length === 0 ? (
         <div className="card">No approvals waiting — the agent has everything it needs.</div>
       ) : (
         pending.map((a) => (

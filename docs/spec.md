@@ -123,7 +123,7 @@ count (must be 0), cost per job, latency. Results tracked per commit.
 - **M6** Media intake and analysis (§12 R1) — done (photos)
 - **M7** Variations, invoice check, owner notifications, tenant milestone updates (§12 R2, R3, R5, R6) — done
 - **M8** Inspection-finding intake and Portfolio Monitor (§12 R4, R7) — done (repeated faults; compliance triggers wait for a data source)
-- **M9** Arrears workflow on the same platform (§12 R8)
+- **M9** Arrears workflow on the same platform (§12 R8) — done (with a first inbox router)
 
 ## 12. Alignment with the Keyhook platform (added 2026-10-18)
 Derived from Keyhook's public site (see `docs/keyhook-fit.md`). Keyhook already provides listings,

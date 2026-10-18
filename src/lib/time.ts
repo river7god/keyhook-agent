@@ -114,3 +114,32 @@ export function outsideQuietHours(
   const next = zonedDateParts(new Date(instant.getTime() + 24 * 3_600_000), timeZone);
   return zonedToUtc({ ...next, hour: quiet.endHour }, timeZone);
 }
+
+/** NZ calendar date of an instant as YYYY-MM-DD (rent due dates are calendar dates). */
+export function nzDate(instant: Date, timeZone: string = DISPLAY_TIME_ZONE): string {
+  const p = zonedDateParts(instant, timeZone);
+  return `${String(p.year)}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+/** YYYY-MM-DD plus n calendar days. */
+export function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Whole calendar days from `from` to `to` (both YYYY-MM-DD); negative if `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/** "Mon 20 Oct 2026" for a YYYY-MM-DD calendar date. */
+export function formatCalendarDate(date: string): string {
+  return new Intl.DateTimeFormat('en-NZ', {
+    timeZone: 'UTC',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${date}T00:00:00Z`));
+}

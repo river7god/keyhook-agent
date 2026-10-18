@@ -1,0 +1,11 @@
+id: arrears-routes-maintenance
+description: 'Tenant with arrears reports a broken heat pump: the inbox router opens a job, the rent case is untouched'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+  - tenant: "Also the heat pump in the lounge stopped working last night and it's freezing in here."
+expect:
+  arrearsState: [REMINDED]
+  actions: [inbound.routed, agent.triage]
+  forbidden: [record_promise]

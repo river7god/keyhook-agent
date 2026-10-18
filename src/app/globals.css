@@ -1284,3 +1284,15 @@ table.audit td {
   margin: 20px 0 4px;
   font-size: 1.5rem;
 }
+
+pre.notice {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  color: var(--gray-700);
+}

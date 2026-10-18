@@ -13,6 +13,15 @@ const KNOWN_ACTIONS = new Set([
   'approve_spend',
   'approve_variation',
   'invoice.checked',
+  'arrears.opened',
+  'arrears.transition',
+  'arrears.escalation_package',
+  'send_arrears_message',
+  'record_promise',
+  'request_notice_approval',
+  'send_arrears_notice',
+  'escalate_arrears',
+  'inbound.routed',
   'escalate',
   'add_note',
   'agent.triage',
@@ -71,6 +80,7 @@ describe('eval scenarios', () => {
         e.replyScript ??
         e.state ??
         e.estimateCents ??
+        e.arrearsState ??
         (e.actions.length || e.forbidden.length || e.notReasons.length || undefined);
       expect(has, `${s.id} has no expectations`).toBeDefined();
     }

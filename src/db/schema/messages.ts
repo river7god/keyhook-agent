@@ -7,6 +7,7 @@ import {
   messageDirectionEnum,
   messageStatusEnum,
 } from './enums';
+import { arrearsCases } from './arrears';
 import { jobs } from './jobs';
 import { organizations } from './organizations';
 
@@ -21,6 +22,8 @@ export const messages = pgTable(
     id: id(),
     organizationId: organizationId().references(() => organizations.id),
     jobId: uuid(),
+    /** Arrears conversations (spec §12 R8). A message belongs to at most one of job / case. */
+    arrearsCaseId: uuid(),
     direction: messageDirectionEnum().notNull(),
     channel: messageChannelEnum().notNull().default('simulator'),
     senderType: actorTypeEnum().notNull(),
@@ -39,6 +42,13 @@ export const messages = pgTable(
       'messages_outbound_has_idempotency_key',
       sql`${t.direction} = 'inbound' OR ${t.idempotencyKey} IS NOT NULL`,
     ),
+    index('messages_org_arrears_created_idx').on(t.organizationId, t.arrearsCaseId, t.createdAt),
+    check('messages_one_subject', sql`num_nonnulls(${t.jobId}, ${t.arrearsCaseId}) <= 1`),
+    foreignKey({
+      name: 'messages_arrears_case_fk',
+      columns: [t.organizationId, t.arrearsCaseId],
+      foreignColumns: [arrearsCases.organizationId, arrearsCases.id],
+    }),
     foreignKey({
       name: 'messages_job_fk',
       columns: [t.organizationId, t.jobId],

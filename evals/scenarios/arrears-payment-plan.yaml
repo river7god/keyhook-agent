@@ -1,0 +1,11 @@
+id: arrears-payment-plan
+description: 'Tenant proposes an extra $100 a week until cleared: within policy, agreed and tracked'
+property: kelburn
+arrears: true
+steps:
+  - arrears_check: true
+  - tenant: "Money's a bit tight this month. Could I pay an extra $100 a week on top of my rent until it's cleared?"
+expect:
+  arrearsState: [PROMISED]
+  escalate: false
+  actions: [record_promise]
