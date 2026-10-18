@@ -11,14 +11,14 @@ import type { AgentDeps } from '../handlers/shared';
 import { advanceArrears, type ArrearsStep } from './advance';
 
 /**
- * Daily arrears sweep for one organization (spec §12 R8): open a case for each tenancy whose
- * oldest unpaid rent is past the grace period, then advance every open case by the time rules.
- * One case failing never stops the others.
+ * Open a case for each tenancy whose oldest unpaid rent is past the grace period. Returns the ids
+ * of all open cases. In production the workflow then sends one advance event per case, so every
+ * advance runs under the per-case concurrency key (never alongside a tenant reply).
  */
-export async function sweepArrears(
+export async function openDueCases(
   deps: AgentDeps,
   organizationId: string,
-): Promise<{ opened: number; steps: Record<string, ArrearsStep | 'error'> }> {
+): Promise<{ opened: number; openCaseIds: string[] }> {
   const today = nzDate(deps.now());
   const policy = (await loadWorkflowPolicy(deps.db, organizationId)).arrears;
   let opened = 0;
@@ -31,8 +31,20 @@ export async function sweepArrears(
     );
     if (c) opened++;
   }
+  return { opened, openCaseIds: await listOpenCaseIds(deps.db, organizationId) };
+}
+
+/**
+ * Open due cases and advance every open case in-process (evals, tests, scripts). One case
+ * failing never stops the others.
+ */
+export async function sweepArrears(
+  deps: AgentDeps,
+  organizationId: string,
+): Promise<{ opened: number; steps: Record<string, ArrearsStep | 'error'> }> {
+  const { opened, openCaseIds } = await openDueCases(deps, organizationId);
   const steps: Record<string, ArrearsStep | 'error'> = {};
-  for (const caseId of await listOpenCaseIds(deps.db, organizationId)) {
+  for (const caseId of openCaseIds) {
     try {
       steps[caseId] = (await advanceArrears(deps, { organizationId, caseId })).step;
     } catch (err) {

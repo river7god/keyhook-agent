@@ -1,7 +1,7 @@
-import { cron } from 'inngest';
+import { cron, type GetStepTools } from 'inngest';
 import { advanceArrears } from '@/agent/arrears/advance';
 import { routeInbound } from '@/agent/arrears/route';
-import { sweepArrears } from '@/agent/arrears/sweep';
+import { openDueCases } from '@/agent/arrears/sweep';
 import { llmForOrganization } from '@/agent/providers';
 import { getDb } from '@/db/client';
 import { organizations } from '@/db/schema';
@@ -37,20 +37,38 @@ export const arrearsAdvance = inngest.createFunction(
     ),
 );
 
-/** Daily at 09:00 NZ (inside business hours): open cases and apply the time rules. */
+/**
+ * Daily at 09:00 NZ (inside business hours): open due cases, then fan out one advance event per
+ * case, so time rules and tenant replies for a case never run at the same time.
+ */
 export const arrearsSweep = inngest.createFunction(
   { id: 'arrears-sweep', triggers: [cron('TZ=Pacific/Auckland 0 9 * * *')] },
   async ({ step }) => {
     const orgIds = await step.run('list-organizations', async () =>
       (await getDb().select({ id: organizations.id }).from(organizations)).map((o) => o.id),
     );
-    const results: Record<string, unknown> = {};
-    for (const id of orgIds) {
-      results[id] = await step.run(`sweep-${id}`, async () => sweepArrears(await deps(id), id));
-    }
-    return results;
+    let cases = 0;
+    for (const id of orgIds) cases += await sweepOrganization(step, id);
+    return { organizations: orgIds.length, cases };
   },
 );
+
+type Step = GetStepTools<typeof inngest>;
+
+async function sweepOrganization(step: Step, organizationId: string): Promise<number> {
+  const { openCaseIds } = await step.run(`open-${organizationId}`, async () =>
+    openDueCases(await deps(organizationId), organizationId),
+  );
+  if (openCaseIds.length) {
+    await step.sendEvent(
+      `advance-${organizationId}`,
+      openCaseIds.map((caseId) =>
+        arrearsAdvanceRequested.create({ organizationId, caseId, messageId: null }),
+      ),
+    );
+  }
+  return openCaseIds.length;
+}
 
 /** On demand for one organization (dashboard button). */
 export const arrearsSweepNow = inngest.createFunction(
@@ -59,10 +77,7 @@ export const arrearsSweepNow = inngest.createFunction(
     triggers: [arrearsSweepRequested],
     concurrency: { key: 'event.data.organizationId', limit: 1 },
   },
-  async ({ event, step }) =>
-    step.run('sweep', async () =>
-      sweepArrears(await deps(event.data.organizationId), event.data.organizationId),
-    ),
+  async ({ event, step }) => ({ cases: await sweepOrganization(step, event.data.organizationId) }),
 );
 
 /** Inbox router: attach an unrouted tenant message to their arrears case or a new job. */

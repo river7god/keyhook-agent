@@ -430,3 +430,13 @@ proved the point. All 5 cases "failed", but mostly because of the tester:
 - it picked a property from another agency; the property list is now limited to the demo agency;
 - the judge called real supplier names and offered times "invented"; it now also sees the
   system trail of tool calls and results.
+
+### 2026-10-18 — Arrears sweeps fan out one event per case
+**Decision:** The daily and on-demand arrears sweeps only open due cases (`openDueCases`), then
+send one `arrears/advance.requested` event per open case. Every advance, whether from the time
+rules or a tenant reply, therefore runs under the per-case concurrency key. The in-process
+`sweepArrears` stays for evals, tests and scripts.
+**Reason:** Seen while recording the arrears demo. The on-demand sweep advanced a case directly,
+so a tenant reply was processed on the same case at the same moment. Optimistic version checks
+kept the data consistent, but the conversation order was confusing and one run had to retry.
+Serialising per case removes the race instead of relying on the retry.

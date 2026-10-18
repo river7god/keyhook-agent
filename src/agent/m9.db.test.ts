@@ -16,7 +16,7 @@ import { executeTool } from '@/tools/execute';
 import { advanceArrears } from './arrears/advance';
 import { routeInbound } from './arrears/route';
 import type { ArrearsReplyOutput } from './arrears/schemas';
-import { sweepArrears } from './arrears/sweep';
+import { openDueCases, sweepArrears } from './arrears/sweep';
 import { recordApprovalDecision } from './pm-actions';
 
 /* M9 (spec §12 R8): arrears agent. Seed: Kelburn 5 days behind, Karori 12 days behind + reminded. */
@@ -107,6 +107,14 @@ describe('daily sweep', () => {
 
     const open = await db.select().from(arrearsCases);
     expect(open).toHaveLength(2);
+  });
+
+  it('opening due cases sends nothing; advancing happens per case (workflow fan-out)', async () => {
+    const before = await db.select().from(messages);
+    const r = await openDueCases(deps(), org);
+    expect(r.opened).toBe(1);
+    expect(r.openCaseIds).toHaveLength(2);
+    expect(await db.select().from(messages)).toHaveLength(before.length);
   });
 
   it('does nothing new when swept again the same day', async () => {
