@@ -16,7 +16,7 @@ import { recordHandBackCorrections } from '@/domain/feedback';
 import { getJob, transitionJob } from '@/domain/jobs';
 import { queueOutbound } from '@/domain/messages';
 import { formatNzd } from '@/lib/money';
-import { approveSpendTool } from '@/tools/approval-tools';
+import { approveSpendTool, approveVariationTool } from '@/tools/approval-tools';
 import { executeTool } from '@/tools/execute';
 
 /**
@@ -71,7 +71,7 @@ export async function recordApprovalDecision(
     const job = await getJob(tx, args.organizationId, approval.jobId);
     if (args.decision === 'approved') {
       const r = await executeTool(
-        approveSpendTool,
+        approval.kind === 'variation' ? approveVariationTool : approveSpendTool,
         {
           db: tx,
           organizationId: args.organizationId,
@@ -85,12 +85,26 @@ export async function recordApprovalDecision(
       );
       if (!r.ok) throw new DomainError('CONFLICT', r.error.message, { code: r.error.code });
     } else {
+      if (approval.kind === 'variation' && job.assignedTradieId) {
+        await queueOutbound(tx, {
+          organizationId: args.organizationId,
+          jobId: job.id,
+          recipientType: 'tradie',
+          recipientId: job.assignedTradieId,
+          body: "The extra cost wasn't approved — please don't go ahead with the additional work. The property manager will be in touch.",
+          idempotencyKey: `${job.id}:approval:${approval.id}:rejected:tradie`,
+        });
+      }
       await transitionJob(tx, {
         organizationId: args.organizationId,
         jobId: job.id,
         to: 'ESCALATED',
         actor: pm,
-        reason: `PM rejected ${formatNzd(approval.amountCents)}${args.note ? `: ${args.note}` : ''}`,
+        reason:
+          `PM rejected ${approval.kind === 'variation' ? 'variation to' : ''} ${formatNzd(approval.amountCents)}${args.note ? `: ${args.note}` : ''}`.replace(
+            /\s+/g,
+            ' ',
+          ),
       });
     }
     const after = await getJob(tx, args.organizationId, job.id);
@@ -103,6 +117,8 @@ export async function listPendingApprovals(db: DbOrTx, organizationId: string) {
     .select({
       id: approvals.id,
       jobId: approvals.jobId,
+      kind: approvals.kind,
+      previousAmountCents: approvals.previousAmountCents,
       amountCents: approvals.amountCents,
       reason: approvals.reason,
       createdAt: approvals.createdAt,

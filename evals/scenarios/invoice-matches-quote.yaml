@@ -1,0 +1,13 @@
+id: invoice-matches-quote
+description: 'Completion with an invoice close to the quote: checked, no PM review, then closed'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 2 please.'
+  - tradie: 'All done, replaced the thermocouple. Invoice INV-2231 for $189.75 incl GST.'
+  - tenant: 'Yes, the hot water is working again. Thanks!'
+expect:
+  state: [CLOSED]
+  escalate: false
+  actions: [invoice.checked]

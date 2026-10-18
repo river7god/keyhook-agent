@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { Db, DbOrTx } from '@/db/client';
 import { idempotencyKeys, messages } from '@/db/schema';
 import { satisfyFollowUps } from '@/domain/follow-ups';
+import { parseNzdToCents } from '@/lib/money';
 import { withIdempotency } from '@/domain/idempotency';
 import type { Job } from '@/domain/jobs';
 import type { Message } from '@/domain/messages';
@@ -146,4 +147,19 @@ export class DuplicateInboundError extends Error {
     super(`Inbound message ${messageId} was already processed`);
     this.name = 'DuplicateInboundError';
   }
+}
+
+/** "245.50" + GST status → GST-inclusive cents (decisions: quotes stored incl. GST). */
+export function nzdToInclusiveCents(
+  amount: string | null,
+  gst: 'included' | 'excluded' | 'unknown',
+): number | null {
+  if (!amount) return null;
+  let cents: number;
+  try {
+    cents = parseNzdToCents(amount);
+  } catch {
+    return null;
+  }
+  return gst === 'excluded' ? Math.round(cents * (1 + GST_RATE)) : cents;
 }

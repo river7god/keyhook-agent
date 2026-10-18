@@ -23,6 +23,7 @@ import { ACT_TRIAGED_SYSTEM, INTERPRET_SYSTEM } from '../prompts';
 import { quoteReplyOutput } from '../schemas';
 import { untrusted } from '../untrusted';
 import {
+  composeTenant,
   escalate,
   GST_RATE,
   llmCtx,
@@ -105,6 +106,29 @@ export async function handleTriaged(deps: AgentDeps, job: Job): Promise<StepResu
       });
     });
   }
+  // Milestone update (spec §12 R6): tell the tenant a supplier has been engaged.
+  if (after.state === 'AWAITING_QUOTE') {
+    const update = await composeTenant(
+      deps,
+      await loadJobContext(deps.db, after),
+      'Let the tenant know a tradesperson has been asked to look at the job and that visit times will follow.',
+      [`Trade: ${after.trade ?? 'maintenance'}`, 'Do not name the tradie or mention prices.'],
+    );
+    if (update) {
+      await deps.db.transaction(async (tx) => {
+        must(
+          await executeTool(
+            sendMessageTool,
+            toolCtx(tx, after, 'Milestone: quote requested', deps.now(), ':milestone'),
+            {
+              recipient: 'tenant',
+              body: update,
+            },
+          ),
+        );
+      });
+    }
+  }
   return 'wait';
 }
 
@@ -138,6 +162,15 @@ export async function handleQuoteReply(
           await loadApprovalLimits(deps.db, job.organizationId, job.propertyId),
         );
   const tradieName = ctx.tradie?.businessName ?? 'the tradie';
+  const awaitingApprovalUpdate =
+    approval?.kind === 'pm_approval'
+      ? await composeTenant(
+          deps,
+          ctx,
+          'Let the tenant know the repair has been quoted and is with the property manager for approval; times will follow once approved.',
+          ['Do not mention any amounts.'],
+        )
+      : null;
 
   let result: StepResult = 'wait';
   await deps.db.transaction(async (tx) => {
@@ -212,6 +245,16 @@ export async function handleQuoteReply(
           body: `Thanks for the quote of ${formatNzd(totalCents)}. It's with the property manager for approval — we'll be in touch as soon as it's approved.`,
         }),
       );
+      if (awaitingApprovalUpdate) {
+        must(
+          await executeTool(
+            sendMessageTool,
+            tc,
+            { recipient: 'tenant', body: awaitingApprovalUpdate },
+            1,
+          ),
+        );
+      }
       return;
     }
     await escalate(tc, {

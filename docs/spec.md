@@ -120,8 +120,8 @@ count (must be 0), cost per job, latency. Results tracked per commit.
 - **M3** Escalation rules + PM dashboard (queue, timeline, audit log)
 - **M4** Eval suite (≥ 50 scenarios) wired into CI; Langfuse tracing
 - **M5** Deploy, hardening (injection tests, idempotency tests), record demo video
-- **M6** Media intake and analysis (§12 R1)
-- **M7** Variations, invoice check, owner notifications, tenant milestone updates (§12 R2, R3, R5, R6)
+- **M6** Media intake and analysis (§12 R1) — done (photos)
+- **M7** Variations, invoice check, owner notifications, tenant milestone updates (§12 R2, R3, R5, R6) — done
 - **M8** Inspection-finding intake and Portfolio Monitor (§12 R4, R7)
 - **M9** Arrears workflow on the same platform (§12 R8)
 

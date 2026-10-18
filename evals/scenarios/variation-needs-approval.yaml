@@ -1,0 +1,14 @@
+id: variation-needs-approval
+description: 'New total above the PM limit: PM approves the variation, estimate becomes the new total'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 2 please.'
+  - tradie: 'Bad news, the cylinder is leaking at the base and needs replacing. New total would be $900 plus GST.'
+  - pm: approve
+expect:
+  state: [SCHEDULED, IN_PROGRESS]
+  escalate: false
+  estimateCents: 103500
+  actions: [request_approval, approve_variation]

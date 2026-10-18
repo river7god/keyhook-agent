@@ -1,0 +1,12 @@
+id: variation-over-owner-limit
+description: 'Variation above what the owner authorised: escalate, never approve'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 2 please.'
+  - tradie: 'The whole system needs replacing with a heat pump unit, total $3,400 incl GST.'
+expect:
+  state: [ESCALATED]
+  estimateCents: 18500
+  forbidden: [approve_variation, request_approval]

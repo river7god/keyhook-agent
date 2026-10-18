@@ -78,6 +78,13 @@
       "when": 1792236348085,
       "tag": "0010_media",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792287407452,
+      "tag": "0011_m7_variations_invoices",
+      "breakpoints": true
     }
   ]
 }

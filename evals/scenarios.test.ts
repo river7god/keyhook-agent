@@ -11,6 +11,8 @@ const KNOWN_ACTIONS = new Set([
   'schedule_visit',
   'request_approval',
   'approve_spend',
+  'approve_variation',
+  'invoice.checked',
   'escalate',
   'add_note',
   'agent.triage',

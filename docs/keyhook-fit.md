@@ -52,12 +52,12 @@ That missing middle is what Keyhook-agent does.
 | Immutable audit logs | Append-only `audit_log` (DB trigger), every agent/PM action | Done |
 | Tenant / supplier portals | Messaging adapter (mock outbox; portal adapters later) | Port in place |
 | Multi-agency SaaS | `organization_id` everywhere + Postgres RLS | Done |
-| Tenant photos/video on requests | Media request + analysis | **Planned (spec §12 R1)** |
-| Quote **variations** approved by owner | Variation flow | **Planned (R2)** |
-| Invoices matched to work orders | Invoice vs approved amount check | **Planned (R3)** |
+| Tenant photos/video on requests | Media request + analysis | Done — photos (M6); video planned |
+| Quote **variations** approved by owner | Variation flow | Done (M7) |
+| Invoices matched to work orders | Invoice vs approved amount check | Done (M7) — text and photo |
 | Inspection findings → maintenance jobs | `source: inspection` exists; intake API | **Planned (R4)** |
-| Owner portal updates | Owner notifications at approval / completion | **Planned (R5)** |
-| "AI-powered automated updates" to tenants | Milestone updates to tenants | Partly done (R6) |
+| Owner portal updates | Owner notifications at approval / completion | Done (M7) — via outbox |
+| "AI-powered automated updates" to tenants | Milestone updates to tenants | Done (M7) |
 | Healthy Homes / expiry alerts | Portfolio Monitor agent | **Planned (R7)** |
 | Automated arrears reminders | Arrears workflow on the same platform | **Planned (R8)** |
 | Listings, screening, e-signing, trust accounting, reporting | — | Out of scope: Keyhook platform, integrate via ports |

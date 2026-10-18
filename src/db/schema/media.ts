@@ -23,6 +23,10 @@ export interface MediaAnalysis {
   safetyCues: string[];
   label: { make: string | null; model: string | null; serial: string | null } | null;
   promptInjection: boolean;
+  documentKind?: 'invoice' | 'quote' | null;
+  documentTotalNzd?: string | null;
+  documentGst?: 'included' | 'excluded' | 'unknown';
+  documentReference?: string | null;
 }
 
 /**

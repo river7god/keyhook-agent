@@ -10,7 +10,16 @@ import { LlmConfigError, LlmOutputError, LlmRefusalError, type ImageInput } from
 import { VISION_SYSTEM } from '../prompts';
 import { mediaAnalysisOutput } from '../schemas';
 import { untrusted } from '../untrusted';
-import { composeTenant, escalate, llmCtx, must, toolCtx, type AgentDeps } from './shared';
+import { recordInvoice } from '@/domain/invoice-check';
+import {
+  composeTenant,
+  escalate,
+  llmCtx,
+  must,
+  nzdToInclusiveCents,
+  toolCtx,
+  type AgentDeps,
+} from './shared';
 
 export interface MediaOutcome {
   analysed: number;
@@ -58,6 +67,29 @@ export async function analyzeMessageMedia(
       });
       outcome.analysed++;
       if (analysis.promptInjection) outcome.injection = true;
+      // A supplier's photo of an invoice is checked against the approved amount (spec §12 R3).
+      const invoiceCents =
+        msg.senderType === 'tradie' &&
+        analysis.documentKind === 'invoice' &&
+        !analysis.promptInjection
+          ? nzdToInclusiveCents(
+              analysis.documentTotalNzd ?? null,
+              analysis.documentGst ?? 'unknown',
+            )
+          : null;
+      if (invoiceCents !== null) {
+        const reference = analysis.documentReference ?? null;
+        await deps.db.transaction((tx) =>
+          recordInvoice(tx, {
+            job,
+            amountCents: invoiceCents,
+            reference,
+            sourceMessageId: msg.id,
+            sourceMediaId: img.id,
+            idempotencyKey: `${job.id}:invoice:media:${img.id}`,
+          }),
+        );
+      }
       if (analysis.quality !== 'good' && analysis.retakeAdvice)
         outcome.retakeAdvice.push(analysis.retakeAdvice);
     } catch (err) {

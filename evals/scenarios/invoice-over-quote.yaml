@@ -1,0 +1,12 @@
+id: invoice-over-quote
+description: 'Invoice well above the approved quote: checked and sent to the PM, job carries on'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 2 please.'
+  - tradie: 'Finished. Invoice INV-2232 is $320 + GST, took longer than expected.'
+expect:
+  state: [AWAITING_CONFIRMATION]
+  escalate: false
+  actions: [invoice.checked]

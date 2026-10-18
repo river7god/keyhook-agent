@@ -7,6 +7,7 @@ import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
 import { isDomainError } from '@/domain/errors';
 import { getAgentActivity } from '@/domain/agent-activity';
+import { listJobInvoices } from '@/domain/invoice-check';
 import { getJob } from '@/domain/jobs';
 import { listJobMedia } from '@/domain/media-store';
 import { AgentActivityBadge } from '@/app/_lib/agent-activity-badge';
@@ -29,16 +30,17 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
       throw err;
     });
     if (!job) return null;
-    const [ctx, timeline, activity, photos] = await Promise.all([
+    const [ctx, timeline, activity, photos, invoices] = await Promise.all([
       loadJobContext(tx, job),
       getJobTimeline(tx, user.organizationId, job.id),
       getAgentActivity(tx, job, new Date()),
       listJobMedia(tx, user.organizationId, job.id),
+      listJobInvoices(tx, user.organizationId, job.id),
     ]);
-    return { job, ctx, timeline, activity, photos };
+    return { job, ctx, timeline, activity, photos, invoices };
   });
   if (!data) notFound();
-  const { job, ctx, timeline, activity, photos } = data;
+  const { job, ctx, timeline, activity, photos, invoices } = data;
   const escalation =
     job.state === 'ESCALATED'
       ? [...timeline.items]
@@ -128,6 +130,24 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
             </dl>
             {job.summary && <p style={{ marginBottom: 0 }}>{job.summary}</p>}
           </div>
+
+          {invoices.length > 0 && (
+            <div className="card">
+              <h2>Invoices</h2>
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {invoices.map((inv) => (
+                  <li key={inv.id}>
+                    <strong>{formatNzd(inv.amountCents)}</strong>
+                    {inv.reference ? ` · ${inv.reference}` : ''} ·{' '}
+                    <span className={`badge ${inv.status === 'matched' ? 'CLOSED' : 'ESCALATED'}`}>
+                      {inv.status.replace('_', ' ')}
+                    </span>
+                    {inv.status === 'needs_review' && <div className="sub">{inv.reason}</div>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <PmActions
             jobId={job.id}

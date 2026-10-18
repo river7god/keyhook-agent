@@ -84,7 +84,7 @@ describe('advanceJob — M1 happy path', () => {
       .from(messages)
       .where(and(eq(messages.jobId, job.id), eq(messages.direction, 'outbound')));
     expect(out.every((m) => m.status === 'sent')).toBe(true);
-    expect(out.filter((m) => m.to === 'tenant')).toHaveLength(5); // ack, offer, booked, confirm?, thanks
+    expect(out.filter((m) => m.to === 'tenant')).toHaveLength(6); // ack, quote requested, offer, booked, confirm?, thanks
     expect(out.filter((m) => m.to === 'tradie')).toHaveLength(4); // request, approved, booked, closed
 
     const actions = (

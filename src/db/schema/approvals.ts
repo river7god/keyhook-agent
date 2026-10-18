@@ -11,7 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { id, organizationId, timestamps, tstz } from './columns';
-import { approvalStatusEnum } from './enums';
+import { approvalKindEnum, approvalStatusEnum } from './enums';
 import { jobs } from './jobs';
 import { organizations } from './organizations';
 
@@ -22,6 +22,10 @@ export const approvals = pgTable(
     id: id(),
     organizationId: organizationId().references(() => organizations.id),
     jobId: uuid().notNull(),
+    /** quote = the first approval; variation = extra cost reported after approval (spec §12 R2). */
+    kind: approvalKindEnum().notNull().default('quote'),
+    /** For variations: the approved total before this change. */
+    previousAmountCents: integer(),
     amountCents: integer().notNull(),
     reason: text().notNull(),
     status: approvalStatusEnum().notNull().default('pending'),

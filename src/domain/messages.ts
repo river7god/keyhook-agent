@@ -43,7 +43,7 @@ export async function queueOutbound(
   args: {
     organizationId: string;
     jobId: string;
-    recipientType: Extract<ActorType, 'tenant' | 'tradie' | 'pm'>;
+    recipientType: Extract<ActorType, 'tenant' | 'tradie' | 'pm' | 'owner'>;
     recipientId: string;
     body: string;
     idempotencyKey: string;

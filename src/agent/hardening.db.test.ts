@@ -120,7 +120,7 @@ describe('idempotency under concurrency', () => {
           eq(messages.direction, 'outbound'),
         ),
       );
-    expect(replies).toHaveLength(2); // triage ack + exactly one status reply
+    expect(replies).toHaveLength(3); // triage ack + quote-requested milestone + exactly one status reply
   });
 });
 

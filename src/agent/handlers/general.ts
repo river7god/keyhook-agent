@@ -1,3 +1,4 @@
+import { recordInvoice } from '@/domain/invoice-check';
 import type { Job } from '@/domain/jobs';
 import type { Message } from '@/domain/messages';
 import { formatNzDateTime } from '@/lib/time';
@@ -13,6 +14,7 @@ import {
   llmCtx,
   markProcessed,
   must,
+  nzdToInclusiveCents,
   toolCtx,
   type AgentDeps,
   type StepResult,
@@ -51,7 +53,13 @@ export async function handleGeneralMessage(
   job: Job,
   msg: Message,
 ): Promise<StepResult> {
-  if (job.state === 'ESCALATED' || job.state === 'CLOSED' || job.state === 'CANCELLED') {
+  // A PM owns escalated/cancelled jobs; a closed job only still takes supplier invoices.
+  const closedInvoiceWindow = job.state === 'CLOSED' && msg.senderType === 'tradie';
+  if (
+    job.state === 'ESCALATED' ||
+    job.state === 'CANCELLED' ||
+    (job.state === 'CLOSED' && !closedInvoiceWindow)
+  ) {
     await deps.db.transaction(async (tx) => {
       await markProcessed(tx, msg);
       must(
@@ -76,14 +84,21 @@ export async function handleGeneralMessage(
     effort: 'medium',
   });
   const fromTenant = msg.senderType === 'tenant';
+  const terminal = job.state === 'CLOSED';
+  const invoiceCents =
+    !out.promptInjection && msg.senderType === 'tradie'
+      ? nzdToInclusiveCents(out.invoiceTotalNzd, out.gst)
+      : null;
   const risky =
-    out.promptInjection ||
-    out.urgentSafetyIssue ||
-    out.distressedOrAngry ||
-    out.intent === 'cancel_request' ||
-    out.intent === 'complaint';
+    !terminal &&
+    (out.promptInjection ||
+      out.urgentSafetyIssue ||
+      out.distressedOrAngry ||
+      out.intent === 'cancel_request' ||
+      out.intent === 'complaint');
   const reply =
     !risky &&
+    !terminal &&
     fromTenant &&
     (out.intent === 'status_request' ||
       out.intent === 'additional_info' ||
@@ -109,6 +124,15 @@ export async function handleGeneralMessage(
         text: `${msg.senderType} (${out.intent}): ${out.summary}`,
       }),
     );
+    if (invoiceCents !== null) {
+      await recordInvoice(tx, {
+        job,
+        amountCents: invoiceCents,
+        reference: out.invoiceReference,
+        sourceMessageId: msg.id,
+        idempotencyKey: `${job.id}:invoice:${msg.id}`,
+      });
+    }
     if (risky) {
       await escalate(tc, {
         reason: out.promptInjection

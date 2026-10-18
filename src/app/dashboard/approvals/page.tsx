@@ -34,7 +34,16 @@ export default async function ApprovalsPage() {
               key={a.id}
               style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, marginBottom: 12 }}
             >
-              <strong>{formatNzd(a.amountCents)}</strong> — {a.jobTitle}
+              {a.kind === 'variation' && (
+                <span className="badge AWAITING_APPROVAL" style={{ marginRight: 6 }}>
+                  variation
+                </span>
+              )}
+              <strong>{formatNzd(a.amountCents)}</strong>
+              {a.kind === 'variation' && a.previousAmountCents !== null && (
+                <span style={{ color: '#555' }}> (was {formatNzd(a.previousAmountCents)})</span>
+              )}{' '}
+              — {a.jobTitle}
               <div style={{ color: '#555' }}>
                 {a.address}, {a.suburb} · {a.tradie ?? 'no tradie'} · requested{' '}
                 {formatNzDateTime(a.createdAt)}

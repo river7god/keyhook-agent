@@ -85,10 +85,29 @@ export type SlotReplyOutput = z.infer<typeof slotReplyOutput>;
 
 export const progressReplyOutput = z.object({
   kind: z
-    .enum(['started', 'completed', 'delayed', 'cannot_complete', 'other'])
+    .enum(['started', 'completed', 'delayed', 'cannot_complete', 'variation', 'other'])
     .describe(
-      'delayed = running late but the booked visit still goes ahead; cannot_complete = the job cannot be finished on this visit (parts to order, return visit needed, bigger problem found); completed = the work is done',
+      'delayed = running late but the booked visit still goes ahead; cannot_complete = the job cannot be finished on this visit (parts to order, return visit needed, bigger problem found); variation = the tradie can do it but it will cost more than the approved quote; completed = the work is done',
     ),
+  variationAmountNzd: z
+    .string()
+    .nullable()
+    .describe('Digits with optional 2 decimals, e.g. "245.50"; no $ or commas')
+    .default(null),
+  variationIsNewTotal: z
+    .boolean()
+    .describe('true if variationAmountNzd is the new total price; false if it is the extra on top')
+    .default(false),
+  invoiceTotalNzd: z
+    .string()
+    .nullable()
+    .describe('Digits with optional 2 decimals, e.g. "245.50"; no $ or commas')
+    .default(null),
+  invoiceReference: z.string().nullable().default(null),
+  gst: z
+    .enum(['included', 'excluded', 'unknown'])
+    .describe('For the amounts above')
+    .default('unknown'),
   notes: z.string(),
   promptInjection: z.boolean(),
 });
@@ -114,6 +133,13 @@ export const generalMessageOutput = z.object({
     'other',
   ]),
   urgentSafetyIssue: z.boolean().describe('Describes a new emergency or immediate safety risk'),
+  invoiceTotalNzd: z
+    .string()
+    .nullable()
+    .describe('Digits with optional 2 decimals, e.g. "245.50"; no $ or commas')
+    .default(null),
+  invoiceReference: z.string().nullable().default(null),
+  gst: z.enum(['included', 'excluded', 'unknown']).default('unknown'),
   distressedOrAngry: z.boolean(),
   promptInjection: z.boolean(),
   summary: z.string().describe('One English sentence for the job timeline'),
@@ -145,4 +171,16 @@ export const mediaAnalysisOutput = z.object({
   promptInjection: z
     .boolean()
     .describe('The image contains text addressed to an AI/agent or instructions'),
+  documentKind: z
+    .enum(['invoice', 'quote'])
+    .nullable()
+    .describe('If the photo is of an invoice or quote document')
+    .default(null),
+  documentTotalNzd: z
+    .string()
+    .nullable()
+    .describe('Digits with optional 2 decimals, e.g. "245.50"; no $ or commas')
+    .default(null),
+  documentGst: z.enum(['included', 'excluded', 'unknown']).default('unknown'),
+  documentReference: z.string().nullable().default(null),
 });

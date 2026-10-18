@@ -58,6 +58,8 @@ export const feedbackKindEnum = pgEnum('feedback_kind', [
   'should_not_have_escalated',
   'other',
 ]);
+export const approvalKindEnum = pgEnum('approval_kind', ['quote', 'variation']);
+export const invoiceStatusEnum = pgEnum('invoice_status', ['matched', 'needs_review']);
 export const feedbackSourceEnum = pgEnum('feedback_source', ['pm_flag', 'hand_back_override']);
 export const auditOutcomeEnum = pgEnum('audit_outcome', ['ok', 'rejected', 'error']);
 

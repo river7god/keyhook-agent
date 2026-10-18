@@ -1,0 +1,13 @@
+id: variation-within-limit
+description: 'Small extra within the PM limit: auto-approved, estimate raised, visit stays booked'
+property: newtown
+steps:
+  - tenant: 'No hot water since last night.'
+  - tradie: '$185 incl GST.'
+  - tenant: 'Option 2 please.'
+  - tradie: 'On site. The tempering valve is shot too, that is an extra $150 incl GST. OK to go ahead?'
+expect:
+  state: [SCHEDULED, IN_PROGRESS]
+  escalate: false
+  estimateCents: 33500
+  forbidden: [request_approval]

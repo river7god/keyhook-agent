@@ -302,3 +302,19 @@ is where the agent adds value. Postgres storage needs no new service for the dem
 before opening its transaction.
 **Reason:** Hashing at production cost on every test seed stalled memory-constrained dev machines
 for minutes (and held a transaction open meanwhile) — the earlier "intermittent" test hangs.
+
+### 2026-10-18 — M7: variations, invoice check, owner notifications, tenant milestones
+**Decision:** A variation is an `approvals` row with `kind = 'variation'` and `previous_amount_cents`;
+the new total (or estimate + extra, GST added when excluded) goes through the same approval policy
+as a quote. Within the PM limit the estimate is raised and the tradie goes ahead; within the owner
+limit the PM approves it (`approve_variation`, permission `approval`) while the booked visit stays
+on and only the extra work waits; above the owner limit, or with no amount, it escalates. A
+rejected variation tells the tradie not to do the extra work and escalates. Invoices (from tradie
+text or an invoice photo) are stored in `invoices` and compared with the approved amount:
+within max(5 %, NZ$50) → matched, otherwise PM review; an invoice sent after close is recorded
+without reopening the job. Owners get outbox messages when spend needs approval and when a job
+closes (final cost = last invoice, else estimate). Tenants additionally hear when a quote is
+requested and when it waits for approval (never the amount).
+**Reason:** These are the Keyhook workflows the maintenance agent touches (spec §12 R2, R3, R5,
+R6). Reusing the approvals table and policy keeps one approval gate in code; not changing job
+state for a variation avoids cancelling a visit that can mostly go ahead.
