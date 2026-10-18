@@ -1,3 +1,4 @@
+import AnthropicClient from '@anthropic-ai/sdk';
 import type Anthropic from '@anthropic-ai/sdk';
 import { eq } from 'drizzle-orm';
 import {
@@ -11,7 +12,7 @@ import { llmCalls } from '@/db/schema';
 import { ORG } from '@/db/seed/ids';
 import { seed } from '@/db/seed/seed';
 import { closeTestDb, testDb } from '@/test/db';
-import { ClaudeLlm, LlmOutputError, LlmRefusalError } from './llm';
+import { ClaudeLlm, LlmConfigError, LlmOutputError, LlmRefusalError } from './llm';
 
 const db = testDb();
 const exporter = new InMemorySpanExporter();
@@ -29,12 +30,21 @@ afterAll(async () => {
   await closeTestDb();
 });
 
-/** Minimal stand-in for the SDK client: returns a canned message from parse/create. */
-function fakeClient(message: Partial<Anthropic.Beta.BetaMessage> & { parsed_output?: unknown }) {
+/**
+ * The real SDK client over a fake HTTP layer, so the test exercises what the SDK actually returns
+ * at runtime (a hand-written stand-in once hid that `parse()` has no `.withResponse()`).
+ */
+function fakeClient(
+  message: Partial<Anthropic.Beta.BetaMessage>,
+  opts: { status?: number; seen?: { url: string; headers: Headers; body: unknown }[] } = {},
+) {
   const full = {
     id: 'msg_test',
+    type: 'message',
+    role: 'assistant',
     model: 'claude-opus-5-5',
     stop_reason: 'end_turn',
+    stop_sequence: null,
     stop_details: null,
     content: [],
     usage: {
@@ -45,11 +55,34 @@ function fakeClient(message: Partial<Anthropic.Beta.BetaMessage> & { parsed_outp
     },
     ...message,
   };
-  const respond = () => ({
-    withResponse: () => Promise.resolve({ data: full, request_id: 'req_123' }),
+  const status = opts.status ?? 200;
+  return new AnthropicClient({
+    apiKey: 'test-key',
+    maxRetries: 0,
+    fetch: (url: string | URL | Request, init?: RequestInit) => {
+      opts.seen?.push({
+        url: url instanceof Request ? url.url : url.toString(),
+        headers: new Headers(init?.headers),
+        body: JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as unknown,
+      });
+      const body =
+        status === 200
+          ? full
+          : {
+              type: 'error',
+              error: { type: 'authentication_error', message: 'invalid x-api-key' },
+            };
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { 'content-type': 'application/json', 'request-id': 'req_123' },
+        }),
+      );
+    },
   });
-  return { beta: { messages: { parse: respond, create: respond } } } as unknown as Anthropic;
 }
+
+const json = (v: unknown) => [{ type: 'text', text: JSON.stringify(v), citations: null }] as never;
 
 const req = {
   ctx: { organizationId: ORG.harbourCity, jobId: null, step: 'test.step' },
@@ -61,8 +94,15 @@ const req = {
 
 describe('ClaudeLlm', () => {
   it('returns parsed output, records usage/cost, and emits a GenAI span', async () => {
-    const llm = new ClaudeLlm(db, fakeClient({ parsed_output: { ok: true } }));
+    const seen: { url: string; headers: Headers; body: unknown }[] = [];
+    const llm = new ClaudeLlm(db, fakeClient({ content: json({ ok: true }) }, { seen }));
     await expect(llm.structured(req)).resolves.toEqual({ ok: true });
+    expect(seen[0]?.url).toContain('/v1/messages');
+    expect(seen[0]?.headers.get('anthropic-beta')).toContain('structured-outputs-2025-12-15');
+    expect(seen[0]?.body).toMatchObject({
+      model: 'claude-opus-5-5',
+      output_config: { effort: 'low', format: { type: 'json_schema' } },
+    });
 
     const [row] = await db.select().from(llmCalls).where(eq(llmCalls.step, 'test.step'));
     // 1000×4 + 200×20 + 500×0.2 = 8,100 µ$
@@ -90,15 +130,41 @@ describe('ClaudeLlm', () => {
       fakeClient({
         stop_reason: 'refusal',
         stop_details: { type: 'refusal', category: 'cyber', explanation: null } as never,
-        parsed_output: null,
       }),
     );
     await expect(llm.structured(req)).rejects.toBeInstanceOf(LlmRefusalError);
     expect(await db.select().from(llmCalls)).toHaveLength(1);
   });
 
-  it('raises LlmOutputError when there is no parsable output', async () => {
-    const llm = new ClaudeLlm(db, fakeClient({ parsed_output: null }));
-    await expect(llm.structured(req)).rejects.toBeInstanceOf(LlmOutputError);
+  it('raises LlmOutputError when there is no output or it does not match the schema', async () => {
+    await expect(new ClaudeLlm(db, fakeClient({})).structured(req)).rejects.toBeInstanceOf(
+      LlmOutputError,
+    );
+    await expect(
+      new ClaudeLlm(db, fakeClient({ content: json({ ok: 'yes' }) })).structured(req),
+    ).rejects.toBeInstanceOf(LlmOutputError);
+  });
+
+  it('turns an auth failure into LlmConfigError (escalate, no retries)', async () => {
+    const llm = new ClaudeLlm(db, fakeClient({}, { status: 401 }));
+    await expect(llm.structured(req)).rejects.toBeInstanceOf(LlmConfigError);
+  });
+
+  it('runs a tool turn through the real SDK', async () => {
+    const llm = new ClaudeLlm(
+      db,
+      fakeClient({
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id: 'toolu_1', name: 'search_tradies', input: {} }] as never,
+      }),
+    );
+    const msg = await llm.toolTurn({
+      ctx: req.ctx,
+      system: 'sys',
+      tools: [],
+      messages: [{ role: 'user', content: 'go' }],
+      effort: 'low',
+    });
+    expect(msg.content[0]).toMatchObject({ type: 'tool_use', name: 'search_tradies' });
   });
 });

@@ -9,6 +9,8 @@ import { costUsdMicros } from './pricing';
 
 export const AGENT_MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+/** What `messages.parse()` sends; we call `create()` directly (see structuredCall). */
+const STRUCTURED_OUTPUTS_BETA = 'structured-outputs-2025-12-15';
 
 export type Effort = 'low' | 'medium' | 'high';
 
@@ -128,14 +130,20 @@ export class ClaudeLlm implements LlmClient {
     );
   }
 
+  /**
+   * `messages.parse()` is typed as an APIPromise but returns a plain Promise at runtime (SDK
+   * 0.131), so `.withResponse()` — needed for the request id — doesn't exist on it. Use
+   * `create().withResponse()` and validate the JSON against the same Zod schema ourselves.
+   */
   private async structuredCall<T>(req: StructuredRequest<T>): Promise<T> {
     const started = Date.now();
+    const format = betaZodOutputFormat(req.schema);
     try {
       const { data, request_id } = await this.client.beta.messages
-        .parse({
+        .create({
           model: this.model,
           max_tokens: 16_000,
-          betas: [FALLBACK_BETA],
+          betas: [FALLBACK_BETA, STRUCTURED_OUTPUTS_BETA],
           fallbacks: 'default',
           cache_control: { type: 'ephemeral' },
           system: req.system,
@@ -157,15 +165,21 @@ export class ClaudeLlm implements LlmClient {
                 : req.user,
             },
           ],
-          output_config: { effort: req.effort, format: betaZodOutputFormat(req.schema) },
+          output_config: { effort: req.effort, format },
         })
         .withResponse();
       await this.record(req.ctx, data, Date.now() - started, request_id ?? null);
       this.assertUsable(data);
-      if (data.parsed_output === null) {
-        throw new LlmOutputError('No parsable structured output', data.stop_reason);
+      const text = data.content.find((b) => b.type === 'text');
+      if (!text) throw new LlmOutputError('No structured output in the response', data.stop_reason);
+      try {
+        return format.parse(text.text);
+      } catch (err) {
+        throw new LlmOutputError(
+          `Structured output did not match the schema: ${err instanceof Error ? err.message : String(err)}`,
+          data.stop_reason,
+        );
       }
-      return data.parsed_output;
     } catch (err) {
       if (err instanceof Anthropic.APIError) {
         const info = apiErrorInfo(err);
