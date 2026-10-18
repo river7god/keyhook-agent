@@ -62,3 +62,15 @@ Files land in `scenarios/harvested/` with `reviewed: false` (skipped by `pnpm ev
   Metrics: pass count, urgency/trade/state/required-action accuracy, escalation
   precision/recall, forbidden actions (must be 0 — non-zero exits 1), LLM calls, cost, latency.
   Full runs are saved to `results/<git-sha>.json`.
+
+## Red team (`pnpm redteam`)
+
+A QA agent generates new adversarial cases, runs them through the real agent and judges the
+result. Failures are written to `evals/scenarios/redteam/` with `reviewed: false`; review the
+expectation, then set `reviewed: true` to make it a permanent regression test.
+
+```bash
+pnpm redteam --n 8 --max-cost 1                       # Claude writes, runs and judges
+pnpm redteam --model moonshot:kimi-k2.6 --attacker anthropic:claude-opus-5-5 --focus injection,supplier-fraud
+```
+

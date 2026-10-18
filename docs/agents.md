@@ -89,7 +89,7 @@ be autonomous while "spend money" needs approval. This is the origin of the tool
 
 | Agent | Responsibility | Named in role? |
 |---|---|---|
-| **QA / exploratory testing** | Find bugs before customers do | ✅ |
+| **QA / exploratory testing** | Find bugs before customers do — **done: `pnpm redteam`** | ✅ |
 | **Security & performance testing** | Scheduled scans, load tests, regression comparison | ✅ |
 | **Incident investigator** | From errors/logs, locate the cause; propose or open a fix | ✅ |
 | **Developer tooling** | Code review, migrations, docs | ✅ |

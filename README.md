@@ -41,7 +41,8 @@ English | [简体中文](README.zh-CN.md)
 | Agents that progress a maintenance issue **from start to finish** | One state machine from `RECEIVED` to `CLOSED`: triage, supplier, quote, approval, visit, variation, invoice, confirmation |
 | **Escalate when a person needs to be involved** | Code-enforced rules (emergency, spend above limit, low confidence, legal, injury, injection), with a 30-second escalation package |
 | **Keep going until the job is done** | Durable workflows wait days, chase silence, reassign suppliers and close the loop |
-| **Check their own work**; systems that test and improve themselves | 83 eval scenarios, forbidden actions = 0, and PM corrections turned into new scenarios |
+| **Check their own work**; systems that test and improve themselves | 83 eval scenarios, forbidden actions = 0, PM corrections turned into new scenarios |
+| An **automated testing system that finds bugs before customers do** | `pnpm redteam`: a QA agent writes adversarial conversations, runs them through the real agents, judges the result and files failures as draft regression tests |
 | **Real production software, not demos or chatbots** | Multi-tenant RLS, append-only audit, idempotent tools, CI, tracing, deployed on Vercel + Neon + Inngest |
 | Fewer of the *four people, three systems and nine manual steps* | The PM sees only approvals and escalations; tenant, supplier and owner updates are automatic |
 | Make Keyhook **increasingly capable of doing the work itself** | A shared agent platform: the next agent (arrears, enquiries, letting) is a new state machine plus evals |
@@ -73,6 +74,7 @@ English | [简体中文](README.zh-CN.md)
 | **Portfolio Monitor** | Live | Daily scan for repeated faults (3+ same-trade jobs in 12 months) | Whether it becomes a job |
 | **Tenant & owner updates** | Live | Milestone updates in the tenant’s language; owner told about approvals and final cost | Sensitive conversations |
 | **Arrears** | Live | Daily ledger check, friendly reminders, promises (≤ 7 days) and plans (≤ 8 weeks), follow-ups; routes a tenant's message to the rent case or a new job | The 14-day notice (drafted from a template), hardship, disputes, 21 days → Tribunal |
+| **QA red team** | Live | Generates adversarial cases (injection, hidden emergencies, supplier fraud, arrears tricks), runs and judges them | Which failures become permanent tests |
 | Enquiries & letting · Compliance · Bond · … | Planned | See [roadmap](docs/roadmap.md) | |
 
 ## How it stays safe

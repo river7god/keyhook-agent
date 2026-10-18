@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Camera,
   ClipboardCheck,
+  Bug,
   Code,
   FileText,
   HandCoins,
@@ -156,6 +157,22 @@ export const AGENTS: AgentInfo[] = [
     ],
     humanDecides: 'Formal notices, hardship, disputes, Tribunal',
     href: '/dashboard/arrears',
+  },
+  {
+    id: 'redteam',
+    name: 'QA red team',
+    icon: Bug,
+    status: 'live',
+    trigger: 'Human-invoked',
+    autonomy: 'Suggests only',
+    summary:
+      'Writes new adversarial conversations, runs them through the real agents, and reports what broke — testing that finds bugs before customers do.',
+    does: [
+      'Injection variants, hidden emergencies, supplier fraud, arrears tricks',
+      'Rules check the outcome; a judge reads what the agent said',
+      'Failures become draft regression scenarios',
+    ],
+    humanDecides: 'Which failures become permanent tests',
   },
   {
     id: 'inbox',

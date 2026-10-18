@@ -1,35 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { KNOWN_ACTIONS } from './known-actions';
 import { loadScenarios } from './run';
-
-/** Audit actions a scenario may require or forbid (tool names + agent/job events). */
-const KNOWN_ACTIONS = new Set([
-  'get_property',
-  'list_jobs_for_property',
-  'search_tradies',
-  'send_message',
-  'request_quote',
-  'schedule_visit',
-  'request_approval',
-  'approve_spend',
-  'approve_variation',
-  'invoice.checked',
-  'arrears.opened',
-  'arrears.transition',
-  'arrears.escalation_package',
-  'send_arrears_message',
-  'record_promise',
-  'request_notice_approval',
-  'send_arrears_notice',
-  'escalate_arrears',
-  'inbound.routed',
-  'escalate',
-  'add_note',
-  'agent.triage',
-  'agent.reassign',
-  'agent.feedback',
-  'job.transition',
-  'job.escalation_package',
-]);
 
 describe('eval scenarios', () => {
   const scenarios = loadScenarios();

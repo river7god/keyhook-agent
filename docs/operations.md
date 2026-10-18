@@ -27,6 +27,7 @@ flowchart LR
 | Tests against a real database | ✅ | CI starts Postgres 17, migrates and seeds, then runs the 260+ tests |
 | Security invariants as tests | ✅ | Static route guard (every route authenticates and uses `withOrg`); RLS on every org table; injection and idempotency tests |
 | Build and deploy | ✅ | Vercel builds every push; `main` goes to production in `syd1` |
+| Finding new failures | ✅ (on demand) | `pnpm redteam`: a model writes adversarial cases, the real agent runs them, rules + a judge score them; failures become unreviewed scenarios |
 | Model quality | ✅ (nightly) | `eval.yml`: live scenarios, forbidden actions must be 0, results uploaded per commit |
 | Database migrations in production | ⚠️ manual | `pnpm exec tsx --env-file=.env.neon.local src/db/migrate.ts`; health returns 503 until done |
 | Inngest function sync | ⚠️ manual | Resync in the Inngest dashboard when functions are added |

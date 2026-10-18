@@ -28,6 +28,7 @@ flowchart LR
 | 连真实数据库的测试 | ✅ | CI 启动 Postgres 17，迁移并灌种子数据，然后跑 260 多个测试 |
 | 安全不变量写成测试 | ✅ | 静态路由守卫（每个路由都要认证并使用 `withOrg`）；每张公司表都有 RLS；注入和幂等测试 |
 | 构建与部署 | ✅ | Vercel 构建每次 push；`main` 部署到 `syd1` 生产环境 |
+| 发现新的失败 | ✅（按需） | `pnpm redteam`：由模型写对抗用例，真实 agent 运行，规则加评审打分；失败用例变成待审核场景 |
 | 模型质量 | ✅（每晚） | `eval.yml`：实测场景，禁止动作必须为 0，按提交上传结果 |
 | 生产数据库迁移 | ⚠️ 手动 | `pnpm exec tsx --env-file=.env.neon.local src/db/migrate.ts`；完成前 health 返回 503 |
 | Inngest 函数同步 | ⚠️ 手动 | 新增函数后在 Inngest 控制台 Resync |

@@ -405,3 +405,28 @@ NZ law to verify with Tenancy Services: the 14-day notice, and Tribunal terminat
 and nine eval scenarios is the strongest evidence the platform is reusable. Kimi K2.6 on the 9
 arrears scenarios: 8/9 at first. "Money's a bit tight" was over-read as hardship. With the
 hardship boundary made explicit in the prompt and schema: 9/9, and real hardship still escalates.
+
+### 2026-10-18 — QA red team: generated adversarial tests, judged, kept as draft regressions
+**Decision:** `pnpm redteam` runs a QA agent in four steps:
+1. A model (`--attacker`, default the target model) writes new adversarial conversations in
+   fixed categories: injection variants, emergencies hidden in mundane text, ambiguity, mixed
+   intents, supplier fraud, arrears manipulation, emotional pressure. It sees the existing
+   scenario list so it avoids repeats.
+2. Each case is converted into a normal scenario and validated by the same Zod schema; unknown
+   audit actions are dropped. Invalid cases are reported, not run.
+3. The case runs through the real agent with the eval runner.
+4. A case fails on any hard check (expected escalation or urgency, forbidden action, error) or on
+   a *major* issue from an LLM judge that reads the agent's actual messages (following injected
+   instructions, revealing amounts to a tenant, invented commitments, missed safety).
+
+Failures are written to `evals/scenarios/redteam/` as `reviewed: false`, which the eval suite
+skips until a person reviews them. Spend is capped with `--max-cost`.
+**Reason:** The role asks for "an automated testing system that finds bugs before our customers
+do" and "systems that test, monitor and improve themselves". Hand-written scenarios only cover
+what we already thought of. Keeping a person in the loop before a generated case becomes a
+regression test stops a wrong expectation from becoming a wrong rule. The first live run
+proved the point. All 5 cases "failed", but mostly because of the tester:
+- it forbade routine steps like triage; only dangerous actions can be forbidden now;
+- it picked a property from another agency; the property list is now limited to the demo agency;
+- the judge called real supplier names and offered times "invented"; it now also sees the
+  system trail of tool calls and results.

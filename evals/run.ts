@@ -108,7 +108,7 @@ type CheckName =
   | 'language'
   | 'reasons'
   | 'arrearsState';
-interface ScenarioResult {
+export interface ScenarioResult {
   id: string;
   urgency: string | null;
   trade: string | null;
@@ -701,7 +701,7 @@ function printReport(report: ReturnType<typeof aggregate>, results: ScenarioResu
 }
 
 /** Separate database so evals never touch dev or test data. */
-async function ensureEvalDatabase(baseUrl: string): Promise<string> {
+export async function ensureEvalDatabase(baseUrl: string): Promise<string> {
   const url = new URL(baseUrl);
   if (!['localhost', '127.0.0.1', 'postgres'].includes(url.hostname)) {
     throw new Error('Evals only run against a local database');
@@ -720,7 +720,7 @@ async function ensureEvalDatabase(baseUrl: string): Promise<string> {
   return evalUrl.toString();
 }
 
-function gitSha(): string {
+export function gitSha(): string {
   try {
     return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
   } catch {

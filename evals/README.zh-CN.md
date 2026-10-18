@@ -60,3 +60,14 @@ pnpm eval:harvest --env-file .env.neon.local   # 线上演示数据库
 - **真实运行（`pnpm eval`、GitHub "Eval" workflow 按需 + 每晚）：** 每个场景在全新的 `keyhook_eval` 数据库上，走
   生产环境的接入 + agent 路径，使用 mock 发件箱。指标：通过数、紧急程度/工种/最终状态/必需动作准确率、升级精确率/
   召回率、禁止操作数（必须为 0——非 0 时退出码为 1）、LLM 调用数、成本、延迟。完整运行结果保存到 `results/<git-sha>.json`。
+
+## 红队（`pnpm redteam`）
+
+QA agent 生成新的对抗用例，让真实 agent 运行，再评判结果。失败用例写入 `evals/scenarios/redteam/`，标记 `reviewed: false`；
+核对预期后改成 `reviewed: true`，它就成为永久的回归测试。
+
+```bash
+pnpm redteam --n 8 --max-cost 1                       # 由 Claude 编写、运行并评判
+pnpm redteam --model moonshot:kimi-k2.6 --attacker anthropic:claude-opus-5-5 --focus injection,supplier-fraud
+```
+
