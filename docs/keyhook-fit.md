@@ -78,6 +78,7 @@ package only when a rule says so.*
 - **Stay Local** — NZ Privacy Act IPP 12: offshore model providers need explicit acknowledgement;
   Pacific/Auckland time, NZD cents, Wellington seed data.
 - **Model-agnostic** — Claude by default; OpenAI/DeepSeek/Kimi behind one interface, chosen by
-  eval results (Kimi baseline: 54/60, urgency & trade 100%, forbidden 0).
+  eval results (Claude Opus 5.5 smoke set 15/15 at US$0.06 and 19.5 s per scenario; Kimi K2.6
+  full set 54/60; forbidden actions 0 on both).
 
 Use Keyhook's vocabulary: **work order**, **supplier**, **owner approval threshold**, **variation**.

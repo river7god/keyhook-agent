@@ -149,7 +149,7 @@ export default async function HomePage() {
               </div>
               <div className="trust">
                 <span>
-                  <CircleCheck size={16} /> 72 evaluated scenarios
+                  <CircleCheck size={16} /> 74 evaluated scenarios
                 </span>
                 <span>
                   <CircleCheck size={16} /> 0 forbidden actions
@@ -280,7 +280,7 @@ export default async function HomePage() {
               <div className="number">
                 <b>100%</b>
                 <span>Urgency accuracy</span>
-                <p>Kimi K2.6 baseline, 60 scenarios</p>
+                <p>Claude Opus 5.5 smoke set and Kimi K2.6 full set</p>
               </div>
               <div className="number">
                 <b>97%</b>

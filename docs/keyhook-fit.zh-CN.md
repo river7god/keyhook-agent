@@ -68,7 +68,7 @@ scheduling and confirming — and hands the property manager an escalation packa
   与 Keyhook 自己强调的 "immutable audit logs" 和业主阈值相呼应。
 - **自检 / 自我改进**——60+ 个评测场景，禁止操作必须为 0；PM 的纠正会自动变成新的评测场景。
 - **Stay Local**——新西兰《隐私法》IPP 12：境外模型服务商需显式确认；Pacific/Auckland 时区、NZD 分、惠灵顿种子数据。
-- **不绑定模型**——默认 Claude；OpenAI/DeepSeek/Kimi 通过同一接口接入，按评测结果选择（Kimi 基线：54/60，紧急程度与工种
-  100%，禁止操作 0）。
+- **不绑定模型**——默认 Claude；OpenAI/DeepSeek/Kimi 通过同一接口接入，按评测结果选择（Claude Opus 5.5 抽样集 15/15，每个场景
+  US$0.06、19.5 秒；Kimi K2.6 全量 54/60；两者禁止动作都为 0）。
 
 使用 Keyhook 的词汇：**work order**、**supplier**、**owner approval threshold**、**variation**。

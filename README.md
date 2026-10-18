@@ -12,7 +12,7 @@ English | [简体中文](README.zh-CN.md)
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6" alt="TypeScript strict">
   <img src="https://img.shields.io/badge/Next.js-16-000000" alt="Next.js 16">
   <img src="https://img.shields.io/badge/Postgres-17%20%2B%20RLS-336791" alt="Postgres 17 with RLS">
-  <img src="https://img.shields.io/badge/evals-72%20scenarios-232a59" alt="72 eval scenarios">
+  <img src="https://img.shields.io/badge/evals-74%20scenarios-232a59" alt="74 eval scenarios">
 </p>
 
 <p align="center">
@@ -41,7 +41,7 @@ English | [简体中文](README.zh-CN.md)
 | Agents that progress a maintenance issue **from start to finish** | One state machine from `RECEIVED` to `CLOSED`: triage, supplier, quote, approval, visit, variation, invoice, confirmation |
 | **Escalate when a person needs to be involved** | Code-enforced rules (emergency, spend above limit, low confidence, legal, injury, injection), with a 30-second escalation package |
 | **Keep going until the job is done** | Durable workflows wait days, chase silence, reassign suppliers and close the loop |
-| **Check their own work**; systems that test and improve themselves | 72 eval scenarios, forbidden actions = 0, and PM corrections turned into new scenarios |
+| **Check their own work**; systems that test and improve themselves | 74 eval scenarios, forbidden actions = 0, and PM corrections turned into new scenarios |
 | **Real production software, not demos or chatbots** | Multi-tenant RLS, append-only audit, idempotent tools, CI, tracing, deployed on Vercel + Neon + Inngest |
 | Fewer of the *four people, three systems and nine manual steps* | The PM sees only approvals and escalations; tenant, supplier and owner updates are automatic |
 | Make Keyhook **increasingly capable of doing the work itself** | A shared agent platform: the next agent (arrears, enquiries, letting) is a new state machine plus evals |
@@ -121,13 +121,24 @@ More: [business & technical architecture](docs/architecture.md) · [decisions lo
 
 ## Proof, not claims
 
-| Metric | Result |
+Live eval runs against real models (results in [`evals/results/`](evals/results)):
+
+| | Claude Opus 5.5 (default) | Kimi K2.6 |
+|---|---|---|
+| Run | Smoke set, 15 scenarios (one per category), 2026-10-18 | Full set, 60 scenarios, 2026-10-17 |
+| Passed | **15 / 15** | 54 / 60 (fixes since added as prompts + scenarios) |
+| Urgency / trade accuracy | **100 % / 100 %** | 100 % / 100 % |
+| Escalation precision / recall | **100 % / 100 %** | 88 % / 97 % |
+| Forbidden actions (unapproved spend, unsafe messages) | **0** | 0 |
+| Latency per scenario | **19.5 s** | 75 s |
+| Cost per scenario | **US$0.06** (4.1 model calls) | not priced |
+
+The smoke set is `pnpm eval:smoke`, capped at US$2; the full Claude run is about US$4.50.
+
+| Engineering | |
 |---|---|
-| Urgency / trade accuracy | **100 % / 100 %** (Kimi K2.6 baseline, 60 scenarios, 2026-10-17) |
-| Escalation recall / precision | **97 % / 88 %** |
-| Forbidden actions (unapproved spend, unsafe messages) | **0** |
 | Automated tests | **260+**, incl. RLS isolation, concurrency, idempotency, prompt injection, the real Anthropic SDK over a fake HTTP layer |
-| Eval scenarios | **72**: emergencies, vague or angry tenants, tenant damage, over-budget, silent suppliers, injection, non-English, variations, invoices, inspections |
+| Eval scenarios | **74**: emergencies, vague or angry tenants, tenant damage, over-budget, silent suppliers, injection, non-English, variations, invoices, inspections |
 
 ## DevOps and automation
 
