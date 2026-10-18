@@ -11,6 +11,7 @@ const PUBLIC = new Set([
   'api/v1/health/route.ts',
   'api/v1/auth/login/route.ts',
   'api/v1/auth/logout/route.ts',
+  'api/v1/auth/guest/route.ts', // guest demo sign-in: env-gated and rate-limited
   'api/inngest/route.ts', // authenticated by Inngest request signing (INNGEST_SIGNING_KEY)
   'login/page.tsx',
   'page.tsx',

@@ -3,6 +3,7 @@ import { and, eq, gt, lt, sql } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { organizations, propertyManagers, sessions } from '@/db/schema';
 import { hashPassword, verifyPassword } from '@/lib/password';
+import { DomainError } from './errors';
 
 /**
  * PM authentication. Runs on the owner connection (not withOrg): at login and session lookup the
@@ -50,9 +51,18 @@ export async function login(
     return null;
   }
   if (!(await verifyPassword(args.password, pm.passwordHash))) return null;
+  return createSession(db, pm, args.userAgent, args.now, SESSION_TTL_MS);
+}
 
+async function createSession(
+  db: Db,
+  pm: { id: string; organizationId: string; organizationName: string; name: string; email: string },
+  userAgent: string | null,
+  now: Date,
+  ttlMs: number,
+): Promise<{ token: string; expiresAt: Date; user: SessionUser }> {
   const token = randomBytes(32).toString('base64url');
-  const expiresAt = new Date(args.now.getTime() + SESSION_TTL_MS);
+  const expiresAt = new Date(now.getTime() + ttlMs);
   const [row] = await db
     .insert(sessions)
     .values({
@@ -60,7 +70,7 @@ export async function login(
       propertyManagerId: pm.id,
       tokenHash: hashToken(token),
       expiresAt,
-      userAgent: args.userAgent?.slice(0, 300) ?? null,
+      userAgent: userAgent?.slice(0, 300) ?? null,
     })
     .returning({ id: sessions.id });
   if (!row) throw new Error('session insert failed');
@@ -76,6 +86,54 @@ export async function login(
       email: pm.email,
     },
   };
+}
+
+/**
+ * Demo access for reviewers (DEMO_GUEST_LOGIN=true): a shared "Guest reviewer" PM in the demo
+ * organization (DEMO_GUEST_ORG_SLUG, default harbour-city), created on first use with no password,
+ * so it can only be entered this way. Sessions are short; simulator rate limits and the daily
+ * model budget still apply.
+ */
+export const GUEST_SESSION_TTL_MS = 2 * 3_600_000;
+export const GUEST_EMAIL = 'guest-reviewer@demo.invalid';
+
+export function guestLoginEnabled(): boolean {
+  return process.env.DEMO_GUEST_LOGIN === 'true';
+}
+
+export async function guestLogin(
+  db: Db,
+  args: { userAgent: string | null; now: Date },
+): Promise<{ token: string; expiresAt: Date; user: SessionUser }> {
+  const slug = process.env.DEMO_GUEST_ORG_SLUG ?? 'harbour-city';
+  const [org] = await db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.slug, slug));
+  if (!org) throw new DomainError('NOT_FOUND', 'Demo organization not found');
+  await db
+    .insert(propertyManagers)
+    .values({ organizationId: org.id, fullName: 'Guest reviewer', email: GUEST_EMAIL })
+    .onConflictDoNothing();
+  const [pm] = await db
+    .select({
+      id: propertyManagers.id,
+      name: propertyManagers.fullName,
+      email: propertyManagers.email,
+      active: propertyManagers.active,
+    })
+    .from(propertyManagers)
+    .where(
+      and(eq(propertyManagers.organizationId, org.id), eq(propertyManagers.email, GUEST_EMAIL)),
+    );
+  if (!pm?.active) throw new DomainError('NOT_FOUND', 'Guest access is not available');
+  return createSession(
+    db,
+    { ...pm, organizationId: org.id, organizationName: org.name },
+    args.userAgent,
+    args.now,
+    GUEST_SESSION_TTL_MS,
+  );
 }
 
 /** Resolve a cookie token to an active PM session (null if missing, expired or PM deactivated). */

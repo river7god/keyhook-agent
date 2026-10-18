@@ -372,3 +372,13 @@ mentioned, and rated it routine. A PM reading that reason would be misled. Kimi 
 flag definition alone, 3/4 (no false "legal", both genuine legal scenarios still escalate, smoke
 alarm still routine); with the urgency example added, 4/4 on the inspection and Healthy Homes
 scenarios.
+
+### 2026-10-18 — Guest demo access for reviewers
+**Decision:** `POST /api/v1/auth/guest`, off unless `DEMO_GUEST_LOGIN=true`, signs a visitor in
+as a shared "Guest reviewer" PM of the demo organization. The PM is created on first use with no
+password hash, so it cannot be entered any other way. Sessions last 2 hours (normal sessions: 12).
+Each IP gets 20 guest sign-ins per hour. Everything else is unchanged: RLS scope, simulator rate
+limits and the daily model budget.
+**Reason:** Reviewers don't ask for credentials; a demo they can't open is a demo nobody sees. A
+shared guest in one demo agency is enough. A sandbox per visitor would mean cloning seed data
+on every visit.

@@ -4,7 +4,15 @@ import { propertyManagers, sessions } from '@/db/schema';
 import { ORG, PM } from '@/db/seed/ids';
 import { seed } from '@/db/seed/seed';
 import { closeTestDb, testDb } from '@/test/db';
-import { getSessionUser, login, logout, SESSION_TTL_MS } from './auth';
+import {
+  GUEST_EMAIL,
+  GUEST_SESSION_TTL_MS,
+  getSessionUser,
+  guestLogin,
+  login,
+  logout,
+  SESSION_TTL_MS,
+} from './auth';
 
 const db = testDb();
 const now = new Date('2026-10-19T00:00:00Z');
@@ -60,5 +68,38 @@ describe('auth', () => {
       .where(eq(propertyManagers.id, PM.aroha));
     expect(await getSessionUser(db, r?.token, now)).toBeNull();
     await expect(login(db, creds)).resolves.toBeNull();
+  });
+});
+
+describe('guest demo login', () => {
+  it('creates one shared guest PM in the demo organization and a short session', async () => {
+    const a = await guestLogin(db, { userAgent: 'vitest', now });
+    const b = await guestLogin(db, { userAgent: 'vitest', now });
+    expect(a.user).toMatchObject({ organizationId: ORG.harbourCity, name: 'Guest reviewer' });
+    expect(b.user.propertyManagerId).toBe(a.user.propertyManagerId);
+    expect(a.expiresAt.getTime() - now.getTime()).toBe(GUEST_SESSION_TTL_MS);
+    expect(await getSessionUser(db, a.token, now)).toMatchObject({ email: GUEST_EMAIL });
+    const guests = await db
+      .select()
+      .from(propertyManagers)
+      .where(eq(propertyManagers.email, GUEST_EMAIL));
+    expect(guests).toHaveLength(1);
+    expect(guests[0]?.passwordHash).toBeNull();
+  });
+
+  it('cannot be entered with a password', async () => {
+    await guestLogin(db, { userAgent: 'vitest', now });
+    expect(await login(db, { ...creds, email: GUEST_EMAIL, password: '' })).toBeNull();
+  });
+
+  it('is refused for a deactivated guest', async () => {
+    const a = await guestLogin(db, { userAgent: 'vitest', now });
+    await db
+      .update(propertyManagers)
+      .set({ active: false })
+      .where(eq(propertyManagers.id, a.user.propertyManagerId));
+    await expect(guestLogin(db, { userAgent: 'vitest', now })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

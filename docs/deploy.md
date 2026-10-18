@@ -67,6 +67,14 @@ URL-encoded; a literal space breaks it). For the US region use `https://us.cloud
 Repository *Settings → Secrets and variables → Actions* → `ANTHROPIC_API_KEY`. The *Eval*
 workflow then runs nightly and on demand.
 
+## 7a. Guest demo access (optional)
+
+Set `DEMO_GUEST_LOGIN=true` in Vercel to show **Try the live demo** on the landing and sign-in
+pages. Reviewers enter the demo agency (`DEMO_GUEST_ORG_SLUG`, default `harbour-city`) as a shared
+"Guest reviewer" PM, created on first use with no password. Sessions last 2 hours; 20 guest sign-ins
+per IP per hour; the simulator rate limit and `DAILY_LLM_BUDGET_USD` cap model spend. Leave it unset
+for a private deployment.
+
 ## 8. Check it works
 - `https://<domain>/api/v1/health` → `{"status":"ok","db":"ok"}`
 - Sign in as `aroha@harbourcity.example.test` with the seed password.

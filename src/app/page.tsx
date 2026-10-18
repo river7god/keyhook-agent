@@ -14,7 +14,9 @@ import {
 import Link from 'next/link';
 import { AGENTS, STATUS_LABEL, type AgentInfo } from '@/app/_lib/agent-catalog';
 import { Brand } from '@/app/_lib/brand';
+import { GuestButton } from '@/app/_lib/guest-button';
 import { getCurrentUser } from '@/app/_lib/session';
+import { guestLoginEnabled } from '@/domain/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,9 +97,17 @@ export default async function HomePage() {
   const user = await getCurrentUser();
   const live = AGENTS.filter((a) => a.status === 'live');
   const later = AGENTS.filter((a) => a.status !== 'live');
-  const primary = user
-    ? { href: '/dashboard', label: 'Open dashboard' }
-    : { href: '/login?next=/simulator', label: 'Try the live demo' };
+  const cta = user ? (
+    <Link href="/dashboard" className="button lg">
+      Open dashboard <ArrowRight size={18} />
+    </Link>
+  ) : guestLoginEnabled() ? (
+    <GuestButton />
+  ) : (
+    <Link href="/login?next=/simulator" className="button lg">
+      Sign in to the demo <ArrowRight size={18} />
+    </Link>
+  );
 
   return (
     <>
@@ -140,9 +150,7 @@ export default async function HomePage() {
                 needs a person, with a recommendation ready.
               </p>
               <div className="cta-row">
-                <Link href={primary.href} className="button lg">
-                  {primary.label} <ArrowRight size={18} />
-                </Link>
+                {cta}
                 <a href="#agents" className="button lg secondary">
                   Meet the agents
                 </a>
@@ -299,9 +307,7 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="cta-row" style={{ justifyContent: 'center', marginTop: 40 }}>
-              <Link href={primary.href} className="button lg">
-                {primary.label} <ArrowRight size={18} />
-              </Link>
+              {cta}
               <a href={REPO} className="button lg secondary">
                 Read the code
               </a>

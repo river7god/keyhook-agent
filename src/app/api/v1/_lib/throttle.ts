@@ -10,12 +10,13 @@ class FailureThrottle {
   constructor(
     private readonly max: number,
     private readonly windowMs: number,
+    private readonly message = 'Too many failed sign-in attempts; try again later',
   ) {}
 
   check(key: string): void {
     const recent = this.recent(key);
     if (recent.length >= this.max) {
-      throw new DomainError('RATE_LIMITED', 'Too many failed sign-in attempts; try again later');
+      throw new DomainError('RATE_LIMITED', this.message);
     }
   }
 
@@ -30,3 +31,10 @@ class FailureThrottle {
 }
 
 export const loginThrottle = new FailureThrottle(10, 15 * 60_000);
+
+/** Guest demo sign-ins: every attempt counts (20 per IP per hour). */
+export const guestThrottle = new FailureThrottle(
+  20,
+  60 * 60_000,
+  'Too many demo sign-ins from this network; try again later',
+);

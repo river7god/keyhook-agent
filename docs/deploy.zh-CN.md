@@ -67,6 +67,12 @@ owner 角色有权限创建）。
 ## 7. GitHub（真实评测，可选）
 仓库 *Settings → Secrets and variables → Actions* → 添加 `ANTHROPIC_API_KEY`。之后 *Eval* workflow 会每晚和按需运行。
 
+## 7a. 访客体验入口（可选）
+
+在 Vercel 中设置 `DEMO_GUEST_LOGIN=true`，首页和登录页就会出现 **Try the live demo** 按钮。审核者以共享的
+"Guest reviewer" PM 身份进入演示公司（`DEMO_GUEST_ORG_SLUG`，默认 `harbour-city`）；这个账号第一次使用时自动创建，没有密码。
+会话 2 小时过期；每个 IP 每小时最多 20 次访客登录；模拟器限流和 `DAILY_LLM_BUDGET_USD` 限制模型花费。私有部署不要设置它。
+
 ## 8. 验证
 - `https://<域名>/api/v1/health` → `{"status":"ok","db":"ok"}`
 - 用 `aroha@harbourcity.example.test` 和种子密码登录。
