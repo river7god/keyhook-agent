@@ -470,3 +470,15 @@ Kimi tails (compose 150 s, triage 120 s, interpret 90 s, route 60 s) with one SD
 and then escalated. Now jobs keep moving on the other provider, and the breaker avoids paying the
 timeout again on each call. The breaker is per process. On Vercel each instance learns on its
 own; a shared store (Redis/Postgres) is the production step and is in the roadmap.
+
+### 2026-10-19 — PR review by independent agents, risk tiers from paths
+**Decision:** Every PR gets a deterministic risk-tier label (`review/risk.ts`), an advisory
+review from two separate agent runs (reviewer, and a security reviewer when sensitive paths
+change) posted as one comment, and a deterministic CI check for docs translations. The review is
+our own small script on the Anthropic SDK (already a dependency), not a third-party action:
+prompts, schema, size caps and cost are in the repo and run the same locally (`pnpm review`).
+Fork PRs are skipped instead of using `pull_request_target`.
+**Reason:** Stage 1 of `docs/ai-delivery.md`. The author must not approve its own work, and a
+fresh-context reviewer catches what the author missed (its first run found a test that could
+never fail). Keeping it advisory means a noisy reviewer cannot block delivery while its
+precision is measured. Anything a rule can decide (tier, translations) is code, not an agent.

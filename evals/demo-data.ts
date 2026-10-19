@@ -149,7 +149,11 @@ async function ensureRentData(db: Db, now: Date): Promise<string[]> {
       .returning({ id: tenancies.id });
     if (updated.length) done.push(`rent set for ${propertyId}`);
   }
-  const [anyLedger] = await db.select({ id: rentLedger.id }).from(rentLedger).limit(1);
+  const [anyLedger] = await db
+    .select({ id: rentLedger.id })
+    .from(rentLedger)
+    .where(eq(rentLedger.organizationId, org))
+    .limit(1);
   if (!anyLedger) {
     await db.insert(rentLedger).values(rentLedgerRows(now));
     done.push('rent ledger added (8 weeks)');
@@ -230,6 +234,12 @@ async function main() {
       `• Portfolio Monitor scan: ${String(scan.created)} new, ${String(scan.updated)} updated finding(s)`,
     );
 
+    // A run where every conversation failed (provider down, bad key) must stay re-runnable.
+    if (results.every((r) => r.state === 'ERROR')) {
+      console.error('demo:data: every scenario failed — not marking the database as populated.');
+      process.exitCode = 1;
+      return;
+    }
     await writeAudit(db, {
       organizationId: org,
       actorType: 'system',

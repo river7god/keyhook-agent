@@ -1,0 +1,25 @@
+# Who must approve what (docs/ai-delivery.md §3). Today one maintainer owns everything; in a
+# five-person team each line maps to the owner of that area, e.g. @keyhook/agent-maintenance.
+# Branch protection with "Require review from Code Owners" makes this binding.
+
+*                                   @river7god
+
+# Tier C: data model, isolation, auth, tools, state machines, prompts, money, CI, agent rules.
+/src/db/migrations/                 @river7god
+/src/db/schema/                     @river7god
+/src/db/org-scope.ts                @river7god
+/src/proxy.ts                       @river7god
+/src/domain/auth*.ts                @river7god
+/src/app/api/v1/auth/               @river7god
+/src/tools/                         @river7god
+/src/workflows/*state*.ts           @river7god
+/src/agent/prompts.ts               @river7god
+/src/agent/arrears/prompts.ts       @river7god
+/src/agent/untrusted.ts             @river7god
+/src/domain/approval-policy.ts      @river7god
+/src/domain/workflow-policy-config.ts @river7god
+/src/lib/money.ts                   @river7god
+/.github/                           @river7god
+/review/                            @river7god
+/CLAUDE.md                          @river7god
+/CLAUDE.zh-CN.md                    @river7god

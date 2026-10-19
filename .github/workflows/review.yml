@@ -1,0 +1,81 @@
+name: AI review
+
+# Stage 1 of docs/ai-delivery.md: every PR gets a risk-tier label (deterministic, from paths)
+# and an advisory review from two agents that did not write the change (reviewer + security
+# reviewer). CI checks gate the merge; a human decides. Needs the ANTHROPIC_API_KEY secret;
+# without it only the label is applied.
+#
+# Fork PRs are skipped: `pull_request` from a fork gets no secrets, and `pull_request_target`
+# would run untrusted PR code with them. Same-repo branches need write access, which already
+# allows changing workflows, so running the PR's own review script is no extra exposure.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      # The checkout is the PR merge commit; its first parent is the current base.
+      RANGE: HEAD^1..HEAD
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Risk tier (deterministic)
+        id: risk
+        run: pnpm -s review --range "$RANGE" --dry-run
+
+      - name: Label the PR with its risk tier
+        env:
+          TIER: ${{ steps.risk.outputs.tier }}
+        run: |
+          gh label create risk:A --color 0e8a16 --description "Docs and tests only" --force
+          gh label create risk:B --color fbca04 --description "Application code: one human approves" --force
+          gh label create risk:C --color b60205 --description "Data, auth, tools, prompts, CI: two humans" --force
+          for t in A B C; do
+            [ "$t" = "$TIER" ] || gh pr edit "$PR" --remove-label "risk:$t" >/dev/null 2>&1 || true
+          done
+          gh pr edit "$PR" --add-label "risk:$TIER"
+
+      - name: Skip the agent review when no API key is configured
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::notice::ANTHROPIC_API_KEY secret not set — labelled only, no AI review."
+
+      - name: Agent review
+        id: review
+        if: env.ANTHROPIC_API_KEY != ''
+        run: pnpm -s review --range "$RANGE" --out review.md
+
+      - name: Post or update the review comment
+        if: env.ANTHROPIC_API_KEY != '' && hashFiles('review.md') != ''
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- keyhook-ai-review -->")) | .id' | tail -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@review.md >/dev/null
+          else
+            gh pr comment "$PR" --body-file review.md
+          fi
+          echo "::notice::AI review posted: tier ${{ steps.risk.outputs.tier }}, ${{ steps.review.outputs.high }} high finding(s)"

@@ -44,15 +44,18 @@ describe('getJobTrace', () => {
         error: { message: 'Request timed out.' },
         createdAt: at(-30),
       },
-      // Another organisation's call on a job id must never show up.
-      {
+    ]);
+    // Another organisation's call cannot be attached to this job at all: the composite
+    // (organization_id, job_id) foreign key refuses it, so a trace can only ever hold its own org.
+    await expect(
+      db.insert(llmCalls).values({
         organizationId: ORG.aroValley,
-        jobId: null,
+        jobId,
         step: 'triage',
         requestedModel: 'x',
         latencyMs: 1,
-      },
-    ]);
+      }),
+    ).rejects.toThrow();
 
     const { rows, totals, bySteps } = await getJobTrace(db, org, jobId, TOOL_NAMES);
 

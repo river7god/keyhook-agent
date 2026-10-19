@@ -55,6 +55,8 @@ use). A Claude subscription login does not work as an API key.
 | `pnpm eval --model moonshot:kimi-k2.6 id1,id2` | Compare a model, or run selected scenarios |
 | `pnpm eval:smoke` | 15 representative scenarios, capped at US$2 (about $0.12 per scenario on Claude Opus 5.5) |
 | `pnpm eval --max-cost 5` | Any run with a hard spend cap: stops before a scenario that would cross it |
+| `pnpm review [--range a..b] [--dry-run]` | AI review of your branch (`origin/main...HEAD`) with the same reviewer and security-reviewer agents as CI; needs `ANTHROPIC_API_KEY` |
+| `pnpm docs:sync` | Check that every changed `X.md` updated its `X.zh-CN.md` |
 | `pnpm redteam --n 8 --max-cost 1` | QA red team: generate adversarial cases, run them, write failures to `evals/scenarios/redteam/` (unreviewed) |
 | `pnpm demo:data` | Add realistic activity to a demo database by running real conversations through the agents (adds only; `--yes` for a non-local database) |
 | `pnpm eval:harvest` | Turn PM corrections into draft eval scenarios (review before committing) |

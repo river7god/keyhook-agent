@@ -191,9 +191,14 @@ The smoke set is `pnpm eval:smoke`, capped at US$2; the full Claude run is about
   a health endpoint that fails while migrations are pending.
 - **AI-assisted engineering under rules**: built with Claude Code, governed by
   [`CLAUDE.md`](CLAUDE.md), "done" means `pnpm check` is green plus evals for agent changes.
+- **AI review on every PR, by agents that didn't write the code**: a risk-tier label from the
+  paths touched (A docs/tests · B app code · C data, auth, tools, prompts, CI), a reviewer and a
+  security reviewer posting one advisory comment, and a CI check that fails a PR whose docs
+  translations are missing. On its first run here it caught a test that could never fail.
 
-Next steps: automated production migrations, evals as a PR gate, dependency scanning, alerting,
-Terraform. See [`docs/operations.md`](docs/operations.md).
+How a five-person team hands coding, testing, review, release and ops to agents in stages:
+[`docs/ai-delivery.md`](docs/ai-delivery.md). Next steps: automated production migrations, evals
+as a PR gate, dependency scanning, alerting, Terraform ([`docs/operations.md`](docs/operations.md)).
 
 ## Scaling path
 

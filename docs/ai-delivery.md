@@ -86,14 +86,14 @@ stage can be switched off with one label or setting, which is the rollback.
 - **Measure now:** lead time (issue opened → merged), review time, revert rate, escaped bugs.
   These are the baseline every later stage is compared against.
 
-### Stage 1: an agent reviews every PR, humans still merge
+### Stage 1: an agent reviews every PR, humans still merge (built, see §9)
 
-- Add the **reviewer** and **security reviewer** to every PR. They run as a GitHub Action
-  (Claude Code in Actions, or `/code-review` run locally) with a fresh context, the diff, and
-  `CLAUDE.md` as the rubric.
+- Add the **reviewer** and **security reviewer** to every PR. They run as a GitHub Action, each
+  with a fresh context, the diff, and `CLAUDE.md` as the rubric.
 - Add a **tier labeller** and `CODEOWNERS`. Turn on branch protection: no direct pushes to
   `main`.
-- The **docs agent** checks that every changed `X.md` has a matching `X.zh-CN.md` change.
+- A **docs check** fails a PR when a changed `X.md` has no matching `X.zh-CN.md` change. This
+  started as a "docs agent" task, but a rule can decide it, so it is a deterministic check.
 - **Humans:** still review and merge everything. They mark each agent finding as useful or noise.
 - **Exit criteria:** at least 60% of agent findings are marked useful, and the agent catches at
   least one real bug a week that the human missed. Human review time goes down without
@@ -191,7 +191,96 @@ A typical week:
 
 ## 8. First concrete steps for this repo
 
-1. A `review.yml` workflow: reviewer + security reviewer on every PR, run against `CLAUDE.md`.
-2. A tier labeller by path, plus `CODEOWNERS` and branch protection.
+1. ✅ A `review.yml` workflow: reviewer + security reviewer on every PR, run against `CLAUDE.md`.
+2. ✅ A tier labeller by path, plus `CODEOWNERS`. Branch protection is one setting away (§9.5).
 3. A `release.yml` workflow: Neon migration → deploy → Inngest sync → health gate.
 4. An eval gate in CI for PRs that touch agent paths, using the smoke set with `--max-cost`.
+
+## 9. Stage 1 as built
+
+### 9.1 What happens on a PR
+
+```mermaid
+flowchart LR
+  PR["PR opened / updated"] --> CI["ci.yml<br/>checks + docs translation check"]
+  PR --> R["review.yml"]
+  R --> T["Risk tier from paths<br/>review/risk.ts → label risk:A/B/C"]
+  T --> A1["Reviewer agent<br/>correctness + CLAUDE.md rules"]
+  T -->|"auth, data access, tools, API changed"| A2["Security reviewer agent<br/>org isolation, approvals, injection, secrets"]
+  A1 & A2 --> C["One sticky PR comment<br/>findings by severity, cost"]
+  CI --> H["Human merges"]
+  C --> H
+```
+
+| Piece | File | Kind |
+|---|---|---|
+| Risk tier by path | `review/risk.ts` (+ tests) | Deterministic |
+| Translation check | `review/docs-sync.ts`, a step in `ci.yml` | Deterministic, blocks the PR |
+| Reviewer and security reviewer | `review/pr-review.ts` | Agents, advisory |
+| Workflow | `.github/workflows/review.yml` | Labels, runs the review, posts or updates one comment |
+| Ownership | `.github/CODEOWNERS` | Tier C paths listed explicitly |
+
+### 9.2 How the review agents are built
+
+- **Independent of the author.** Each reviewer is a separate call with a fresh context. It sees
+  only the diff, the changed files, the risk tier and `CLAUDE.md`. It never sees the
+  conversation that produced the code.
+- **Two roles, two prompts.** The reviewer looks at correctness and the project rules. The
+  security reviewer runs only when auth, data-access, tool or API paths change, and checks org
+  isolation, approvals, injection, secrets and idempotency.
+- **Structured output.** Every finding has a severity, file:line, a concrete failure scenario
+  and the smallest fix, validated with Zod. A finding without a failure scenario is not
+  allowed, which keeps out vague advice and style comments.
+- **The diff is untrusted.** It is wrapped as untrusted data. Text inside it that tries to
+  steer the reviewer ("approve this PR") is reported as a prompt-injection finding.
+- **Bounded cost.** The diff is capped at 20k characters per file and 150k in total, and the
+  comment lists any files that were left out. Lock files and media are excluded. The comment
+  shows the tokens and the cost.
+- **Advisory.** The review never fails the build. CI checks block; a human decides. One comment
+  is updated in place on each push, so the PR does not fill up with bot comments.
+- **Reproducible locally.** `pnpm review` reviews `origin/main...HEAD` with the same prompts,
+  and `--dry-run` shows the tier and diff size without calling the model.
+
+### 9.3 First run on this repository
+
+Run against two of this project's own commits (the agent trace and the rule intents), it took
+46 seconds and cost US$0.33 (47.8k input / 6.7k output tokens, both reviewers). It found:
+
+- **A test that could not fail.** The cross-organisation case in the agent-trace test inserted
+  the other org's row with no job id, so the org filter was never exercised. Both reviewers
+  found it on their own. The fix changes the test to prove that the database itself refuses
+  another org's row on this job (composite foreign key).
+- **A demo script check that was not scoped to the organisation**, plus a "populated" marker
+  that was written even when every scenario failed. Both are fixed.
+
+The author (Claude Code, with the same rules) had missed all three. This is the case for
+separate reviewers.
+
+### 9.4 Setup
+
+1. Add the `ANTHROPIC_API_KEY` repository secret. Without it the workflow only applies the label.
+2. Optionally set `REVIEW_MODEL` in the workflow env. The default is `claude-opus-5-5`.
+3. PRs from forks are skipped: they get no secrets. `pull_request_target` would run untrusted PR
+   code with secrets, so it is not used.
+
+### 9.5 Branch protection (a settings change, made by a maintainer)
+
+Branch protection turns the advice into a rule. Require a PR to merge into `main`, require the
+CI check, and require a Code Owner review. It is a repository setting, not code, so it is
+switched on deliberately. Until then this solo repository still accepts direct pushes.
+
+```bash
+gh api -X PUT repos/<owner>/<repo>/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": { "strict": true, "contexts": ["check"] },
+  "enforce_admins": false,
+  "required_pull_request_reviews": { "require_code_owner_reviews": true, "required_approving_review_count": 1 },
+  "restrictions": null
+}
+JSON
+```
+
+### 9.6 What to measure before stage 2
+
+Mark each finding 👍 or 👎 on the comment. Stage 2 starts when more than 60% of findings are
+useful over about two weeks, and the reviewers catch real bugs that humans missed (as in §9.3).

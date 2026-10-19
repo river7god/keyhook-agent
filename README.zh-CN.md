@@ -181,8 +181,9 @@ flowchart LR
 - **系统自己持续运转**：持久化工作流、跟进扫描、数据保留和监控定时任务；失败会升级而不是悄悄失败；记录每次调用的成本并有预算上限。
 - **可观测性**：Langfuse 中的 GenAI 追踪、Sentry 中的错误、后台里的业务审计，以及在迁移未执行时返回失败的健康检查。
 - **有规则约束的 AI 辅助开发**：用 Claude Code 开发，受 [`CLAUDE.zh-CN.md`](CLAUDE.zh-CN.md) 约束；"完成"意味着 `pnpm check` 全绿，改 agent 还要跑 eval。
+- **每个 PR 都由没写这段代码的 agent 评审**：按改动路径打风险等级标签（A 文档/测试 · B 应用代码 · C 数据、认证、工具、提示词、CI），评审和安全评审 agent 发一条仅供参考的评论；缺少文档翻译的 PR 会被 CI 检查拦下。第一次在本仓库运行就抓到了一个不可能失败的测试。
 
-下一步：生产迁移自动化、eval 作为 PR 关口、依赖扫描、告警、Terraform。见 [`docs/operations.zh-CN.md`](docs/operations.zh-CN.md)。
+五人团队如何分阶段把编码、测试、评审、发布和运维交给 agent：见 [`docs/ai-delivery.zh-CN.md`](docs/ai-delivery.zh-CN.md)。下一步：生产迁移自动化、eval 作为 PR 关口、依赖扫描、告警、Terraform（[`docs/operations.zh-CN.md`](docs/operations.zh-CN.md)）。
 
 ## 扩展路线
 

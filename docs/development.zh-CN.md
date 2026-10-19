@@ -56,6 +56,8 @@ Claude 订阅的登录凭证不能当 API key 用。
 | `pnpm eval --model moonshot:kimi-k2.6 id1,id2` | 对比某个模型，或只跑指定场景 |
 | `pnpm eval:smoke` | 15 个有代表性的场景，花费上限 US$2（Claude Opus 5.5 上约每个场景 $0.12） |
 | `pnpm eval --max-cost 5` | 任何一次运行都可以设硬性花费上限：会在可能超支的场景开始前停下 |
+| `pnpm review [--range a..b] [--dry-run]` | 用和 CI 相同的评审、安全评审 agent 评审当前分支（`origin/main...HEAD`）；需要 `ANTHROPIC_API_KEY` |
+| `pnpm docs:sync` | 检查每个改动过的 `X.md` 都更新了对应的 `X.zh-CN.md` |
 | `pnpm redteam --n 8 --max-cost 1` | QA 红队：生成对抗用例并运行，失败的写入 `evals/scenarios/redteam/`（待审核） |
 | `pnpm demo:data` | 让 agent 真实处理一批对话，给演示数据库加上逼真的数据（只追加；目标不是本地数据库时需要 `--yes`） |
 | `pnpm eval:harvest` | 把 PM 的纠正转成待审核的 eval 场景（提交前要人工审核） |

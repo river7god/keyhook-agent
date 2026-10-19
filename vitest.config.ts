@@ -18,7 +18,7 @@ export default defineConfig({
         resolve: { alias },
         test: {
           name: 'unit',
-          include: ['src/**/*.test.ts', 'evals/**/*.test.ts'],
+          include: ['src/**/*.test.ts', 'evals/**/*.test.ts', 'review/**/*.test.ts'],
           exclude: ['**/*.db.test.ts'],
           environment: 'node',
         },
