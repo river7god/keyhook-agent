@@ -10,7 +10,12 @@ import { requestApprovalTool } from '@/tools/approval-tools';
 import { executeTool } from '@/tools/execute';
 import { loadJobContext, renderJobContext } from '../context';
 import { INTERPRET_SYSTEM } from '../prompts';
-import { confirmationReplyOutput, progressReplyOutput } from '../schemas';
+import { matchConfirmation } from '../fast-intents';
+import {
+  confirmationReplyOutput,
+  progressReplyOutput,
+  type ConfirmationReplyOutput,
+} from '../schemas';
 import { untrusted } from '../untrusted';
 import {
   composeTenant,
@@ -18,6 +23,7 @@ import {
   llmCtx,
   markProcessed,
   must,
+  recordRuleIntent,
   nzdToInclusiveCents,
   toolCtx,
   type AgentDeps,
@@ -208,13 +214,17 @@ export async function handleConfirmationReply(
   msg: Message,
 ): Promise<StepResult> {
   const ctx = await loadJobContext(deps.db, job);
-  const out = await deps.llm.structured({
-    ctx: llmCtx(job, 'interpret.confirmation'),
-    system: INTERPRET_SYSTEM,
-    user: `${await renderJobContext(deps.db, ctx)}\n\nDoes the tenant confirm the issue is fixed?\n${untrusted(msg.body, { from: 'tenant' })}`,
-    schema: confirmationReplyOutput,
-    effort: 'medium',
-  });
+  // Layer 1: a bare "yes, all fixed" needs no model; any doubt or extra content goes to it.
+  const ruled = matchConfirmation(msg.body);
+  const out: ConfirmationReplyOutput = ruled
+    ? { confirmed: 'yes', notes: '', promptInjection: false }
+    : await deps.llm.structured({
+        ctx: llmCtx(job, 'interpret.confirmation'),
+        system: INTERPRET_SYSTEM,
+        user: `${await renderJobContext(deps.db, ctx)}\n\nDoes the tenant confirm the issue is fixed?\n${untrusted(msg.body, { from: 'tenant' })}`,
+        schema: confirmationReplyOutput,
+        effort: 'medium',
+      });
   const confirmed = !out.promptInjection && out.confirmed === 'yes';
   const thanks = confirmed
     ? await composeTenant(
@@ -228,6 +238,7 @@ export async function handleConfirmationReply(
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
     const tc = toolCtx(tx, job, 'Process tenant confirmation', deps.now(), `:m${msg.id}`);
+    if (ruled) await recordRuleIntent(tx, job, msg, 'confirmation', { confirmed: 'yes' });
     if (!confirmed) {
       await escalate(tc, {
         reason: out.promptInjection

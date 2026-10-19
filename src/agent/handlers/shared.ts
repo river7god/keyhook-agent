@@ -1,6 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import type { Db, DbOrTx } from '@/db/client';
 import { idempotencyKeys, messages } from '@/db/schema';
+import { writeAudit } from '@/domain/audit';
 import { satisfyFollowUps } from '@/domain/follow-ups';
 import { parseNzdToCents } from '@/lib/money';
 import { withIdempotency } from '@/domain/idempotency';
@@ -108,6 +109,29 @@ export async function composeTenant(
 }
 
 const inboundKey = (msg: Message) => `inbound:${msg.id}`;
+
+/**
+ * Audit row for a reply a fixed rule read instead of the model (layer 1 of the intent funnel),
+ * so the trace shows why there is no model call for it.
+ */
+export async function recordRuleIntent(
+  tx: DbOrTx,
+  job: Job,
+  msg: Message,
+  rule: 'slot_choice' | 'confirmation',
+  output: Record<string, unknown>,
+): Promise<void> {
+  await writeAudit(tx, {
+    organizationId: job.organizationId,
+    jobId: job.id,
+    actorType: 'agent',
+    action: 'intent.rule',
+    reason: `Short fixed reply read by rule (${rule}); no model call`,
+    input: { messageId: msg.id, rule },
+    output,
+    outcome: 'ok',
+  });
+}
 
 export async function alreadyProcessed(db: Db, msg: Message): Promise<boolean> {
   const [row] = await db

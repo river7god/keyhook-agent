@@ -9,7 +9,8 @@ import { scheduleVisitTool, sendMessageTool } from '@/tools/action-tools';
 import { executeTool } from '@/tools/execute';
 import { loadJobContext, renderJobContext, type JobContext } from '../context';
 import { INTERPRET_SYSTEM } from '../prompts';
-import { slotReplyOutput } from '../schemas';
+import { matchSlotChoice } from '../fast-intents';
+import { slotReplyOutput, type SlotReplyOutput } from '../schemas';
 import { untrusted } from '../untrusted';
 import {
   composeTenant,
@@ -17,6 +18,7 @@ import {
   llmCtx,
   markProcessed,
   must,
+  recordRuleIntent,
   SLOTS_PER_OFFER,
   toolCtx,
   type AgentDeps,
@@ -105,20 +107,24 @@ export async function handleSlotReply(
   const policy = await loadWorkflowPolicy(deps.db, job.organizationId);
   const offered = await offeredSlots(deps, job);
 
-  const out = await deps.llm.structured({
-    ctx: llmCtx(job, 'interpret.slot'),
-    system: INTERPRET_SYSTEM,
-    user: [
-      await renderJobContext(deps.db, ctx),
-      '',
-      'Options offered to the tenant:',
-      ...describeSlots(offered),
-      '',
-      `Interpret the tenant's reply:\n${untrusted(msg.body, { from: 'tenant' })}`,
-    ].join('\n'),
-    schema: slotReplyOutput,
-    effort: 'medium',
-  });
+  // Layer 1: "2" / "option 2 please" needs no model; anything longer goes to the model below.
+  const ruled = matchSlotChoice(msg.body, offered.length);
+  const out: SlotReplyOutput = ruled
+    ? { chosenOption: ruled, noneSuitable: false, accessNotes: null, promptInjection: false }
+    : await deps.llm.structured({
+        ctx: llmCtx(job, 'interpret.slot'),
+        system: INTERPRET_SYSTEM,
+        user: [
+          await renderJobContext(deps.db, ctx),
+          '',
+          'Options offered to the tenant:',
+          ...describeSlots(offered),
+          '',
+          `Interpret the tenant's reply:\n${untrusted(msg.body, { from: 'tenant' })}`,
+        ].join('\n'),
+        schema: slotReplyOutput,
+        effort: 'medium',
+      });
 
   const chosen =
     !out.promptInjection && out.chosenOption !== null && Number.isInteger(out.chosenOption)
@@ -143,6 +149,7 @@ export async function handleSlotReply(
   await deps.db.transaction(async (tx) => {
     await markProcessed(tx, msg);
     const tc = toolCtx(tx, job, 'Process tenant slot choice', deps.now(), `:m${msg.id}`);
+    if (ruled) await recordRuleIntent(tx, job, msg, 'slot_choice', { chosenOption: ruled });
 
     if (chosen) {
       const booked = await executeTool(scheduleVisitTool, tc, {
