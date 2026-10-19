@@ -13,10 +13,14 @@ English | [简体中文](README.zh-CN.md)
   <img src="https://img.shields.io/badge/Next.js-16-000000" alt="Next.js 16">
   <img src="https://img.shields.io/badge/Postgres-17%20%2B%20RLS-336791" alt="Postgres 17 with RLS">
   <img src="https://img.shields.io/badge/evals-83%20scenarios-232a59" alt="83 eval scenarios">
+  <img src="https://img.shields.io/badge/tests-360%2B-2ea44f" alt="360+ tests">
+  <img src="https://img.shields.io/badge/PR%20review-AI%20agents-8250df" alt="AI PR review">
 </p>
 
 <p align="center">
   <a href="https://keyhook-agent.vercel.app"><b>Live demo</b></a> (login on request) ·
+  <a href="#engineering-a-production-agent">Agent engineering</a> ·
+  <a href="#devops-and-automation">DevOps & AI delivery</a> ·
   <a href="docs/agent-design.md">Agent design</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/operations.md">Operations</a> ·
@@ -127,6 +131,59 @@ corrected) and kept as regression tests: [`evals/scenarios/redteam/`](evals/scen
 | **Agencies can’t see each other’s data** | `organization_id` on every row, composite FKs, Postgres row-level security (fails closed) |
 | **NZ privacy** | Offshore model providers need an explicit opt-in (Privacy Act IPP 12); error reports scrubbed |
 
+## Engineering a production agent
+
+The hard part of a production agent is not the prompt. It is what happens around the model:
+which decisions it may make, what it costs, what happens when it is wrong or the provider is
+down, and how you can prove what it did. This is how the project answers that.
+
+### The intent funnel: rules → state → model
+
+```mermaid
+flowchart TB
+  M["Inbound message<br/>(tenant · supplier · PM)"] --> L1{"<b>Layer 1 · rules</b><br/>Is the whole message a fixed reply?<br/>'2' · 'option 2 please' · 'yep, all fixed' · '第二个'"}
+  L1 -->|"yes: no model call"| D["<b>Code decides</b><br/>allowed transition · tool via executeTool"]
+  L1 -->|"no"| L2{"<b>Layer 2 · state</b><br/>The job's state narrows what a reply can mean"}
+  L2 -->|"SCHEDULING → which slot?<br/>AWAITING_CONFIRMATION → fixed or not?"| L3["<b>Layer 3 · model, narrow task</b><br/>extract into this state's Zod schema<br/>(untrusted text wrapped; injection → escalate)"]
+  L2 -->|"open rent case, message not tied to a job"| R["Inbox router<br/>rent or repair?"] --> L3
+  L3 --> D
+  D --> C["Model composes the reply<br/>in the tenant's language"]
+```
+
+- **Layer 1, rules.** The most frequent replies never reach the model. A rule only answers when
+  the whole message matches. "Option 2, the cat is inside" or "yes but it still drips" go to the
+  model, so a miss costs one call and never a wrong booking.
+- **Layer 2, state.** There is no open-ended "what does the user want?" classifier. The state
+  machine already knows what the conversation is about, so each step asks the model one narrow
+  question.
+- **Layer 3, model.** It extracts facts into a schema, and code makes the decision. The model
+  never picks the next state, an amount or a recipient.
+
+### Production concerns, answered in code
+
+| Concern | How it's handled | |
+|---|---|---|
+| **Task planning** | The state machine is the plan. Each state is a sub-task with its own handler, and the model decides only inside a step. Reports that need several trades escalate so the PM can split them. | ✅ |
+| **Tool design** | Zod-validated inputs, permission `read` / `auto` / `approval`, idempotency key, an audit row per call, at most 8 tool turns per step, one run per job at a time | ✅ |
+| **Parameter bounds** | Integer cents checked against policy limits; slot ids must have been offered; supplier ids must come from `search_tradies` | ✅ |
+| **Memory** | Context rebuilt from Postgres at every step (job, property, tenant, last 12 messages, property history). Long-term memory is the database plus PM corrections; nothing here needs a vector store | ◐ thread summaries next |
+| **Hallucination** | Model extracts, code decides; schema-checked structured output; amounts parsed by code; unusable output escalates | ✅ |
+| **Timeouts** | Per-step limits set from measured latency (route 60 s … compose 150 s, instead of the SDK's 10 min), one SDK retry, then a durable Inngest retry | ✅ |
+| **Provider outage** | Fallback model plus a circuit breaker per model: 3 failures in 60 s → skipped for 60 s. Refusals and bad answers don't fail over | ✅ per instance; shared store on the roadmap |
+| **Rate and spend limits** | Daily LLM budget and message rate per agency; guest-login throttle | ◐ per-provider token bucket next |
+| **Full trail** | `llm_calls` and `audit_log` for every job, shown as the Agent trace below; OpenTelemetry spans to Langfuse | ✅ |
+| **Cost** | Rules before the model; prompt caching; per-step routing (a cheaper model for composing, a stronger one for triage and vision); effort set per step | ✅ |
+| **Quality** | 83 eval scenarios, a red-team agent, PM corrections turned into scenarios | ✅ |
+
+<p align="center">
+  <img src="docs/media/agent-trace.png" alt="Agent trace: every model call with step, model, tokens in/out/cached, latency and cost, interleaved with tool calls" width="820">
+  <br><sub><b>Agent trace</b> on the job page: every model call (step, model, tokens in · out · cached, latency, cost) and every tool call in order, with totals and the slowest steps. A real job run on Kimi K2.6; 53 % of input tokens came from the prompt cache.</sub>
+</p>
+
+Why no LangGraph or DeerFlow: here, durability, human approval and the order of steps are
+business rules that need tests, so they live in a code state machine plus Inngest.
+[`docs/agent-design.md`](docs/agent-design.md) covers the reasoning and the full checklist (§14).
+
 ## Architecture
 
 ```mermaid
@@ -178,27 +235,78 @@ The smoke set is `pnpm eval:smoke`, capped at US$2; the full Claude run is about
 
 | Engineering | |
 |---|---|
-| Automated tests | **290+**, incl. RLS isolation, concurrency, idempotency, prompt injection, the real Anthropic SDK over a fake HTTP layer |
+| Automated tests | **360+**, incl. RLS isolation, concurrency, idempotency, prompt injection, the real Anthropic SDK over a fake HTTP layer |
 | Eval scenarios | **83**: emergencies, vague or angry tenants, tenant damage, over-budget, silent suppliers, injection, non-English, variations, invoices, inspections, arrears (promises, plans, hardship, disputes, notices, routing) |
 
 ## DevOps and automation
 
-- **CI on every push**: format, typecheck, strict lint, 290+ tests against a real Postgres, a
-  migration drift check, build. **Nightly live evals** with results per commit.
-- **Self-running system**: durable workflows, follow-up sweeper, retention and monitor crons,
-  failures escalate instead of failing silently, per-call cost tracking and budgets.
-- **Observability**: GenAI traces in Langfuse, errors in Sentry, business audit in the dashboard,
-  a health endpoint that fails while migrations are pending.
-- **AI-assisted engineering under rules**: built with Claude Code, governed by
-  [`CLAUDE.md`](CLAUDE.md), "done" means `pnpm check` is green plus evals for agent changes.
-- **AI review on every PR, by agents that didn't write the code**: a risk-tier label from the
-  paths touched (A docs/tests · B app code · C data, auth, tools, prompts, CI), a reviewer and a
-  security reviewer posting one advisory comment, and a CI check that fails a PR whose docs
-  translations are missing. On its first run here it caught a test that could never fail.
+Claude Code writes the code. Other agents, which did not write it, review and attack it.
+Deterministic checks gate the merge, and a human decides.
 
-How a five-person team hands coding, testing, review, release and ops to agents in stages:
-[`docs/ai-delivery.md`](docs/ai-delivery.md). Next steps: automated production migrations, evals
-as a PR gate, dependency scanning, alerting, Terraform ([`docs/operations.md`](docs/operations.md)).
+```mermaid
+flowchart LR
+  DEV["Claude Code<br/>under CLAUDE.md rules"] --> PR["Pull request"]
+  PR --> CI["<b>CI (blocks)</b><br/>format · types · strict lint<br/>360+ tests on Postgres · RLS<br/>migration drift · docs translations · build"]
+  PR --> TIER["<b>Risk tier from paths</b><br/>label risk:A / B / C"]
+  TIER --> REV["Reviewer agent<br/>correctness · CLAUDE.md rules"]
+  TIER -->|"auth · data · tools · API"| SEC["Security reviewer agent<br/>org isolation · approvals · injection"]
+  REV & SEC --> CMT["<b>One advisory comment</b><br/>findings · failure scenarios · cost"]
+  CI & CMT --> H["Human merges<br/>CODEOWNERS for tier C"]
+  H --> PROD["Vercel syd1<br/>health gate"]
+  N["Nightly"] --> EV["Live evals<br/>forbidden actions = 0"]
+  Q["On demand"] --> RT["Red-team agent<br/>writes and judges attacks"]
+```
+
+| Agent in the delivery pipeline | Job | Independent from the author |
+|---|---|---|
+| **Coder**: Claude Code | Writes code, tests, docs and decision records under [`CLAUDE.md`](CLAUDE.md) | — |
+| **Reviewer** (`review.yml`) | Correctness and project rules on every PR; every finding needs a concrete failure scenario | Fresh context, sees only the diff |
+| **Security reviewer** | Org isolation, auth, approval-level tools, prompt injection, secrets. Runs only when those paths change | Separate run, separate prompt |
+| **QA red team** (`pnpm redteam`) | Writes adversarial conversations, runs the real agents, a separate judge scores them | Generator ≠ judge |
+| **Eval runner** (`eval.yml`) | 83 live scenarios nightly; results stored per commit | Deterministic scoring + rules |
+
+**Risk tiers by path.** A: docs and tests. B: application code, one human approves. C: migrations,
+RLS, auth, tools, state machines, prompts, money and CI, two humans approve. Agents can never
+change their own guardrails (CI, `CODEOWNERS`, `CLAUDE.md` are tier C).
+
+The first run of the review agents, on two of this project's own commits (46 s, US$0.33):
+
+```text
+## AI review: risk tier C
+### Reviewer
+| medium | evals/demo-data.ts:152 | ensureRentData writes directly to tables outside src/domain,
+|        |                        | without org scoping or audit rows |
+| low    | evals/demo-data.ts:232 | The 'demo.populated' marker is written even when scenarios failed |
+| low    | src/domain/agent-trace.db.test.ts:52 | The cross-org isolation test row has jobId null,
+|        |                        | so it never exercises the organisation filter |
+### Security reviewer
+| low    | src/domain/agent-trace.db.test.ts:48 | The cross-org isolation case in the test cannot fail ... |
+```
+
+The author had missed all of these. Both reviewers found the test that could not fail, on their
+own; it now proves that the database itself refuses another org's row on the job. The ledger
+check is now scoped to the organisation, and the marker is only written after a run that did
+something. The script still writes demo rows directly, which is fine for a seed tool.
+
+**Handing work to agents, stage by stage**, for a team of about five
+([`docs/ai-delivery.md`](docs/ai-delivery.md)):
+
+| Stage | Agents take over | Humans keep | Status |
+|---|---|---|---|
+| 0 | Coding with Claude Code under rules; CI; nightly evals | Review, merge, releases | ✅ |
+| 1 | AI review + security review on every PR; risk-tier labels; translation gate | Merge; rate each finding | ✅ built |
+| 2 | Independent test-writer agent; mutation testing; evals as a PR gate | Merge | ◐ evals run nightly, not yet a gate |
+| 3 | Planner turns requests into issues; coder agent opens draft PRs in a sandbox | **Approve the plan** and the result | Planned |
+| 4 | Release agent: migrate → deploy → Inngest sync → health → rollback; tier A auto-merges | Tier C changes, migrations | Planned |
+| 5 | Alert or Sentry → triage agent reproduces with a failing test → fix PR; PM corrections → evals | On-call approval, incidents | Planned |
+
+Each stage moves on only when its numbers say so: review precision above 60 %, revert rate no
+worse than human PRs, no eval regressions on `main`.
+
+The running system also takes care of itself. Durable workflows wait for days and chase
+silence. Failures escalate to a PM instead of failing silently. Every call is costed, and there
+are daily budgets. GenAI traces go to Langfuse and errors to Sentry, and the health endpoint
+fails while migrations are pending ([`docs/operations.md`](docs/operations.md)).
 
 ## Scaling path
 
