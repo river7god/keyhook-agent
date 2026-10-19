@@ -36,6 +36,7 @@ pnpm dev                    # Next.js 在 :3000，Inngest 开发服务器在 :82
 | 什么都不设 | 每一步都用 Claude（`claude-opus-5-5`）；需要 `ANTHROPIC_API_KEY` |
 | `LLM_DEFAULT_MODEL=provider:model` | 整个部署的默认模型，例如 `moonshot:kimi-k2.6`、`openai:<model>` |
 | `LLM_VISION_MODEL=provider:model` | 只用于看图的模型（例如文字用 Kimi，看图用 Claude） |
+| `LLM_FALLBACK_MODEL=provider:model` | 当路由到的服务商超时、出错或余额不足时使用的备用模型（熔断器） |
 | `LLM_ACKNOWLEDGE_OFFSHORE=true` | 使用 DeepSeek / Kimi 时必须设置（新西兰 Privacy Act IPP 12 的明确同意） |
 | `organizations.llm_routing` | 按物业公司、按步骤组（`triage`、`act`、`interpret`、`compose`、`vision`）配置 |
 

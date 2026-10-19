@@ -448,3 +448,25 @@ totals and the slowest steps. It is assembled from `llm_calls` and `audit_log`; 
 **Reason:** Langfuse already has this, but a PM or reviewer should not need a second tool to
 answer "what did the agent do on this job and what did it cost". Both tables are written on
 every call already, so the view costs nothing at write time and cannot drift from the audit.
+
+### 2026-10-19 — Rules read fixed short replies before the model
+**Decision:** A tenant reply that is entirely a slot choice ("2", "option 2 please", "the second
+one", "第二个") or a plain confirmation ("Yep, all fixed!", "修好了") is read by rules in
+`src/agent/fast-intents.ts`; no model call is made and an `intent.rule` audit row records it.
+Anything more — access notes, negation ("but", "still", "leak"), other content — goes to the
+model as before.
+**Reason:** These are the most frequent replies and carry no ambiguity, so a model call there
+costs money and seconds and adds a chance of error. The rules match the whole message only, so a
+miss costs one model call and never a wrong booking.
+
+### 2026-10-19 — Provider failover with a circuit breaker; per-step timeouts
+**Decision:** Routing gains an optional `fallback` model (`LLM_FALLBACK_MODEL`). On a provider
+failure (timeout, connection, 408/409/429/5xx, auth or balance) the call is retried on the
+fallback. A per-model circuit breaker opens after 3 failures in 60 s and skips that provider for
+60 s, then lets one trial through. Refusals and unusable answers never fail over, and an eval
+`--model` override never fails over. Each request has a timeout by step group, set above measured
+Kimi tails (compose 150 s, triage 120 s, interpret 90 s, route 60 s) with one SDK retry.
+**Reason:** A provider outage used to mean every job waited for the SDK's 10-minute default
+and then escalated. Now jobs keep moving on the other provider, and the breaker avoids paying the
+timeout again on each call. The breaker is per process. On Vercel each instance learns on its
+own; a shared store (Redis/Postgres) is the production step and is in the roadmap.

@@ -16,6 +16,7 @@ import {
   type StructuredRequest,
   type ToolTurnRequest,
 } from '../llm';
+import { requestOptions } from '../timeouts';
 import { costUsdMicros } from '../pricing';
 import type { ProviderInfo } from './registry';
 
@@ -152,12 +153,15 @@ export class OpenAICompatibleLlm implements LlmClient {
       // side effects, so a truncated answer is retried once before it becomes an error.
       for (let attempt = 1; ; attempt++) {
         const { data, request_id } = await this.client.chat.completions
-          .create({
-            model: this.model,
-            ...body,
-            ...limit,
-            ...(this.provider.reasoningEffort ? { reasoning_effort: effort } : {}),
-          })
+          .create(
+            {
+              model: this.model,
+              ...body,
+              ...limit,
+              ...(this.provider.reasoningEffort ? { reasoning_effort: effort } : {}),
+            },
+            requestOptions(ctx.step),
+          )
           .withResponse();
         await this.record(ctx, data, Date.now() - started, request_id ?? null);
         if (data.choices[0]?.finish_reason !== 'length' || attempt >= TRUNCATION_ATTEMPTS) {

@@ -6,6 +6,7 @@ import { llmCalls } from '@/db/schema';
 import { trace } from '@opentelemetry/api';
 import { withSpan } from '@/lib/telemetry';
 import { costUsdMicros } from './pricing';
+import { requestOptions } from './timeouts';
 
 export const AGENT_MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
@@ -140,33 +141,36 @@ export class ClaudeLlm implements LlmClient {
     const format = betaZodOutputFormat(req.schema);
     try {
       const { data, request_id } = await this.client.beta.messages
-        .create({
-          model: this.model,
-          max_tokens: 16_000,
-          betas: [FALLBACK_BETA, STRUCTURED_OUTPUTS_BETA],
-          fallbacks: 'default',
-          cache_control: { type: 'ephemeral' },
-          system: req.system,
-          messages: [
-            {
-              role: 'user',
-              content: req.images?.length
-                ? [
-                    ...req.images.map((img) => ({
-                      type: 'image' as const,
-                      source: {
-                        type: 'base64' as const,
-                        media_type: img.mediaType,
-                        data: img.data,
-                      },
-                    })),
-                    { type: 'text' as const, text: req.user },
-                  ]
-                : req.user,
-            },
-          ],
-          output_config: { effort: req.effort, format },
-        })
+        .create(
+          {
+            model: this.model,
+            max_tokens: 16_000,
+            betas: [FALLBACK_BETA, STRUCTURED_OUTPUTS_BETA],
+            fallbacks: 'default',
+            cache_control: { type: 'ephemeral' },
+            system: req.system,
+            messages: [
+              {
+                role: 'user',
+                content: req.images?.length
+                  ? [
+                      ...req.images.map((img) => ({
+                        type: 'image' as const,
+                        source: {
+                          type: 'base64' as const,
+                          media_type: img.mediaType,
+                          data: img.data,
+                        },
+                      })),
+                      { type: 'text' as const, text: req.user },
+                    ]
+                  : req.user,
+              },
+            ],
+            output_config: { effort: req.effort, format },
+          },
+          requestOptions(req.ctx.step),
+        )
         .withResponse();
       await this.record(req.ctx, data, Date.now() - started, request_id ?? null);
       this.assertUsable(data);
@@ -196,17 +200,20 @@ export class ClaudeLlm implements LlmClient {
     const started = Date.now();
     try {
       const { data, request_id } = await this.client.beta.messages
-        .create({
-          model: this.model,
-          max_tokens: 16_000,
-          betas: [FALLBACK_BETA],
-          fallbacks: 'default',
-          cache_control: { type: 'ephemeral' },
-          system: req.system,
-          tools: req.tools,
-          messages: req.messages,
-          output_config: { effort: req.effort },
-        })
+        .create(
+          {
+            model: this.model,
+            max_tokens: 16_000,
+            betas: [FALLBACK_BETA],
+            fallbacks: 'default',
+            cache_control: { type: 'ephemeral' },
+            system: req.system,
+            tools: req.tools,
+            messages: req.messages,
+            output_config: { effort: req.effort },
+          },
+          requestOptions(req.ctx.step),
+        )
         .withResponse();
       await this.record(req.ctx, data, Date.now() - started, request_id ?? null);
       this.assertUsable(data);

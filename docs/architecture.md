@@ -279,6 +279,11 @@ one is missing.
   `LLM_VISION_MODEL` → Claude. Step groups (`triage`, `act`, `interpret`, `compose`, `vision`) can
   each use a different model, for example a cheap model for composing messages and a strong model
   for triage and vision.
+- Optional `fallback` model (`LLM_FALLBACK_MODEL`): a call that fails for provider reasons
+  (timeout, 5xx, 429, auth or balance) is retried on it, and a provider whose circuit breaker is
+  open (3 failures in 60 s) is skipped for 60 s. Refusals and bad answers do not fail over. Every
+  request has a per-step timeout set from measured latency (`src/agent/timeouts.ts`). The breaker
+  is per process for now; at scale its counters move to a shared store.
 - Each choice is backed by an eval run (`pnpm eval --model provider:model`), not by preference.
 
 ### 2.8 Quality loop

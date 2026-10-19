@@ -35,6 +35,7 @@ pnpm dev                    # Next.js on :3000 + Inngest dev server on :8288
 | nothing set | Claude (`claude-opus-5-5`) for every step; needs `ANTHROPIC_API_KEY` |
 | `LLM_DEFAULT_MODEL=provider:model` | Deployment-wide default, e.g. `moonshot:kimi-k2.6`, `openai:<model>` |
 | `LLM_VISION_MODEL=provider:model` | Model for photo analysis only (e.g. Claude while text runs on Kimi) |
+| `LLM_FALLBACK_MODEL=provider:model` | Used when the routed provider times out, errors or runs out of credit (circuit breaker) |
 | `LLM_ACKNOWLEDGE_OFFSHORE=true` | Required for DeepSeek / Kimi (NZ Privacy Act IPP 12 opt-in) |
 | `organizations.llm_routing` | Per agency, per step group (`triage`, `act`, `interpret`, `compose`, `vision`) |
 

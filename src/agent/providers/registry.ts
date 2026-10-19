@@ -94,11 +94,17 @@ export const llmRoutingSchema = z
   .strictObject({
     default: modelRefSchema,
     steps: z.partialRecord(z.enum(STEP_GROUPS), modelRefSchema).default({}),
+    /** Tried when the routed model fails for provider reasons (outage, timeout, 429, auth). */
+    fallback: modelRefSchema.optional(),
     /** Must be true before any provider flagged requiresAcknowledgement is used. */
     acknowledgeOffshoreProviders: z.boolean().default(false),
   })
   .superRefine((cfg, ctx) => {
-    const refs = [cfg.default, ...Object.values(cfg.steps)];
+    const refs = [
+      cfg.default,
+      ...Object.values(cfg.steps),
+      ...(cfg.fallback ? [cfg.fallback] : []),
+    ];
     for (const r of refs) {
       if (PROVIDERS[r.provider].requiresAcknowledgement && !cfg.acknowledgeOffshoreProviders) {
         ctx.addIssue({
