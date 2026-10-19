@@ -64,6 +64,8 @@ flowchart LR
 - 每个架构决策都有日期和理由（40 多条）。
 - PM 纠正闭环把生产中的错误变成回归场景。
 
+小团队如何分阶段把这条流水线更多地交给 agent：见 [`ai-delivery.zh-CN.md`](ai-delivery.zh-CN.md)。
+
 岗位描述对 Keyhook 自己的工程也是这样要求的：AI 干活，系统检查 AI。
 
 ## 5. 下一步要补的自动化（按顺序）

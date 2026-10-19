@@ -67,6 +67,9 @@ The code is written with Claude Code, inside guardrails that make AI-written cha
 The role describes the same thing for Keyhook's own engineering: AI does the work, and the
 system checks the AI.
 
+How a small team hands more of this pipeline to agents, stage by stage:
+[`ai-delivery.md`](ai-delivery.md).
+
 ## 5. Next automation steps (in order)
 
 | Step | Why | Sketch |

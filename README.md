@@ -20,6 +20,7 @@ English | [简体中文](README.zh-CN.md)
   <a href="docs/agent-design.md">Agent design</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/operations.md">Operations</a> ·
+  <a href="docs/ai-delivery.md">AI delivery</a> ·
   <a href="docs/roadmap.md">Product roadmap</a> ·
   <a href="docs/development.md">Run locally</a>
 </p>
@@ -225,6 +226,7 @@ Full analysis, prioritisation and open product questions: [`docs/roadmap.md`](do
 | [Agent design](docs/agent-design.md) | Production-agent problems and how they're solved: code vs model, durability, tool gateway, human-in-the-loop, injection, sandboxing, evals, frameworks (LangGraph, DeerFlow) |
 | [Architecture](docs/architecture.md) | Business and technical architecture; AWS / HA / Kubernetes path |
 | [Operations](docs/operations.md) | CI/CD, observability, runtime automation, SLOs |
+| [AI delivery](docs/ai-delivery.md) | A five-person team handing coding, testing, review, release and ops to agents in stages, with risk tiers and human gates |
 | [Roadmap](docs/roadmap.md) | Agents across the tenancy lifecycle; letting & listing exposure; product gaps |
 | [Agent catalog](docs/agents.md) | Human/agent boundaries |
 | [Keyhook fit](docs/keyhook-fit.md) | How this maps onto Keyhook’s platform |

@@ -21,6 +21,7 @@
   <a href="docs/agent-design.zh-CN.md">Agent 设计</a> ·
   <a href="docs/architecture.zh-CN.md">架构</a> ·
   <a href="docs/operations.zh-CN.md">运维</a> ·
+  <a href="docs/ai-delivery.zh-CN.md">AI 交付流程</a> ·
   <a href="docs/roadmap.zh-CN.md">产品路线图</a> ·
   <a href="docs/development.zh-CN.md">本地运行</a>
 </p>
@@ -213,6 +214,7 @@ flowchart LR
 | [Agent 设计](docs/agent-design.zh-CN.md) | 生产级 agent 的问题与解决方式：代码与模型的分工、持久化、工具网关、人在环中、注入、沙箱、评测、框架（LangGraph、DeerFlow） |
 | [架构](docs/architecture.zh-CN.md) | 业务与技术架构；AWS / 高可用 / Kubernetes 路线 |
 | [运维](docs/operations.zh-CN.md) | CI/CD、可观测性、运行时自动化、SLO |
+| [AI 交付流程](docs/ai-delivery.zh-CN.md) | 五人团队分阶段把编码、测试、评审、发布和运维交给 agent，配合风险等级和人工关口 |
 | [路线图](docs/roadmap.zh-CN.md) | 租约生命周期上的各个 agent；招租与房源曝光；产品缺口 |
 | [Agent 目录](docs/agents.zh-CN.md) | 人机边界 |
 | [Keyhook 契合度](docs/keyhook-fit.zh-CN.md) | 与 Keyhook 平台的对应关系 |
