@@ -458,6 +458,12 @@ model as before.
 **Reason:** These are the most frequent replies and carry no ambiguity, so a model call there
 costs money and seconds and adds a chance of error. The rules match the whole message only, so a
 miss costs one model call and never a wrong booking.
+**Measured (Kimi K2.6, 6 scenarios with slot or confirmation replies, vs the 9f0339e baseline):**
+6/6 passed (baseline 5/6), 0 forbidden actions. The rule replaced the `interpret.slot` call each
+time it fired (Kimi interpret p50 is 14 s). Total calls were 59 in both runs, though: Kimi's tool
+and compose turns vary by ±1–2 per scenario, which hides one saved call at this sample size. The
+saving is per hit and deterministic, and it shows in the job trace; it does not show in small-run
+averages.
 
 ### 2026-10-19 — Provider failover with a circuit breaker; per-step timeouts
 **Decision:** Routing gains an optional `fallback` model (`LLM_FALLBACK_MODEL`). On a provider
