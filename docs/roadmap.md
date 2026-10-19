@@ -176,6 +176,7 @@ Grouped by who feels the gap:
 | Keyhook platform | **Integration** | Properties, suppliers and approvals live in Keyhook | Adapters for work orders, suppliers, owner approvals, invoices; webhooks back |
 | Trust | **Privacy and security programme** | Agencies hold personal data under the Privacy Act | Data map, retention per data type, access requests, DPIA, pen test, SOC 2 path |
 | | **Production monitoring of quality** | Evals catch regressions before release; production needs live signals | Sample and review conversations; alert on escalation-rate changes |
+| | **Provider resilience at scale** | The circuit breaker and limits are per process today | Breaker state and a per-provider token bucket in a shared store (Redis/Postgres), so one instance's outage discovery protects all |
 | Business | **Usage metering and pricing** | Model cost scales with use | Per-agency usage, budgets and plan limits; price per property or per closed job |
 
 ### Product questions to settle with customers

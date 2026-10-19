@@ -279,3 +279,23 @@ A new agent on this platform is "done" when it has:
 
 Arrears (M9) was built against exactly this list. It took one state machine, five tools, a
 policy function and nine scenarios.
+
+## 14. Production agent concerns: what is covered and what is not
+
+A common checklist for production agents, answered for this codebase. ✅ = built and tested,
+◐ = partly, ✗ = not yet (with the planned answer).
+
+| Concern | Status | How |
+|---|---|---|
+| **Task planning / sub-tasks** | ✅ | No free-form planner. The state machine is the plan: each state is a sub-task with a handler, and the model decides only inside a step (§1). A report with several issues for different trades escalates so the PM can split it. Cross-agent hand-off goes through the inbox router. |
+| **Tool inputs and outputs** | ◐ | Inputs: Zod schema per tool, checked in `executeTool` before anything runs; permission level; idempotency key; audit row. Outputs are typed in code but not schema-validated on the way back to the model. Gap: validate outputs too. |
+| **Parameter bounds** | ✅ | Money is integer cents with limits from policy; slot ids must be ones offered; tradie ids must come from `search_tradies`; approval tools refuse without a stored approval. |
+| **Tool concurrency and call frequency** | ✅ | One run per job / arrears case at a time (Inngest concurrency key); at most 8 tool turns per act step; idempotency makes retries safe. |
+| **Memory** | ◐ | Short-term: the job's context is rebuilt from Postgres for every step (job, property, tenant, last 12 messages, past jobs at the property). Long-term: the database itself (job history, Portfolio Monitor findings, PM corrections). No vector memory — nothing here needs semantic recall. Gap: summarise long threads instead of keeping the last 12 messages. |
+| **Hallucination fallback** | ✅ | The model extracts; code decides (§1). Structured output is schema-checked; amounts are parsed by code; the model cannot invent a state, supplier or slot. Unusable output → escalate. |
+| **Timeouts** | ✅ | Per-step request timeout set from measured latency (`src/agent/timeouts.ts`), one SDK retry, then Inngest retries the step durably. |
+| **Rate limiting** | ◐ | Simulator: messages per hour and a daily LLM budget per organization; guest login: 20 per IP per hour. Gap: a per-provider token bucket, so a burst of jobs queues instead of getting 429s. |
+| **Degradation / failover** | ✅ | `LLM_FALLBACK_MODEL` plus a circuit breaker per model (3 failures in 60 s → skip for 60 s). Permanent errors (auth, balance) escalate to the PM with the reason instead of failing silently. Breaker state is per process; the shared-store version is on the roadmap. |
+| **Full call logging** | ✅ | `llm_calls` (step, model, tokens in/out/cached, cost, latency, stop reason, error) and `audit_log` (every tool call, transition and rule decision) per job, shown on the job page as the "Agent trace"; OpenTelemetry spans to Langfuse. |
+| **Cost and token saving** | ✅ | Rules before the model (below); prompt caching on the stable prefix (cache hits are visible in the trace); per-step routing so cheap models do simple steps; effort set per step; daily budget. |
+| **Intent funnel** | ◐ | Layer 1, rules: fixed short replies (slot choice, plain confirmation) never reach the model. Layer 2, state: the job's state already says what a reply can mean, so there is no open-ended intent classification — the inbox router (rent or maintenance?) only runs when a tenant with an open arrears case sends a message that is not already tied to a job. Layer 3, the model, handles everything else. Gap: more layer-1 rules only where eval data shows they are safe. |
