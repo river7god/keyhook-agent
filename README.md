@@ -200,6 +200,22 @@ development and the production demo data used **Kimi K2.6**, which is much cheap
 production default. Haiku stays a *candidate* until the eval says otherwise: every routing
 change goes through `pnpm eval` first.
 
+**Why not just use the cheapest model everywhere?** A full job is about 10 calls, roughly
+US$0.10–0.20 on Opus (estimated from evals). That is under 1 % of what the job is worth to a PM.
+The costly failures are a wrong escalation (PM time), a missed one (safety) and a slow reply.
+And it is not only about money. **Personal data decides where a cheap offshore model may run.**
+Each step has a data class, and the routing config fails closed:
+
+| Data class | Steps | DeepSeek / Kimi |
+|---|---|---|
+| Personal (names, addresses, messages, photos) | `triage` `act` `interpret` `compose` `vision` `route` | Refused, as the routed model or as the fallback (NZ Privacy Act IPP 12), unless the deployment holds only fictional data |
+| Aggregate (numbers only) | `ops` | Allowed, with the offshore acknowledgement |
+| Synthetic | evals, red team, CI | Fine: seed data, a fixed `--model` |
+
+Cheap models earn their place on synthetic and aggregate work, and on public listing facts. At
+scale, an open-weight model such as Kimi can be hosted onshore. Details:
+[`docs/agent-design.md` §11](docs/agent-design.md#11-model-choice-cost-and-data-residency).
+
 ### Watching the agents: usage page and Ops analyst
 
 <p align="center">
@@ -216,9 +232,25 @@ change goes through `pnpm eval` first.
   to the PM but withheld from the model.
 - **It recommends; people change things.** Routing and rules change only after an eval.
 
-Why no LangGraph or DeerFlow: here, durability, human approval and the order of steps are
-business rules that need tests, so they live in a code state machine plus Inngest.
-[`docs/agent-design.md`](docs/agent-design.md) covers the reasoning and the full checklist (§14).
+### Why no LangGraph, DeerFlow or general-purpose harness
+
+General harnesses (Claude Agent SDK, OpenAI Agents SDK) and graph frameworks (LangGraph) are
+built for open-ended work where the model chooses the next step. Here, the next step follows
+business and legal rules, a job lasts days, permission means a stored PM approval, and many
+agencies share one system. So the project has its own **narrow harness**:
+
+| Harness part | Here |
+|---|---|
+| Tool gateway | `executeTool`: permissions, idempotency, audit |
+| Model layer | `RoutingLlm`: per-step routing, timeouts, circuit breaker, failover, data-class checks |
+| Loop | The state machine plus Inngest, durable for days |
+| Context | Rebuilt from Postgres every step |
+| Feedback | Evals, red team, Ops analyst |
+
+The rule: **fixed processes run on the state machine, open-ended tasks on a harness.** The coder
+agent is Claude Code, which is a harness. A future incident-triage agent would use the Claude
+Agent SDK in a sandbox. Reasoning and the full production checklist:
+[`docs/agent-design.md`](docs/agent-design.md) §11, §12 and §14.
 
 ## Architecture
 

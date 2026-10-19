@@ -183,6 +183,17 @@ flowchart TB
 现在实际运行的情况更简单。什么都不设置时，默认是 Claude Opus 5.5。本地开发和生产环境的演示数据用的是 **Kimi K2.6**：便宜得多，但更慢（compose 的 p95 是 100 秒），而且数据会出境，必须明确开启新西兰 Privacy Act 的同意项（`LLM_ACKNOWLEDGE_OFFSHORE`）。
 它是一个测过的选项（全量 eval 60 个场景通过 54 个），不是生产默认。Haiku 在 eval 证明之前只是*候选*：任何路由改动都要先跑 `pnpm eval`。
 
+**为什么不干脆全用最便宜的模型？** 一个完整工单大约 10 次调用，用 Opus 大约 0.10–0.20 美元（根据 eval 估算），不到这个工单对 PM 价值的 1%。代价高的失败是：错误的升级（浪费 PM 时间）、漏掉的升级（安全问题）、回复太慢。
+而且这不只是钱的问题，**个人信息决定了便宜的境外模型能用在哪里。** 每个步骤都有数据级别，路由配置出错时默认拒绝：
+
+| 数据级别 | 步骤 | DeepSeek / Kimi |
+|---|---|---|
+| 个人信息（姓名、地址、消息、照片） | `triage` `act` `interpret` `compose` `vision` `route` | 拒绝，无论作为路由模型还是备用模型（新西兰 Privacy Act IPP 12），除非这个部署里只有虚构数据 |
+| 汇总（只有数字） | `ops` | 开启境外同意项后允许 |
+| 合成数据 | eval、红队、CI | 可以：种子数据，固定的 `--model` |
+
+便宜的模型适合用在合成数据、汇总数字和公开房源信息上。规模变大后，像 Kimi 这样的开源权重模型可以部署在境内。详见 [`docs/agent-design.zh-CN.md` §11](docs/agent-design.zh-CN.md)。
+
 ### 监控 agent：用量页面和运营分析师
 
 <p align="center">
@@ -195,8 +206,21 @@ flowchart TB
 - **提示词里没有消息原文。** 它只拿到汇总数字。重复出现的租客回复会显示给 PM 看，但不会发给模型。
 - **它只提建议，由人来改。** 路由和规则只有在跑过 eval 之后才会改。
 
-为什么不用 LangGraph 或 DeerFlow：在这里，持久化、人工审批和步骤顺序都是需要测试的业务规则，所以放在代码里的状态机加 Inngest 中。
-理由和完整的检查清单（§14）见 [`docs/agent-design.zh-CN.md`](docs/agent-design.zh-CN.md)。
+### 为什么不用 LangGraph、DeerFlow 或通用 harness
+
+通用 harness（Claude Agent SDK、OpenAI Agents SDK）和图编排框架（LangGraph）是为开放式工作设计的，由模型选择下一步。
+这里的下一步要遵循业务和法律规则，一个工单持续好几天，权限是存在库里的 PM 审批，而且多家物业公司共用一个系统。所以项目有自己的**窄 harness**：
+
+| harness 的部件 | 项目里对应的是 |
+|---|---|
+| 工具网关 | `executeTool`：权限、幂等、审计 |
+| 模型层 | `RoutingLlm`：按步骤路由、超时、熔断、故障切换、数据级别校验 |
+| 循环 | 状态机 + Inngest，可以持续好几天 |
+| 上下文 | 每一步从 Postgres 重建 |
+| 反馈 | eval、红队、运营分析师 |
+
+原则是：**固定流程跑在状态机上，开放式任务跑在 harness 上。** 编码 agent 就是 Claude Code，它本身就是一个 harness；以后的事故分诊 agent 会放在沙箱里用 Claude Agent SDK 来做。
+理由和完整的生产检查清单见 [`docs/agent-design.zh-CN.md`](docs/agent-design.zh-CN.md) §11、§12 和 §14。
 
 ## 架构
 

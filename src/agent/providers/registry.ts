@@ -95,7 +95,26 @@ export const STEP_GROUPS = [
   'compose',
   'vision',
   'route',
+  'ops',
 ] as const;
+export type StepGroup = (typeof STEP_GROUPS)[number];
+
+/**
+ * What each step group sends to the model. `personal`: tenants' and suppliers' personal
+ * information (names, addresses, messages, photos of homes). `aggregate`: counts and numbers only
+ * (the Ops analyst). NZ Privacy Act IPP 12 is about the first kind, so routing rules follow it.
+ * Evals and the red team call models with a fixed --model on fictional seed data, outside routing.
+ */
+export const STEP_DATA_CLASS: Record<StepGroup, 'personal' | 'aggregate'> = {
+  triage: 'personal',
+  retriage: 'personal',
+  act: 'personal',
+  interpret: 'personal',
+  compose: 'personal',
+  vision: 'personal',
+  route: 'personal',
+  ops: 'aggregate',
+};
 
 /** organizations.llm_routing. Null/absent = Claude for every step. */
 export const llmRoutingSchema = z
@@ -106,6 +125,11 @@ export const llmRoutingSchema = z
     fallback: modelRefSchema.optional(),
     /** Must be true before any provider flagged requiresAcknowledgement is used. */
     acknowledgeOffshoreProviders: z.boolean().default(false),
+    /**
+     * True only for a deployment that holds fictional data (local dev, demo, evals). Then
+     * personal-data steps may use an acknowledged offshore provider; with real tenants they may not.
+     */
+    syntheticDataOnly: z.boolean().default(false),
   })
   .superRefine((cfg, ctx) => {
     const refs = [
@@ -119,6 +143,25 @@ export const llmRoutingSchema = z
           code: 'custom',
           message: `${PROVIDERS[r.provider].label} requires acknowledgeOffshoreProviders: true (data leaves NZ; privacy assessment needed)`,
         });
+      }
+    }
+    if (cfg.syntheticDataOnly) return;
+    // Personal information may not go to a provider without comparable safeguards (IPP 12),
+    // whether as the routed model or as the fallback a personal step would fail over to.
+    for (const group of STEP_GROUPS) {
+      if (STEP_DATA_CLASS[group] !== 'personal') continue;
+      const routed = cfg.steps[group] ?? cfg.default;
+      for (const [role, ref] of [
+        ['routed to', routed],
+        ['falls back to', cfg.fallback],
+      ] as const) {
+        if (ref && PROVIDERS[ref.provider].requiresAcknowledgement) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['steps', group],
+            message: `Step "${group}" handles personal information and ${role} ${PROVIDERS[ref.provider].label}, an offshore provider without comparable safeguards (NZ Privacy Act IPP 12). Use a provider with a data processing agreement for this step, or set syntheticDataOnly for a deployment that holds only fictional data.`,
+          });
+        }
       }
     }
   });

@@ -39,6 +39,7 @@ pnpm dev                    # Next.js 在 :3000，Inngest 开发服务器在 :82
 | `LLM_STEP_MODELS=compose=anthropic:claude-haiku-5-5,interpret=…` | 按步骤组（`triage`、`retriage`、`act`、`interpret`、`compose`、`vision`、`route`）指定模型，简单的步骤少花钱。先跑 eval |
 | `LLM_FALLBACK_MODEL=provider:model` | 当路由到的服务商超时、出错或余额不足时使用的备用模型（熔断器） |
 | `LLM_ACKNOWLEDGE_OFFSHORE=true` | 使用 DeepSeek / Kimi 时必须设置（新西兰 Privacy Act IPP 12 的明确同意） |
+| `LLM_SYNTHETIC_DATA_ONLY=true` | 这个部署里只有虚构数据（本地开发、演示、eval）。不设置时，处理个人信息的步骤（`triage` … `route`）拒绝使用 DeepSeek / Kimi，无论是作为路由模型还是备用模型；只有 `ops`（汇总数字）可以用 |
 | `organizations.llm_routing` | 按物业公司、按步骤组（`triage`、`act`、`interpret`、`compose`、`vision`）配置 |
 
 `ANTHROPIC_API_KEY` 必须是在 console.anthropic.com 创建的 API key（以 `sk-ant-api…` 开头，按量计费）。

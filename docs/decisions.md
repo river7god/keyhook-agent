@@ -505,3 +505,16 @@ produced, the same "code decides, model composes" split as the product agents. N
 automatically: a cheaper model or a new rule still has to pass the eval. Writing this also
 exposed a bug in the trace: its cache share divided by uncached input (53 %) instead of all
 input (35 %). Both views now use one `cacheShare` helper.
+
+### 2026-10-19 — Each step has a data class; personal data never goes to an unsafeguarded offshore model
+**Decision:** Every routable step group has a data class (`STEP_DATA_CLASS`): `personal` for
+`triage`, `retriage`, `act`, `interpret`, `compose`, `vision` and `route`, and `aggregate` for
+`ops`. The routing schema rejects DeepSeek or Kimi for any personal step, as the routed model or
+as the fallback, unless `syntheticDataOnly` (`LLM_SYNTHETIC_DATA_ONLY`) marks a deployment that
+holds only fictional data. The Ops analyst moved to its own `ops` step so it can use a cheaper
+provider on aggregates.
+**Reason:** The earlier `acknowledgeOffshoreProviders` switch was global: one flag allowed every
+step, tenants' personal data included, to go to a provider without comparable safeguards. Under
+NZ Privacy Act IPP 12 that is the decision that matters, and price does not change it. Model cost
+is under 1 % of a job's value; the saving worth having is a smaller model from the same provider,
+after an eval. A misconfiguration fails closed: the routing does not parse, and jobs escalate.

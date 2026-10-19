@@ -235,6 +235,7 @@ describe('a full job on a non-Claude provider', () => {
       default: { provider: 'deepseek', model: 'deepseek-chat' },
       steps: {},
       acknowledgeOffshoreProviders: true,
+      syntheticDataOnly: true,
     });
     // Inject the fake into the lazily created client.
     (llm as unknown as { clients: Map<string, unknown> }).clients.set(
@@ -260,6 +261,7 @@ describe('RoutingLlm.resolve', () => {
       default: { provider: 'anthropic', model: 'claude-opus-5-5' },
       steps: { compose: { provider: 'openai', model: 'gpt-x' } },
       acknowledgeOffshoreProviders: false,
+      syntheticDataOnly: false,
     });
     expect(r.resolve('compose.tenant')).toEqual({ provider: 'openai', model: 'gpt-x' });
     expect(r.resolve('triage')).toEqual({ provider: 'anthropic', model: 'claude-opus-5-5' });

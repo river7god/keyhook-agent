@@ -68,6 +68,7 @@ describe('RoutingLlm failover', () => {
     steps: {},
     fallback: claude,
     acknowledgeOffshoreProviders: true,
+    syntheticDataOnly: true,
   };
   const req = {
     ctx: { organizationId: 'o', jobId: null, step: 'interpret.slot' },

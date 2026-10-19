@@ -44,7 +44,7 @@ export async function runOpsAnalysis(
   if (insights.length) {
     // Aggregates only: the repeated short replies stay out of the prompt (they are tenant text).
     const out = await deps.llm.structured({
-      ctx: { organizationId, jobId: null, step: 'compose.ops' },
+      ctx: { organizationId, jobId: null, step: 'ops.analysis' },
       system: OPS_ANALYST_SYSTEM,
       user: JSON.stringify(
         {

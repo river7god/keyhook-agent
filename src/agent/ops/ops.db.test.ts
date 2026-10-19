@@ -99,7 +99,7 @@ describe('Ops analyst', () => {
     await seedUsage();
     let prompt = '';
     const llm = new ScriptedLlm({
-      'compose.ops': (req: { user: string }) => {
+      'ops.analysis': (req: { user: string }) => {
         prompt = req.user;
         return {
           headline: 'Kimi interpret is timing out.',
