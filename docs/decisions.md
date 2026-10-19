@@ -440,3 +440,11 @@ rules or a tenant reply, therefore runs under the per-case concurrency key. The 
 so a tenant reply was processed on the same case at the same moment. Optimistic version checks
 kept the data consistent, but the conversation order was confusing and one run had to retry.
 Serialising per case removes the race instead of relying on the retry.
+
+### 2026-10-19 — Per-job agent trace built from existing tables
+**Decision:** The job page shows an "Agent trace": every model call (step, model, tokens in/out,
+cached input, latency, cost, stop reason or error) and every tool call, in time order, with
+totals and the slowest steps. It is assembled from `llm_calls` and `audit_log`; no new table.
+**Reason:** Langfuse already has this, but a PM or reviewer should not need a second tool to
+answer "what did the agent do on this job and what did it cost". Both tables are written on
+every call already, so the view costs nothing at write time and cannot drift from the audit.

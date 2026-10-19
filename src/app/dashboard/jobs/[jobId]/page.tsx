@@ -7,6 +7,8 @@ import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
 import { isDomainError } from '@/domain/errors';
 import { getAgentActivity } from '@/domain/agent-activity';
+import { getJobTrace } from '@/domain/agent-trace';
+import { TOOL_NAMES } from '@/tools/registry';
 import { listJobInvoices } from '@/domain/invoice-check';
 import { getJob } from '@/domain/jobs';
 import { listJobMedia } from '@/domain/media-store';
@@ -17,6 +19,7 @@ import { formatNzd } from '@/lib/money';
 import { formatNzDateTime } from '@/lib/time';
 import { PmActions } from './pm-actions';
 import { FeedbackForm } from './feedback-form';
+import { AgentTrace } from './agent-trace';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,17 +33,18 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
       throw err;
     });
     if (!job) return null;
-    const [ctx, timeline, activity, photos, invoices] = await Promise.all([
+    const [ctx, timeline, activity, photos, invoices, trace] = await Promise.all([
       loadJobContext(tx, job),
       getJobTimeline(tx, user.organizationId, job.id),
       getAgentActivity(tx, job, new Date()),
       listJobMedia(tx, user.organizationId, job.id),
       listJobInvoices(tx, user.organizationId, job.id),
+      getJobTrace(tx, user.organizationId, job.id, TOOL_NAMES),
     ]);
-    return { job, ctx, timeline, activity, photos, invoices };
+    return { job, ctx, timeline, activity, photos, invoices, trace };
   });
   if (!data) notFound();
-  const { job, ctx, timeline, activity, photos, invoices } = data;
+  const { job, ctx, timeline, activity, photos, invoices, trace } = data;
   const escalation =
     job.state === 'ESCALATED'
       ? [...timeline.items]
@@ -111,6 +115,8 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
               ))}
             </ol>
           </div>
+
+          <AgentTrace trace={trace} />
         </section>
 
         <aside>
