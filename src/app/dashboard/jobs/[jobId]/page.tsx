@@ -147,7 +147,8 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
                   ? '—'
                   : timeline.llmCostUsdMicros > 0
                     ? `US$${(timeline.llmCostUsdMicros / 1e6).toFixed(4)} (${String(timeline.llmCalls)} calls)`
-                    : `${String(timeline.llmCalls)} model calls (no price configured)`}
+                    : `${String(timeline.llmCalls)} model calls (no price configured)`}{' '}
+                {timeline.llmCalls > 0 && <a href="#agent-trace">View trace ↓</a>}
               </dd>
             </dl>
             {job.summary && <p style={{ marginBottom: 0 }}>{job.summary}</p>}

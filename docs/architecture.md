@@ -276,7 +276,7 @@ one is missing.
   OpenAI-compatible adapter: JSON-schema output where the provider supports it, otherwise JSON
   mode plus validation.
 - Routing order: eval override → organization `llm_routing` → `LLM_DEFAULT_MODEL` /
-  `LLM_VISION_MODEL` → Claude. Step groups (`triage`, `act`, `interpret`, `compose`, `vision`) can
+  `LLM_STEP_MODELS` / `LLM_VISION_MODEL` → Claude. Step groups (`triage`, `act`, `interpret`, `compose`, `vision`) can
   each use a different model, for example a cheap model for composing messages and a strong model
   for triage and vision.
 - Optional `fallback` model (`LLM_FALLBACK_MODEL`): a call that fails for provider reasons

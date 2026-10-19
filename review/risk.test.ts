@@ -20,6 +20,7 @@ describe('classify', () => {
     ['src/workflows/state-machine.ts', 'state machine'],
     ['src/agent/prompts.ts', 'prompts'],
     ['src/agent/arrears/prompts.ts', 'prompts'],
+    ['src/agent/ops/prompts.ts', 'prompts'],
     ['src/domain/auth.ts', 'authentication'],
     ['src/proxy.ts', 'authentication'],
     ['src/lib/money.ts', 'money'],

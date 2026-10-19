@@ -90,11 +90,18 @@ be autonomous while "spend money" needs approval. This is the origin of the tool
 | Agent | Responsibility | Named in role? |
 |---|---|---|
 | **QA / exploratory testing** | Find bugs before customers do — **done: `pnpm redteam`** | ✅ |
+| **Eval runner** | Nightly scored scenarios per commit — **done: `eval.yml`** | ✅ |
+| **Ops analyst** | Weekly ranked brief on model cost, latency, cache, failures and rule hits — **done: `/dashboard/usage`** | — |
+| **PR reviewer + security reviewer** | Independent review of every PR, with risk tiers — **done: `review.yml`** | ✅ |
 | **Security & performance testing** | Scheduled scans, load tests, regression comparison | ✅ |
 | **Incident investigator** | From errors/logs, locate the cause; propose or open a fix | ✅ |
-| **Developer tooling** | Code review, migrations, docs | ✅ |
+| **Developer tooling** | Migrations, releases, docs | ✅ |
 
-In this project, the eval suite (spec §10) and CI are the internal-engineering showcase.
+The dashboard catalog (`src/app/_lib/agent-catalog.ts`) groups agents into four categories:
+**property operations** (customer-facing), **quality & safety** (red team, eval runner),
+**platform operations** (Ops analyst) and **engineering & delivery** (coder, PR reviewer,
+security reviewer; test writer, planner, release and incident triage planned, see
+[`ai-delivery.md`](ai-delivery.md)).
 
 ### 4.3 The shared platform is the real asset
 

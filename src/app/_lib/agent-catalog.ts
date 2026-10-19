@@ -1,9 +1,17 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Camera,
+  FlaskConical,
+  Gauge,
+  GitPullRequest,
+  ListChecks,
+  Rocket,
+  ShieldAlert,
+  Siren,
+  Terminal,
+  TestTubeDiagonal,
   ClipboardCheck,
   Bug,
-  Code,
   FileText,
   HandCoins,
   Inbox,
@@ -24,8 +32,39 @@ import {
  */
 export type AgentStatus = 'live' | 'next' | 'planned';
 
+/**
+ * What the agent works on. Property operations act for the agency's customers; the others keep
+ * the platform honest, fast and cheap, and ship it.
+ */
+export type AgentCategory = 'operations' | 'quality' | 'platform' | 'delivery';
+
+export const CATEGORIES: { id: AgentCategory; label: string; blurb: string }[] = [
+  {
+    id: 'operations',
+    label: 'Property operations',
+    blurb: 'Work for tenants, suppliers, owners and property managers.',
+  },
+  {
+    id: 'quality',
+    label: 'Quality & safety',
+    blurb: 'Agents that test the other agents before customers meet them.',
+  },
+  {
+    id: 'platform',
+    label: 'Platform operations',
+    blurb: 'Watch cost, speed and reliability of the agents themselves.',
+  },
+  {
+    id: 'delivery',
+    label: 'Engineering & delivery (CI/CD)',
+    blurb:
+      'Write, review and ship the code. The agent that writes a change never approves it (docs/ai-delivery.md).',
+  },
+];
+
 export interface AgentInfo {
   id: string;
+  category: AgentCategory;
   name: string;
   icon: LucideIcon;
   status: AgentStatus;
@@ -41,6 +80,7 @@ export interface AgentInfo {
 export const AGENTS: AgentInfo[] = [
   {
     id: 'maintenance',
+    category: 'operations',
     name: 'Maintenance',
     icon: Wrench,
     status: 'live',
@@ -59,6 +99,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'vision',
+    category: 'operations',
     name: 'Photo & document vision',
     icon: Camera,
     status: 'live',
@@ -76,6 +117,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'variations',
+    category: 'operations',
     name: 'Variations & invoice check',
     icon: Receipt,
     status: 'live',
@@ -93,6 +135,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'inspections',
+    category: 'operations',
     name: 'Inspection intake',
     icon: ClipboardCheck,
     status: 'live',
@@ -110,6 +153,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'monitor',
+    category: 'operations',
     name: 'Portfolio Monitor',
     icon: Radar,
     status: 'live',
@@ -127,6 +171,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'updates',
+    category: 'operations',
     name: 'Tenant & owner updates',
     icon: MessagesSquare,
     status: 'live',
@@ -143,6 +188,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'arrears',
+    category: 'operations',
     name: 'Arrears',
     icon: HandCoins,
     status: 'live',
@@ -160,6 +206,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'redteam',
+    category: 'quality',
     name: 'QA red team',
     icon: Bug,
     status: 'live',
@@ -176,6 +223,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'inbox',
+    category: 'operations',
     name: 'Inbox router',
     icon: Inbox,
     status: 'planned',
@@ -187,6 +235,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'letting',
+    category: 'operations',
     name: 'Letting & listings',
     icon: Megaphone,
     status: 'planned',
@@ -203,6 +252,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'compliance',
+    category: 'operations',
     name: 'Compliance & deadlines',
     icon: ShieldCheck,
     status: 'planned',
@@ -214,6 +264,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'reports',
+    category: 'operations',
     name: 'Inspection reports',
     icon: FileText,
     status: 'planned',
@@ -226,6 +277,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'bond',
+    category: 'operations',
     name: 'Exit & bond',
     icon: Scale,
     status: 'planned',
@@ -237,6 +289,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'applications',
+    category: 'operations',
     name: 'Applications assistant',
     icon: Users,
     status: 'planned',
@@ -248,6 +301,7 @@ export const AGENTS: AgentInfo[] = [
   },
   {
     id: 'suppliers',
+    category: 'operations',
     name: 'Supplier insights',
     icon: Truck,
     status: 'planned',
@@ -258,15 +312,153 @@ export const AGENTS: AgentInfo[] = [
     humanDecides: 'Removing a supplier',
   },
   {
-    id: 'engineering',
-    name: 'Engineering agents',
-    icon: Code,
-    status: 'planned',
+    id: 'eval-runner',
+    category: 'quality',
+    name: 'Eval runner',
+    icon: FlaskConical,
+    status: 'live',
     trigger: 'Scheduled',
+    autonomy: 'Suggests only',
+    summary:
+      'Plays 83 scripted conversations through the real agents every night and scores what they did.',
+    does: [
+      'Urgency, trade, escalation, final state, required actions',
+      'Forbidden actions must stay at 0',
+      'Results stored per commit; PM corrections become new scenarios',
+    ],
+    humanDecides: 'What a correct outcome is (the scenarios)',
+    href: 'https://github.com/river7god/keyhook-agent/actions/workflows/eval.yml',
+  },
+  {
+    id: 'ops-analyst',
+    category: 'platform',
+    name: 'Ops analyst',
+    icon: Gauge,
+    status: 'live',
+    trigger: 'Scheduled',
+    autonomy: 'Suggests only',
+    summary:
+      'Every Monday it reads model usage (cost, latency, cache, failures, rule hits) and writes a ranked brief of what to change.',
+    does: [
+      'Code detects the findings; the model only ranks and explains them',
+      'Cheaper-model, cache, timeout and failure findings, with savings',
+      'Proposes new layer-1 rules from repeated short replies',
+    ],
+    humanDecides: 'Any routing or rule change, after an eval',
+    href: '/dashboard/usage',
+  },
+  {
+    id: 'coder',
+    category: 'delivery',
+    name: 'Coder (Claude Code)',
+    icon: Terminal,
+    status: 'live',
+    trigger: 'Human-invoked',
     autonomy: 'Acts with approval',
-    summary: 'Regression evals, security and load tests, incident triage — for Keyhook itself.',
-    does: ['Nightly eval runs', 'Incident triage from errors', 'PR review'],
-    humanDecides: 'Merging and production changes',
+    summary:
+      'Writes the code, tests, docs and decision records under the rules in CLAUDE.md. A task is done only when every check passes.',
+    does: [
+      'State machine, permissions, idempotency and audit rules',
+      'Runs pnpm check and the evals before calling a task done',
+      'Bilingual docs and a dated decision record per architecture change',
+    ],
+    humanDecides: 'What to build, and every merge',
+    href: 'https://github.com/river7god/keyhook-agent/blob/main/CLAUDE.md',
+  },
+  {
+    id: 'pr-reviewer',
+    category: 'delivery',
+    name: 'PR reviewer',
+    icon: GitPullRequest,
+    status: 'live',
+    trigger: 'Reactive',
+    autonomy: 'Suggests only',
+    summary:
+      'Reviews every pull request with a fresh context against CLAUDE.md. It never sees how the code was written.',
+    does: [
+      'Labels the risk tier A / B / C from the paths touched',
+      'Findings need a concrete failure scenario; no style comments',
+      'One advisory comment per PR, with its cost',
+    ],
+    humanDecides: 'Whether to merge',
+    href: 'https://github.com/river7god/keyhook-agent/blob/main/.github/workflows/review.yml',
+  },
+  {
+    id: 'security-reviewer',
+    category: 'delivery',
+    name: 'Security reviewer',
+    icon: ShieldAlert,
+    status: 'live',
+    trigger: 'Reactive',
+    autonomy: 'Suggests only',
+    summary: 'A second, separate review whenever auth, data access, tools or API routes change.',
+    does: [
+      'Agency isolation and row-level security',
+      'Approval-level tools, injection paths, secrets',
+      'Reports injection attempts inside the diff itself',
+    ],
+    humanDecides: 'Whether to merge; tier C needs two people',
+    href: 'https://github.com/river7god/keyhook-agent/blob/main/docs/ai-delivery.md',
+  },
+  {
+    id: 'test-writer',
+    category: 'delivery',
+    name: 'Test writer',
+    icon: TestTubeDiagonal,
+    status: 'planned',
+    trigger: 'Reactive',
+    autonomy: 'Acts with approval',
+    summary:
+      'Writes tests from an issue’s acceptance criteria without seeing the implementation (stage 2).',
+    does: ['Tests check the spec, not the code', 'Mutation testing weekly', 'Evals as a PR gate'],
+    humanDecides: 'Acceptance criteria',
+  },
+  {
+    id: 'planner',
+    category: 'delivery',
+    name: 'Planner',
+    icon: ListChecks,
+    status: 'planned',
+    trigger: 'Human-invoked',
+    autonomy: 'Prepares only',
+    summary:
+      'Turns a request into an issue with scope, acceptance criteria and a risk tier, for a coder agent to pick up (stage 3).',
+    does: [
+      'Scope and acceptance criteria',
+      'Risk tier and affected files',
+      'Draft PRs in a sandbox',
+    ],
+    humanDecides: 'Approving the plan — the most important gate',
+  },
+  {
+    id: 'release',
+    category: 'delivery',
+    name: 'Release',
+    icon: Rocket,
+    status: 'planned',
+    trigger: 'Reactive',
+    autonomy: 'Acts with approval',
+    summary:
+      'Migrate → deploy → Inngest sync → health check → canary, with rollback on failure (stage 4).',
+    does: [
+      'Removes the manual migration step',
+      'Release notes from merged PRs',
+      'Tier A auto-merge',
+    ],
+    humanDecides: 'Migrations and tier C releases',
+  },
+  {
+    id: 'ops-triage',
+    category: 'delivery',
+    name: 'Incident triage',
+    icon: Siren,
+    status: 'planned',
+    trigger: 'Reactive',
+    autonomy: 'Acts with approval',
+    summary:
+      'Turns a Sentry error or alert into a failing test that reproduces it, then a fix PR (stage 5).',
+    does: ['Reproduce before fixing', 'Links trace, job and audit', 'Draft fix PR for on-call'],
+    humanDecides: 'The fix, and incident command',
   },
 ];
 

@@ -129,20 +129,41 @@ export async function llmForOrganization(
  *   LLM_ACKNOWLEDGE_OFFSHORE=true            (required for deepseek / moonshot)
  *   LLM_VISION_MODEL=provider:model          (optional: model for photo analysis)
  *   LLM_FALLBACK_MODEL=provider:model        (optional: used when the routed provider fails)
+ *   LLM_STEP_MODELS=compose=anthropic:claude-haiku-5-5,interpret=anthropic:claude-haiku-5-5
+ *                                            (optional: a model per step group, to save cost)
  * Unset → Claude everywhere.
  */
 export function envDefaultRouting(): LlmRouting | null {
   const ref = process.env.LLM_DEFAULT_MODEL;
   const vision = process.env.LLM_VISION_MODEL;
   const fallback = process.env.LLM_FALLBACK_MODEL;
-  if (!ref && !vision && !fallback) return null;
+  const stepModels = process.env.LLM_STEP_MODELS;
+  if (!ref && !vision && !fallback && !stepModels) return null;
   const parsed = llmRoutingSchema.safeParse({
     default: ref ? parseModelRef(ref) : DEFAULT_MODEL,
-    steps: vision ? { vision: parseModelRef(vision) } : {},
+    steps: {
+      ...parseStepModels(stepModels ?? ''),
+      ...(vision ? { vision: parseModelRef(vision) } : {}),
+    },
     ...(fallback ? { fallback: parseModelRef(fallback) } : {}),
     acknowledgeOffshoreProviders: process.env.LLM_ACKNOWLEDGE_OFFSHORE === 'true',
   });
   if (!parsed.success)
-    throw new LlmConfigError(`Invalid LLM_DEFAULT_MODEL: ${parsed.error.message}`);
+    throw new LlmConfigError(`Invalid LLM_* model settings: ${parsed.error.message}`);
   return parsed.data;
+}
+
+/** "compose=anthropic:claude-haiku-5-5,interpret=…" → { compose: ModelRef, interpret: ModelRef }. */
+export function parseStepModels(text: string): Record<string, ModelRef> {
+  const out: Record<string, ModelRef> = {};
+  for (const pair of text
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)) {
+    const eq = pair.indexOf('=');
+    if (eq <= 0)
+      throw new LlmConfigError(`LLM_STEP_MODELS: expected step=provider:model, got "${pair}"`);
+    out[pair.slice(0, eq).trim()] = parseModelRef(pair.slice(eq + 1).trim());
+  }
+  return out;
 }

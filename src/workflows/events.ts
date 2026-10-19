@@ -35,3 +35,8 @@ export const inboundRouteRequested = eventType('inbound/route.requested', {
 export const arrearsSweepRequested = eventType('arrears/sweep.requested', {
   schema: z.object({ ...orgScoped }),
 });
+
+/** Run the Ops analyst for one organization now (usage page "Run analysis"). */
+export const opsAnalysisRequested = eventType('ops/analysis.requested', {
+  schema: z.object({ ...orgScoped }),
+});

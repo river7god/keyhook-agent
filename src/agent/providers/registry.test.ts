@@ -21,6 +21,28 @@ describe('llm routing config', () => {
     if (saved.ack !== undefined) process.env.LLM_ACKNOWLEDGE_OFFSHORE = saved.ack;
   });
 
+  it('routes step groups from LLM_STEP_MODELS, keeping Claude as the default', async () => {
+    const { envDefaultRouting, parseStepModels, RoutingLlm } = await import('.');
+    const saved = { ...process.env };
+    try {
+      delete process.env.LLM_DEFAULT_MODEL;
+      delete process.env.LLM_VISION_MODEL;
+      delete process.env.LLM_FALLBACK_MODEL;
+      process.env.LLM_STEP_MODELS =
+        'compose=anthropic:claude-haiku-5-5, interpret=anthropic:claude-haiku-5-5';
+      const routing = envDefaultRouting();
+      const llm = new RoutingLlm(null as never, routing);
+      expect(llm.resolve('compose.tenant').model).toBe('claude-haiku-5-5');
+      expect(llm.resolve('interpret.slot').model).toBe('claude-haiku-5-5');
+      expect(llm.resolve('triage').model).toBe('claude-opus-5-5');
+      expect(() => parseStepModels('compose')).toThrow(/step=provider:model/);
+      process.env.LLM_STEP_MODELS = 'nonsense=anthropic:x';
+      expect(() => envDefaultRouting()).toThrow();
+    } finally {
+      process.env = saved;
+    }
+  });
+
   it('accepts Claude-only and OpenAI routing without acknowledgement', () => {
     expect(
       llmRoutingSchema.safeParse({

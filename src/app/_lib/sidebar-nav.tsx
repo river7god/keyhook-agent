@@ -2,6 +2,7 @@
 
 import {
   Bot,
+  Gauge,
   CircleCheck,
   Flag,
   HandCoins,
@@ -34,6 +35,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
     label: 'Agents',
     items: [
       { href: '/dashboard/agents', label: 'Agent catalog', icon: Bot },
+      { href: '/dashboard/usage', label: 'Usage & cost', icon: Gauge },
       { href: '/simulator', label: 'Message simulator', icon: MessageSquareText },
     ],
   },

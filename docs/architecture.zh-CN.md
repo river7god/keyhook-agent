@@ -262,7 +262,7 @@ erDiagram
 
 - 一个 `LlmClient` 接口，默认是 Claude。OpenAI、DeepSeek、Kimi 走 OpenAI 兼容适配器：服务商支持时用 JSON schema 输出，
   否则用 JSON 模式加校验。
-- 路由优先级：eval 覆盖 → 公司的 `llm_routing` → `LLM_DEFAULT_MODEL` / `LLM_VISION_MODEL` → Claude。
+- 路由优先级：eval 覆盖 → 公司的 `llm_routing` → `LLM_DEFAULT_MODEL` / `LLM_STEP_MODELS` / `LLM_VISION_MODEL` → Claude。
   各步骤组（`triage`、`act`、`interpret`、`compose`、`vision`）可以各用不同的模型，比如写消息用便宜的模型，分诊和看图用强模型。
 - 可选的 `fallback` 备用模型（`LLM_FALLBACK_MODEL`）：因服务商原因失败（超时、5xx、429、认证或余额）的调用会改用备用模型重试；
   熔断器打开（60 秒内失败 3 次）的服务商在 60 秒内直接跳过。模型拒答或答案不可用不会切换。每个请求都有按步骤设置的超时，

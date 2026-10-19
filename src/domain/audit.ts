@@ -1,3 +1,4 @@
+import { and, desc, eq } from 'drizzle-orm';
 import type { DbOrTx } from '@/db/client';
 import { auditLog } from '@/db/schema';
 import type { ActorType, AuditOutcome } from '@/db/schema';
@@ -39,4 +40,19 @@ export async function writeAudit(db: DbOrTx, entry: AuditEntry): Promise<void> {
     idempotencyKey: entry.idempotencyKey ?? null,
     traceId: entry.traceId ?? activeTraceId(),
   });
+}
+
+/** Output of the newest audit row with this action (e.g. the latest Ops analyst brief). */
+export async function latestAuditOutput(
+  db: DbOrTx,
+  organizationId: string,
+  action: string,
+): Promise<{ at: Date; output: unknown } | null> {
+  const [row] = await db
+    .select({ at: auditLog.createdAt, output: auditLog.output })
+    .from(auditLog)
+    .where(and(eq(auditLog.organizationId, organizationId), eq(auditLog.action, action)))
+    .orderBy(desc(auditLog.id))
+    .limit(1);
+  return row ?? null;
 }

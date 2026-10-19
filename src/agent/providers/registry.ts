@@ -87,7 +87,15 @@ export const modelRefSchema = z.strictObject({
 export type ModelRef = z.infer<typeof modelRefSchema>;
 
 /** Step groups that can be routed separately (first segment of LlmContext.step). */
-export const STEP_GROUPS = ['triage', 'retriage', 'act', 'interpret', 'compose', 'vision'] as const;
+export const STEP_GROUPS = [
+  'triage',
+  'retriage',
+  'act',
+  'interpret',
+  'compose',
+  'vision',
+  'route',
+] as const;
 
 /** organizations.llm_routing. Null/absent = Claude for every step. */
 export const llmRoutingSchema = z

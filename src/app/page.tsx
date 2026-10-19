@@ -12,7 +12,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import Link from 'next/link';
-import { AGENTS, STATUS_LABEL, type AgentInfo } from '@/app/_lib/agent-catalog';
+import { AGENTS, CATEGORIES, STATUS_LABEL, type AgentInfo } from '@/app/_lib/agent-catalog';
 import { Brand } from '@/app/_lib/brand';
 import { GuestButton } from '@/app/_lib/guest-button';
 import { getCurrentUser } from '@/app/_lib/session';
@@ -215,20 +215,29 @@ export default async function HomePage() {
               <h2>One platform, a team of agents</h2>
               <p>
                 Each agent is a thin workflow on shared foundations: permissioned tools, approvals,
-                audit, evals. {live.length} are live today; the rest follow the tenancy lifecycle.
+                audit, evals. {live.length} are live today, from property operations to the agents
+                that test, watch and ship the platform itself.
               </p>
             </div>
-            <div className="agent-grid">
-              {live.map((a) => (
-                <AgentCard key={a.id} a={a} />
-              ))}
-            </div>
-            <h3 style={{ textAlign: 'center', margin: '56px 0 20px' }}>On the roadmap</h3>
-            <div className="agent-grid">
-              {later.map((a) => (
-                <AgentCard key={a.id} a={a} />
-              ))}
-            </div>
+            {CATEGORIES.map((c) => {
+              const agents = [
+                ...live.filter((a) => a.category === c.id),
+                ...later.filter((a) => a.category === c.id),
+              ];
+              return (
+                <div key={c.id} style={{ marginTop: 48 }}>
+                  <h3 style={{ textAlign: 'center', margin: '0 0 6px' }}>{c.label}</h3>
+                  <p className="sub" style={{ textAlign: 'center', margin: '0 0 20px' }}>
+                    {c.blurb}
+                  </p>
+                  <div className="agent-grid">
+                    {agents.map((a) => (
+                      <AgentCard key={a.id} a={a} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
