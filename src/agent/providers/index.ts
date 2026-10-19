@@ -127,6 +127,8 @@ export async function llmForOrganization(
  * Deployment-wide default when an organization has no llm_routing:
  *   LLM_DEFAULT_MODEL=moonshot:<model id>   (provider:model)
  *   LLM_ACKNOWLEDGE_OFFSHORE=true            (required for deepseek / moonshot)
+ *   LLM_SYNTHETIC_DATA_ONLY=true             (dev/demo/eval only: fictional data, so personal-data
+ *                                            steps may use an acknowledged offshore provider)
  *   LLM_VISION_MODEL=provider:model          (optional: model for photo analysis)
  *   LLM_FALLBACK_MODEL=provider:model        (optional: used when the routed provider fails)
  *   LLM_STEP_MODELS=compose=anthropic:claude-haiku-5-5,interpret=anthropic:claude-haiku-5-5
@@ -147,6 +149,7 @@ export function envDefaultRouting(): LlmRouting | null {
     },
     ...(fallback ? { fallback: parseModelRef(fallback) } : {}),
     acknowledgeOffshoreProviders: process.env.LLM_ACKNOWLEDGE_OFFSHORE === 'true',
+    syntheticDataOnly: process.env.LLM_SYNTHETIC_DATA_ONLY === 'true',
   });
   if (!parsed.success)
     throw new LlmConfigError(`Invalid LLM_* model settings: ${parsed.error.message}`);

@@ -235,13 +235,63 @@ Each was fixed and kept as a regression scenario.
 - Media is stored with a retention period (180 days, daily purge); money is integer cents NZD;
   times are stored in UTC and displayed in Pacific/Auckland.
 
-## 11. Model choice and portability
+## 11. Model choice, cost and data residency
 
 - One `LlmClient` interface. Claude is the default, and OpenAI-compatible providers go through
   an adapter.
-- Routing per agency and per step group (`triage`, `act`, `interpret`, `compose`, `vision`).
+- Routing per agency (`organizations.llm_routing`) or per deployment (`LLM_DEFAULT_MODEL`,
+  `LLM_STEP_MODELS`, `LLM_VISION_MODEL`, `LLM_FALLBACK_MODEL`), by step group: `triage`,
+  `retriage`, `act`, `interpret`, `compose`, `vision`, `route`, `ops`.
 - **Models are chosen by eval score and cost, not preference.** Today's comparison: Claude Opus
-  5.5 smoke 15/15 at US$0.06/scenario; Kimi K2.6 full set 54/60 before fixes.
+  5.5 smoke 15/15 at US$0.06 a scenario (4.1 calls); Kimi K2.6 full set 54/60 before fixes,
+  about 4× slower.
+
+### 11.1 The economics: what a cheaper model actually saves
+
+A full maintenance job is about 10 model calls. At the smoke-set rate that is roughly US$0.10–0.20
+on Claude Opus. This is estimated from eval runs, not measured in production. Against the cost of
+a property manager handling the job by hand, the model is under 1 % of the value.
+
+The expensive failures are elsewhere:
+
+| Failure | Who pays |
+|---|---|
+| A wrong escalation (Kimi's escalation precision was 88 %, Claude's 100 %) | PM time, every time |
+| A missed escalation | A safety incident, liability |
+| A slow reply (Kimi compose p95 100 s) | The tenant reporting an emergency waits |
+
+So on the main flow, saving tokens costs more than it saves. The saving that *is* worth having
+comes from routing simple steps to a smaller model **from the same provider** (Claude Haiku 5.5
+for `interpret` and `compose` is 40× cheaper per token at list price), and only after the eval
+holds. At high volume (hundreds of thousands of calls a month) that split, prompt caching and
+layer-1 rules are where the money is.
+
+### 11.2 Data residency decides where a cheap offshore model may run
+
+The NZ Privacy Act (IPP 12) allows personal information to go overseas only with comparable
+safeguards or the person's informed authorisation. Strictly, every hosted model is offshore for
+NZ, Claude included (US). The difference is the safeguards: a data processing agreement and
+limits on retention that agencies and their lawyers can accept. Sending tenants' names,
+addresses and photos of their homes to a provider without those safeguards is a trust problem
+for the agency and the landlord, whatever the price.
+
+So each step group has a **data class** (`STEP_DATA_CLASS` in `src/agent/providers/registry.ts`),
+and the routing config is validated against it:
+
+| Data class | Steps | Offshore provider without safeguards (DeepSeek, Kimi) |
+|---|---|---|
+| `personal`: names, addresses, messages, photos | `triage`, `retriage`, `act`, `interpret`, `compose`, `vision`, `route` | **Refused**, whether as the routed model or as the fallback. Allowed only with `syntheticDataOnly` (a deployment that holds fictional data: dev, demo) |
+| `aggregate`: counts and numbers only | `ops` (Ops analyst) | Allowed with the offshore acknowledgement |
+| synthetic, outside routing | evals, red-team generator and judge | A fixed `--model` on seed data |
+
+A misconfiguration fails closed. The routing does not parse, the job's model client cannot be
+built, and the job escalates with the reason. It never quietly sends personal data offshore.
+
+**Where cheap models fit:** red-team generation, eval simulation and CI (synthetic); the Ops
+analyst (aggregates); listing copy and enquiry answers drawn from public listing facts (once
+built); development. **At scale:** Kimi is open-weight, so it could be hosted in an Australian
+region or on our own infrastructure. That keeps data onshore at a low unit cost, and it is worth
+evaluating once monthly volume makes the difference material.
 
 ## 12. Frameworks: LangGraph, DeerFlow and others — why not here
 
@@ -252,6 +302,40 @@ Each was fixed and kept as a regression scenario.
 | OpenAI Agents SDK, Claude Agent SDK, CrewAI, AutoGen, Mastra, Pydantic AI | Agent loops, handoffs, tool registries | Same trade-off; the thin loop here is a few dozen lines and fully under our control |
 | Temporal, Step Functions | Durable execution | Equivalent to Inngest; a candidate if self-hosting is required ([`architecture.md`](architecture.md) §4) |
 | MCP | A standard way to expose tools to any agent | A good next step: expose the tool gateway as an MCP server so other agents (or Keyhook's) can use it with the same permissions and audit |
+
+### 12.1 Why not a general-purpose agent harness
+
+A *harness* is everything around the model: the loop, tools, context and memory, permissions,
+sub-agents and compaction. Claude Code, the Claude Agent SDK and the OpenAI Agents SDK are
+general-purpose harnesses. They are built for open-ended work where the path is unknown (coding,
+research), so the model decides what to do next.
+
+| A general harness assumes | This business needs |
+|---|---|
+| The model chooses the next step | The next step follows business and legal rules; the state machine decides |
+| One session in one process | A job lasts days, wakes on events and survives deploys (Inngest) |
+| Permission = a person clicks "allow" in a terminal | Permission = a stored PM approval, money limits, per-agency policy |
+| Memory = the conversation, compacted | Memory = business state in Postgres, rebuilt each step |
+| An exploratory loop with variable calls | About 4 calls a scenario, so cost and latency are predictable |
+| One user | Many agencies: RLS, audit, isolation |
+
+The project still has a harness. It is narrow and domain-specific:
+
+| Harness part | Here |
+|---|---|
+| Tool gateway | `executeTool`: permissions, idempotency, audit |
+| Model layer | `RoutingLlm`: per-step routing, timeouts, circuit breaker, failover |
+| Loop | The state machine plus Inngest |
+| Context | Rebuilt from the database every step |
+| Feedback | Evals, red team, Ops analyst |
+
+This is what "harness engineering" means in practice: the environment around the model matters
+more than which framework provides the loop.
+
+**Where a general harness does fit:** open-ended tasks with no fixed path. The coder agent is
+Claude Code, which is a harness. A future incident-triage agent (read logs and code, reproduce,
+propose a fix) suits the Claude Agent SDK in a sandbox. The rule: **fixed processes run on the
+state machine, open-ended tasks on a harness.** Both can share the same tool gateway.
 
 **When a framework would be worth it:**
 - many agents whose collaboration is decided at run time;

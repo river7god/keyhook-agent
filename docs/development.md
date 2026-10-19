@@ -38,6 +38,7 @@ pnpm dev                    # Next.js on :3000 + Inngest dev server on :8288
 | `LLM_STEP_MODELS=compose=anthropic:claude-haiku-5-5,interpret=…` | A model per step group (`triage`, `retriage`, `act`, `interpret`, `compose`, `vision`, `route`), to spend less where a step is simple. Evaluate first |
 | `LLM_FALLBACK_MODEL=provider:model` | Used when the routed provider times out, errors or runs out of credit (circuit breaker) |
 | `LLM_ACKNOWLEDGE_OFFSHORE=true` | Required for DeepSeek / Kimi (NZ Privacy Act IPP 12 opt-in) |
+| `LLM_SYNTHETIC_DATA_ONLY=true` | This deployment holds only fictional data (local dev, demo, evals). Without it, steps that handle personal information (`triage` … `route`) refuse DeepSeek / Kimi, as the routed model or as the fallback; only `ops` (aggregates) may use them |
 | `organizations.llm_routing` | Per agency, per step group (`triage`, `act`, `interpret`, `compose`, `vision`) |
 
 `ANTHROPIC_API_KEY` must be an API key from console.anthropic.com (`sk-ant-api…`, billed per
