@@ -27,7 +27,7 @@ const HIGH: Rule[] = [
       /^src\/workflows\/(state-machine|job-states|arrears-state-machine|arrears-states)\.ts$/,
     why: 'state machine',
   },
-  { pattern: /^src\/agent\/(arrears\/)?prompts\.ts$/, why: 'prompts' },
+  { pattern: /^src\/agent\/(arrears\/|ops\/)?prompts\.ts$/, why: 'prompts' },
   { pattern: /^src\/agent\/untrusted\.ts$/, why: 'untrusted-input boundary' },
   {
     pattern: /^src\/(domain\/(approval-policy|workflow-policy-config)|lib\/money)\.ts$/,

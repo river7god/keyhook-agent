@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AGENTS, STATUS_LABEL, type AgentInfo } from '@/app/_lib/agent-catalog';
+import { AGENTS, CATEGORIES, STATUS_LABEL, type AgentInfo } from '@/app/_lib/agent-catalog';
 import { requirePageUser } from '@/app/_lib/session';
 import { getDb } from '@/db/client';
 import { withOrg } from '@/db/org-scope';
@@ -90,8 +90,13 @@ export default async function AgentsPage() {
   const stats = await withOrg(getDb(), user.organizationId, (tx) =>
     agentStats(tx, user.organizationId, new Date()),
   );
-  const live = AGENTS.filter((a) => a.status === 'live');
-  const later = AGENTS.filter((a) => a.status !== 'live');
+  const order = { live: 0, next: 1, planned: 2 } as const;
+  const groups = CATEGORIES.map((c) => ({
+    ...c,
+    agents: AGENTS.filter((a) => a.category === c.id).sort(
+      (x, y) => order[x.status] - order[y.status],
+    ),
+  }));
   return (
     <main className="page">
       <div className="page-head">
@@ -103,17 +108,29 @@ export default async function AgentsPage() {
           </p>
         </div>
       </div>
-      <div className="agent-grid">
-        {live.map((a) => (
-          <Card key={a.id} a={a} stats={stats} />
+      <nav className="row" aria-label="Agent categories" style={{ flexWrap: 'wrap', gap: 8 }}>
+        {groups.map((g) => (
+          <a key={g.id} href={`#${g.id}`} className="chip" style={{ fontSize: '0.8rem' }}>
+            {g.label} · {g.agents.filter((a) => a.status === 'live').length} live
+            {g.agents.some((a) => a.status !== 'live')
+              ? ` / ${String(g.agents.filter((a) => a.status !== 'live').length)} planned`
+              : ''}
+          </a>
         ))}
-      </div>
-      <h2 style={{ margin: '36px 0 14px', fontSize: '1.1rem' }}>Next and planned</h2>
-      <div className="agent-grid">
-        {later.map((a) => (
-          <Card key={a.id} a={a} stats={stats} />
-        ))}
-      </div>
+      </nav>
+      {groups.map((g) => (
+        <section key={g.id} id={g.id} style={{ scrollMarginTop: 16 }}>
+          <h2 style={{ margin: '32px 0 4px', fontSize: '1.1rem' }}>{g.label}</h2>
+          <p className="sub" style={{ marginTop: 0 }}>
+            {g.blurb}
+          </p>
+          <div className="agent-grid">
+            {g.agents.map((a) => (
+              <Card key={a.id} a={a} stats={stats} />
+            ))}
+          </div>
+        </section>
+      ))}
     </main>
   );
 }

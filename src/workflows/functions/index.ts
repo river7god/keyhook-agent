@@ -2,6 +2,7 @@ import { arrearsAdvance, arrearsSweep, arrearsSweepNow, inboundRoute } from './a
 import { followUpHandler, followUpSweeper } from './follow-ups';
 import { jobAdvance } from './job-advance';
 import { mediaRetention } from './media-retention';
+import { opsAnalysisNow, opsAnalystWeekly } from './ops-analyst';
 import { ping } from './ping';
 import { portfolioMonitor } from './portfolio-monitor';
 
@@ -17,4 +18,6 @@ export const functions = [
   arrearsSweep,
   arrearsSweepNow,
   inboundRoute,
+  opsAnalystWeekly,
+  opsAnalysisNow,
 ];

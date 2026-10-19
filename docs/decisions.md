@@ -488,3 +488,20 @@ Fork PRs are skipped instead of using `pull_request_target`.
 fresh-context reviewer catches what the author missed (its first run found a test that could
 never fail). Keeping it advisory means a noisy reviewer cannot block delivery while its
 precision is measured. Anything a rule can decide (tier, translations) is code, not an agent.
+
+### 2026-10-19 — Ops analyst: code detects, the model ranks; per-step models from env
+**Decision:** A usage page (`/dashboard/usage`) aggregates `llm_calls` and the audit log by
+step and model. Code detects findings: timeout risk, failure rate, unused cache, a cheaper model
+with the priced saving, unpriced models, and repeated short replies that are layer-1 rule
+candidates. A weekly Ops analyst agent (Monday 07:00 NZ, or on demand) ranks and explains these
+findings. It receives aggregates only, and any finding id it invents is dropped. Its brief is
+stored as an `ops.analysis` audit row rather than in a new table. `LLM_STEP_MODELS` lets a
+deployment route step groups without an organization config. The agent catalog now groups
+agents into property operations, quality & safety, platform operations, and engineering &
+delivery.
+**Reason:** Trace data is only useful if someone reads it. Leaving detection to the model would
+make recommendations unverifiable, so the model is limited to explaining numbers that code
+produced, the same "code decides, model composes" split as the product agents. Nothing changes
+automatically: a cheaper model or a new rule still has to pass the eval. Writing this also
+exposed a bug in the trace: its cache share divided by uncached input (53 %) instead of all
+input (35 %). Both views now use one `cacheShare` helper.

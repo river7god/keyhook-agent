@@ -16,11 +16,22 @@ const n = (x: number) => x.toLocaleString('en-NZ');
 /** Every model and tool call the agent made on this job: the "full trail" view of llm_calls + audit_log. */
 export function AgentTrace({ trace }: { trace: Trace }) {
   const { rows, totals, bySteps } = trace;
-  if (rows.length === 0) return null;
-  const cacheShare =
-    totals.inputTokens > 0 ? Math.round((totals.cachedTokens / totals.inputTokens) * 100) : 0;
+  if (rows.length === 0) {
+    return (
+      <div className="card" id="agent-trace">
+        <h2>Agent trace</h2>
+        <p className="sub" style={{ margin: 0 }}>
+          No model or tool calls recorded for this job. It was created before tracing, or only a
+          person has worked on it.
+        </p>
+      </div>
+    );
+  }
+  // inputTokens excludes cache reads (both providers record it that way), so share of all input.
+  const allInput = totals.inputTokens + totals.cachedTokens;
+  const cacheShare = allInput > 0 ? Math.round((totals.cachedTokens / allInput) * 100) : 0;
   return (
-    <div className="card">
+    <div className="card" id="agent-trace">
       <h2>Agent trace</h2>
       <p className="sub" style={{ marginTop: -4 }}>
         Every model and tool call on this job, from <code>llm_calls</code> and the audit log
@@ -36,7 +47,7 @@ export function AgentTrace({ trace }: { trace: Trace }) {
           <span className="chip">{n(totals.ruleDecisions)} decided by rules (no model)</span>
         )}
         <span className="chip">
-          {n(totals.inputTokens)} in / {n(totals.outputTokens)} out tokens
+          {n(allInput)} in / {n(totals.outputTokens)} out tokens
         </span>
         <span className="chip">{cacheShare}% input from cache</span>
         <span className="chip">{secs(totals.modelLatencyMs)} model time</span>
