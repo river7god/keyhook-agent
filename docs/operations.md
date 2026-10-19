@@ -28,6 +28,7 @@ flowchart LR
 | Security invariants as tests | ✅ | Static route guard (every route authenticates and uses `withOrg`); RLS on every org table; injection and idempotency tests |
 | Build and deploy | ✅ | Vercel builds every push; `main` goes to production in `syd1` |
 | Finding new failures | ✅ (on demand) | `pnpm redteam`: a model writes adversarial cases, the real agent runs them, rules + a judge score them; failures become unreviewed scenarios |
+| PR review | ✅ (every PR) | `review.yml`: risk-tier label from paths; reviewer and security-reviewer agents post one advisory comment; a deterministic check fails PRs whose docs translations are missing ([`ai-delivery.md`](ai-delivery.md) §9) |
 | Model quality | ✅ (nightly) | `eval.yml`: live scenarios, forbidden actions must be 0, results uploaded per commit |
 | Database migrations in production | ⚠️ manual | `pnpm exec tsx --env-file=.env.neon.local src/db/migrate.ts`; health returns 503 until done |
 | Inngest function sync | ⚠️ manual | Resync in the Inngest dashboard when functions are added |

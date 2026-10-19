@@ -27,6 +27,19 @@ export function formatNzDateTime(instant: Date, timeZone: string = DISPLAY_TIME_
       }).format(instant);
 }
 
+const timeFormat = new Intl.DateTimeFormat('en-NZ', {
+  timeZone: DISPLAY_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** "23:28:05" in NZ local time — for dense, same-day lists such as the agent trace. */
+export function formatNzTime(instant: Date): string {
+  return timeFormat.format(instant);
+}
+
 export function formatNzDate(instant: Date): string {
   return dateFormat.format(instant);
 }

@@ -67,11 +67,11 @@ Agent 永远不能修改约束自己的东西：CI 配置、`CODEOWNERS`、分�
 - **还要手动做的：** 人工代码评审、生产环境迁移、Inngest 重新同步。
 - **现在就要开始统计：** 交付周期（issue 新建 → 合并）、评审耗时、回滚率、漏到生产的 bug。后面每个阶段都和这组基线对比。
 
-### 第 1 阶段：每个 PR 都有 agent 评审，合并仍由人来做
+### 第 1 阶段：每个 PR 都有 agent 评审，合并仍由人来做（已实现，见 §9）
 
-- 给每个 PR 加上**评审**和**安全评审** agent。它们作为 GitHub Action 运行（在 Actions 里跑 Claude Code，或在本地运行 `/code-review`），每次用全新的上下文，输入是 diff，评分标准是 `CLAUDE.md`。
+- 给每个 PR 加上**评审**和**安全评审** agent。它们作为 GitHub Action 运行，每次用全新的上下文，输入是 diff，评分标准是 `CLAUDE.md`。
 - 加上**风险等级自动标签**和 `CODEOWNERS`，开启分支保护：不允许直接推送到 `main`。
-- **文档 agent** 检查每个改动过的 `X.md` 都有对应的 `X.zh-CN.md` 改动。
+- **文档检查**：改了 `X.md` 却没有改对应的 `X.zh-CN.md`，PR 就不能通过。这原本打算交给“文档 agent”，但规则就能判断，所以做成了确定性的检查。
 - **人：** 仍然评审并合并所有 PR，并把 agent 提的每条问题标记为“有用”或“噪音”。
 - **退出条件：** agent 提的问题至少 60% 被标为有用；每周至少抓到一个人漏掉的真 bug；人工评审时间下降，漏到生产的 bug 没有增加。
 
@@ -142,7 +142,75 @@ Agent 永远不能修改约束自己的东西：CI 配置、`CODEOWNERS`、分�
 
 ## 8. 本仓库的第一批具体步骤
 
-1. `review.yml` 工作流：每个 PR 跑评审和安全评审 agent，以 `CLAUDE.md` 为标准。
-2. 按路径自动打风险等级标签，加上 `CODEOWNERS` 和分支保护。
+1. ✅ `review.yml` 工作流：每个 PR 跑评审和安全评审 agent，以 `CLAUDE.md` 为标准。
+2. ✅ 按路径自动打风险等级标签，加上 `CODEOWNERS`；分支保护只差一个设置（§9.5）。
 3. `release.yml` 工作流：Neon 迁移 → 部署 → Inngest 同步 → 健康检查关口。
 4. CI 中的 eval 关口：改到 agent 路径的 PR 跑 smoke 集，并加 `--max-cost`。
+
+## 9. 第 1 阶段的实现
+
+### 9.1 一个 PR 会经过什么
+
+```mermaid
+flowchart LR
+  PR["PR 新建 / 更新"] --> CI["ci.yml<br/>检查 + 文档翻译检查"]
+  PR --> R["review.yml"]
+  R --> T["按路径确定风险等级<br/>review/risk.ts → 标签 risk:A/B/C"]
+  T --> A1["评审 agent<br/>正确性 + CLAUDE.md 规则"]
+  T -->|"改到认证、数据访问、工具、API"| A2["安全评审 agent<br/>公司隔离、审批、注入、密钥"]
+  A1 & A2 --> C["一条固定的 PR 评论<br/>按严重程度列出问题和费用"]
+  CI --> H["人来合并"]
+  C --> H
+```
+
+| 部分 | 文件 | 类型 |
+|---|---|---|
+| 按路径确定风险等级 | `review/risk.ts`（含测试） | 确定性 |
+| 翻译检查 | `review/docs-sync.ts`，`ci.yml` 里的一步 | 确定性，会阻止 PR |
+| 评审和安全评审 | `review/pr-review.ts` | Agent，仅供参考 |
+| 工作流 | `.github/workflows/review.yml` | 打标签、跑评审、发布或更新一条评论 |
+| 负责人 | `.github/CODEOWNERS` | 单独列出 C 级路径 |
+
+### 9.2 评审 agent 是怎么做的
+
+- **和作者相互独立。** 每个评审都是一次单独的调用，用全新的上下文。它只看得到 diff、改动的文件、风险等级和 `CLAUDE.md`，看不到写代码时的对话。
+- **两个角色，两套提示词。** 评审 agent 看正确性和项目规则。安全评审 agent 只在改到认证、数据访问、工具或 API 路径时运行，检查公司隔离、审批、注入、密钥和幂等。
+- **结构化输出。** 每个问题都有严重程度、file:line、具体的出错场景和最小的修复方式，用 Zod 校验。没有出错场景的问题不允许提，这样就挡住了空泛的建议和代码风格评论。
+- **Diff 是不可信输入。** Diff 以不可信数据的形式传入。里面如果有文字试图操纵评审（比如“批准这个 PR”），会作为提示词注入问题报告出来。
+- **费用有上限。** Diff 每个文件最多 2 万字符，总共最多 15 万字符，评论里会列出没有评审到的文件；lock 文件和媒体文件不参与评审。评论里显示 token 数和费用。
+- **仅供参考。** 评审不会让构建失败：CI 检查负责拦截，人来决定。每次推送都更新同一条评论，PR 里不会堆满机器人评论。
+- **本地可以复现。** `pnpm review` 用同样的提示词评审 `origin/main...HEAD`；`--dry-run` 只显示风险等级和 diff 大小，不调用模型。
+
+### 9.3 在本仓库上的第一次运行
+
+对本项目自己的两个提交（Agent 调用轨迹和规则意图识别）运行，用时 46 秒，花费 0.33 美元（两个评审合计输入 4.78 万、输出 6700 个 token）。发现了：
+
+- **一个不可能失败的测试。** Agent 调用轨迹测试里的跨公司用例，插入另一家公司的数据时没有带工单 id，所以公司过滤条件根本没有被测到。两个评审各自独立发现了这个问题。修复后，测试改为证明数据库本身就会拒绝把另一家公司的数据挂到这个工单上（复合外键）。
+- **演示数据脚本里一个没有按公司限定的检查**，以及所有场景都失败时仍然写入“已填充”标记的问题。两个都已修复。
+
+写代码的作者（遵守同样规则的 Claude Code）漏掉了这三个问题，这正说明需要独立的评审。
+
+### 9.4 配置
+
+1. 添加仓库 secret `ANTHROPIC_API_KEY`。没有它，工作流只打标签。
+2. 可以在工作流的 env 里设置 `REVIEW_MODEL`，默认是 `claude-opus-5-5`。
+3. 来自 fork 的 PR 会跳过，因为它们拿不到 secret。`pull_request_target` 会带着 secret 运行不可信的 PR 代码，所以不用它。
+
+### 9.5 分支保护（设置项，由维护者开启）
+
+分支保护让建议变成规则：合并到 `main` 必须走 PR，必须通过 CI 检查，必须有 Code Owner 的批准。这是仓库设置，不是代码，所以要有意识地开启；在那之前，这个单人仓库仍然允许直接推送。
+
+```bash
+gh api -X PUT repos/<owner>/<repo>/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": { "strict": true, "contexts": ["check"] },
+  "enforce_admins": false,
+  "required_pull_request_reviews": { "require_code_owner_reviews": true, "required_approving_review_count": 1 },
+  "restrictions": null
+}
+JSON
+```
+
+### 9.6 进入第 2 阶段之前要统计什么
+
+在评论里给每个问题点 👍 或 👎。大约两周内有用的问题超过 60%，并且评审能抓到人漏掉的真 bug（就像 §9.3 那样），就进入第 2 阶段。

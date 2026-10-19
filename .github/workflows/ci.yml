@@ -37,6 +37,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # Deterministic gate: a changed X.md needs its X.zh-CN.md updated in the same PR.
+      - name: Docs translations in step
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          pnpm -s docs:sync --range "origin/${{ github.base_ref }}..HEAD"
+
       - name: Create test database
         run: psql "$DATABASE_URL" -c 'CREATE DATABASE keyhook_test'
 

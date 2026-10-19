@@ -115,8 +115,6 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
               ))}
             </ol>
           </div>
-
-          <AgentTrace trace={trace} />
         </section>
 
         <aside>
@@ -188,6 +186,8 @@ export default async function JobPage({ params }: { params: Promise<{ jobId: str
           </div>
         </aside>
       </div>
+
+      <AgentTrace trace={trace} />
     </main>
   );
 }

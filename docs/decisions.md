@@ -458,6 +458,12 @@ model as before.
 **Reason:** These are the most frequent replies and carry no ambiguity, so a model call there
 costs money and seconds and adds a chance of error. The rules match the whole message only, so a
 miss costs one model call and never a wrong booking.
+**Measured (Kimi K2.6, 6 scenarios with slot or confirmation replies, vs the 9f0339e baseline):**
+6/6 passed (baseline 5/6), 0 forbidden actions. The rule replaced the `interpret.slot` call each
+time it fired (Kimi interpret p50 is 14 s). Total calls were 59 in both runs, though: Kimi's tool
+and compose turns vary by ±1–2 per scenario, which hides one saved call at this sample size. The
+saving is per hit and deterministic, and it shows in the job trace; it does not show in small-run
+averages.
 
 ### 2026-10-19 — Provider failover with a circuit breaker; per-step timeouts
 **Decision:** Routing gains an optional `fallback` model (`LLM_FALLBACK_MODEL`). On a provider
@@ -470,3 +476,15 @@ Kimi tails (compose 150 s, triage 120 s, interpret 90 s, route 60 s) with one SD
 and then escalated. Now jobs keep moving on the other provider, and the breaker avoids paying the
 timeout again on each call. The breaker is per process. On Vercel each instance learns on its
 own; a shared store (Redis/Postgres) is the production step and is in the roadmap.
+
+### 2026-10-19 — PR review by independent agents, risk tiers from paths
+**Decision:** Every PR gets a deterministic risk-tier label (`review/risk.ts`), an advisory
+review from two separate agent runs (reviewer, and a security reviewer when sensitive paths
+change) posted as one comment, and a deterministic CI check for docs translations. The review is
+our own small script on the Anthropic SDK (already a dependency), not a third-party action:
+prompts, schema, size caps and cost are in the repo and run the same locally (`pnpm review`).
+Fork PRs are skipped instead of using `pull_request_target`.
+**Reason:** Stage 1 of `docs/ai-delivery.md`. The author must not approve its own work, and a
+fresh-context reviewer catches what the author missed (its first run found a test that could
+never fail). Keeping it advisory means a noisy reviewer cannot block delivery while its
+precision is measured. Anything a rule can decide (tier, translations) is code, not an agent.

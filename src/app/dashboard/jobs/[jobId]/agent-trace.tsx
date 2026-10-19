@@ -1,10 +1,16 @@
 import type { getJobTrace } from '@/domain/agent-trace';
-import { formatNzDateTime } from '@/lib/time';
+import { formatNzDate, formatNzTime } from '@/lib/time';
 
 type Trace = Awaited<ReturnType<typeof getJobTrace>>;
 
 const usd = (micros: number) => `US$${(micros / 1e6).toFixed(4)}`;
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+const NOWRAP = { whiteSpace: 'nowrap' } as const;
+const NUM = {
+  textAlign: 'right',
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+} as const;
 const n = (x: number) => x.toLocaleString('en-NZ');
 
 /** Every model and tool call the agent made on this job: the "full trail" view of llm_calls + audit_log. */
@@ -16,6 +22,10 @@ export function AgentTrace({ trace }: { trace: Trace }) {
   return (
     <div className="card">
       <h2>Agent trace</h2>
+      <p className="sub" style={{ marginTop: -4 }}>
+        Every model and tool call on this job, from <code>llm_calls</code> and the audit log
+        {rows[0] ? ` · ${formatNzDate(rows[0].at)}` : ''}
+      </p>
       <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
         <span className="chip">
           {n(totals.modelCalls)} model calls
@@ -31,8 +41,9 @@ export function AgentTrace({ trace }: { trace: Trace }) {
         <span className="chip">{cacheShare}% input from cache</span>
         <span className="chip">{secs(totals.modelLatencyMs)} model time</span>
         <span className="chip">
-          {usd(totals.costUsdMicros)}
-          {totals.unpricedCalls > 0 && ` + ${n(totals.unpricedCalls)} unpriced`}
+          {totals.unpricedCalls === totals.modelCalls
+            ? 'cost not priced for this model'
+            : `${usd(totals.costUsdMicros)}${totals.unpricedCalls > 0 ? ` + ${n(totals.unpricedCalls)} unpriced` : ''}`}
         </span>
       </div>
       {bySteps.length > 1 && (
@@ -60,11 +71,13 @@ export function AgentTrace({ trace }: { trace: Trace }) {
             {rows.map((r, i) =>
               r.kind === 'model' ? (
                 <tr key={i}>
-                  <td className="sub">{formatNzDateTime(r.at)}</td>
+                  <td className="sub" style={NOWRAP}>
+                    {formatNzTime(r.at)}
+                  </td>
                   <td>
                     <span className="chip">model</span> {r.step}
                   </td>
-                  <td>
+                  <td style={NOWRAP}>
                     {r.model}
                     {r.outcome === 'error' ? (
                       <div className="error">{r.note}</div>
@@ -72,19 +85,17 @@ export function AgentTrace({ trace }: { trace: Trace }) {
                       r.note && <div className="sub">{r.note}</div>
                     )}
                   </td>
-                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={NUM}>
                     {n(r.inputTokens)} · {n(r.outputTokens)} · {n(r.cachedTokens)}
                   </td>
-                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {secs(r.latencyMs)}
-                  </td>
-                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {r.costUsdMicros === null ? '—' : usd(r.costUsdMicros)}
-                  </td>
+                  <td style={NUM}>{secs(r.latencyMs)}</td>
+                  <td style={NUM}>{r.costUsdMicros === null ? '—' : usd(r.costUsdMicros)}</td>
                 </tr>
               ) : (
                 <tr key={i}>
-                  <td className="sub">{formatNzDateTime(r.at)}</td>
+                  <td className="sub" style={NOWRAP}>
+                    {formatNzTime(r.at)}
+                  </td>
                   <td>
                     <span className="chip">{r.kind}</span> {r.name}
                   </td>

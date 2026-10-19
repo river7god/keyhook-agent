@@ -14,10 +14,14 @@
   <img src="https://img.shields.io/badge/Next.js-16-000000" alt="Next.js 16">
   <img src="https://img.shields.io/badge/Postgres-17%20%2B%20RLS-336791" alt="Postgres 17 with RLS">
   <img src="https://img.shields.io/badge/evals-83%20scenarios-232a59" alt="83 eval scenarios">
+  <img src="https://img.shields.io/badge/tests-360%2B-2ea44f" alt="360+ tests">
+  <img src="https://img.shields.io/badge/PR%20review-AI%20agents-8250df" alt="AI PR review">
 </p>
 
 <p align="center">
   <a href="https://keyhook-agent.vercel.app"><b>在线演示</b></a>（登录方式可索取）·
+  <a href="#agent-工程化生产级-agent-怎么做">Agent 工程化</a> ·
+  <a href="#devops-与自动化">DevOps 与 AI 交付</a> ·
   <a href="docs/agent-design.zh-CN.md">Agent 设计</a> ·
   <a href="docs/architecture.zh-CN.md">架构</a> ·
   <a href="docs/operations.zh-CN.md">运维</a> ·
@@ -122,6 +126,51 @@ agent 可以接受 7 天内的还款承诺，或 8 周内还清的还款计划�
 | **物业公司之间看不到彼此的数据** | 每行都有 `organization_id`、复合外键、Postgres 行级安全（默认拒绝） |
 | **新西兰隐私** | 海外模型服务商需要明确同意（Privacy Act IPP 12）；错误上报会脱敏 |
 
+## Agent 工程化：生产级 agent 怎么做
+
+生产级 agent 难的不是提示词，而是模型之外的部分：模型可以做哪些决定、花多少钱、出错或服务商故障时怎么办、怎么证明它做了什么。下面是这个项目的做法。
+
+### 意图识别漏斗：规则 → 状态 → 模型
+
+```mermaid
+flowchart TB
+  M["收到的消息<br/>（租客 · 师傅 · PM）"] --> L1{"<b>第 1 层 · 规则</b><br/>整条消息是不是固定回复？<br/>'2' · 'option 2 please' · 'yep, all fixed' · '第二个'"}
+  L1 -->|"是：不调用模型"| D["<b>代码决定</b><br/>允许的状态转换 · 通过 executeTool 调用工具"]
+  L1 -->|"否"| L2{"<b>第 2 层 · 状态</b><br/>工单当前状态限定了回复可能的含义"}
+  L2 -->|"SCHEDULING → 选哪个时间？<br/>AWAITING_CONFIRMATION → 修好了没有？"| L3["<b>第 3 层 · 模型，只做窄任务</b><br/>按这个状态的 Zod schema 提取<br/>（不可信文本被包裹；注入 → 升级）"]
+  L2 -->|"有未结欠租案件，且消息没关联工单"| R["收件箱路由<br/>欠租还是维修？"] --> L3
+  L3 --> D
+  D --> C["模型用租客的语言<br/>撰写回复"]
+```
+
+- **第 1 层，规则。** 最常见的回复根本不进模型。规则只在整条消息都匹配时才生效。像“Option 2, the cat is inside”或“yes but it still drips”这样的回复会交给模型，所以没匹配上只是多一次调用，不会订错时间。
+- **第 2 层，状态。** 没有开放式的“用户想干什么”分类器。状态机已经知道对话在讲什么，所以每一步只问模型一个很窄的问题。
+- **第 3 层，模型。** 模型把事实提取进 schema，由代码做决定。模型永远不选下一个状态、金额或收件人。
+
+### 生产级关注点，都有代码对应
+
+| 关注点 | 做法 | |
+|---|---|---|
+| **任务规划** | 状态机就是计划：每个状态是一个有处理函数的子任务，模型只在一步之内做决定。需要多个工种的报修会升级给 PM 拆分 | ✅ |
+| **工具设计** | 输入用 Zod 校验；权限分 `read` / `auto` / `approval`；有幂等键；每次调用写审计记录；每步最多 8 轮工具调用；同一工单同一时间只运行一个 | ✅ |
+| **参数边界** | 金额是整数分，并按策略上限检查；时间段 id 必须是提供过的选项；师傅 id 必须来自 `search_tradies` | ✅ |
+| **记忆** | 每一步都从 Postgres 重建上下文（工单、房屋、租客、最近 12 条消息、房屋历史）。长期记忆就是数据库加上 PM 的纠正，这里不需要向量库 | ◐ 下一步做长对话摘要 |
+| **幻觉** | 模型提取，代码决定；结构化输出做 schema 校验；金额由代码解析；输出不可用就升级 | ✅ |
+| **超时** | 按步骤设置的超时来自实测延迟（route 60 秒……compose 150 秒，而不是 SDK 默认的 10 分钟）；SDK 重试一次，之后由 Inngest 持久化重试 | ✅ |
+| **服务商故障** | 备用模型加每个模型一个熔断器：60 秒内失败 3 次 → 跳过 60 秒。模型拒答或答案不可用不切换 | ✅ 单实例内；共享存储在路线图里 |
+| **限流和费用** | 每家物业公司有每日 LLM 预算和消息频率限制；访客登录也限流 | ◐ 下一步做按服务商的令牌桶 |
+| **全量留痕** | 每个工单都有 `llm_calls` 和 `audit_log`，在下面的 Agent 调用轨迹里展示；OpenTelemetry span 发到 Langfuse | ✅ |
+| **成本** | 先用规则再用模型；提示词缓存；按步骤路由（写消息用便宜模型，分诊和看图用强模型）；每一步单独设置 effort | ✅ |
+| **质量** | 83 个 eval 场景、红队 agent、PM 的纠正自动变成场景 | ✅ |
+
+<p align="center">
+  <img src="docs/media/agent-trace.png" alt="Agent 调用轨迹：每次模型调用的步骤、模型、输入/输出/缓存 token、耗时和费用，与工具调用按时间穿插" width="820">
+  <br><sub>工单页上的 <b>Agent 调用轨迹</b>：按顺序列出每次模型调用（步骤、模型、输入 · 输出 · 缓存 token、耗时、费用）和每次工具调用，附汇总和最慢的步骤。这是一个用 Kimi K2.6 实际跑过的工单，53% 的输入 token 来自提示词缓存。</sub>
+</p>
+
+为什么不用 LangGraph 或 DeerFlow：在这里，持久化、人工审批和步骤顺序都是需要测试的业务规则，所以放在代码里的状态机加 Inngest 中。
+理由和完整的检查清单（§14）见 [`docs/agent-design.zh-CN.md`](docs/agent-design.zh-CN.md)。
+
 ## 架构
 
 ```mermaid
@@ -172,17 +221,70 @@ flowchart LR
 
 | 工程 | |
 |---|---|
-| 自动化测试 | **290+**，包括 RLS 隔离、并发、幂等、提示词注入，以及在假 HTTP 层上运行的真实 Anthropic SDK |
+| 自动化测试 | **360+**，包括 RLS 隔离、并发、幂等、提示词注入，以及在假 HTTP 层上运行的真实 Anthropic SDK |
 | Eval 场景 | **83** 个：紧急情况、含糊或愤怒的租客、租客造成的损坏、超预算、不回复的供应商、注入、非英语、报价变更、发票、巡检、欠租（承诺、计划、困难、争议、通知、分流） |
 
 ## DevOps 与自动化
 
-- **每次 push 都跑 CI**：格式、类型检查、严格 lint、连真实 Postgres 的 290 多个测试、迁移漂移检查、构建。**每晚跑实测 eval**，结果按提交保存。
-- **系统自己持续运转**：持久化工作流、跟进扫描、数据保留和监控定时任务；失败会升级而不是悄悄失败；记录每次调用的成本并有预算上限。
-- **可观测性**：Langfuse 中的 GenAI 追踪、Sentry 中的错误、后台里的业务审计，以及在迁移未执行时返回失败的健康检查。
-- **有规则约束的 AI 辅助开发**：用 Claude Code 开发，受 [`CLAUDE.zh-CN.md`](CLAUDE.zh-CN.md) 约束；"完成"意味着 `pnpm check` 全绿，改 agent 还要跑 eval。
+Claude Code 写代码；没有写这段代码的其他 agent 负责评审和攻击它；确定性的检查把关合并；最后由人决定。
 
-下一步：生产迁移自动化、eval 作为 PR 关口、依赖扫描、告警、Terraform。见 [`docs/operations.zh-CN.md`](docs/operations.zh-CN.md)。
+```mermaid
+flowchart LR
+  DEV["Claude Code<br/>遵守 CLAUDE.md 规则"] --> PR["Pull request"]
+  PR --> CI["<b>CI（会拦截）</b><br/>格式 · 类型 · 严格 lint<br/>连 Postgres 的 360+ 测试 · RLS<br/>迁移漂移 · 文档翻译 · 构建"]
+  PR --> TIER["<b>按路径确定风险等级</b><br/>标签 risk:A / B / C"]
+  TIER --> REV["评审 agent<br/>正确性 · CLAUDE.md 规则"]
+  TIER -->|"认证 · 数据 · 工具 · API"| SEC["安全评审 agent<br/>公司隔离 · 审批 · 注入"]
+  REV & SEC --> CMT["<b>一条仅供参考的评论</b><br/>问题 · 出错场景 · 费用"]
+  CI & CMT --> H["人来合并<br/>C 级由 CODEOWNERS 把关"]
+  H --> PROD["Vercel syd1<br/>健康检查关口"]
+  N["每晚"] --> EV["实测 eval<br/>禁止动作 = 0"]
+  Q["按需"] --> RT["红队 agent<br/>编写并评判攻击"]
+```
+
+| 交付流程里的 agent | 职责 | 是否独立于作者 |
+|---|---|---|
+| **编码**：Claude Code | 在 [`CLAUDE.zh-CN.md`](CLAUDE.zh-CN.md) 的约束下写代码、测试、文档和决策记录 | — |
+| **评审**（`review.yml`） | 每个 PR 检查正确性和项目规则；每个问题都必须给出具体的出错场景 | 全新上下文，只看 diff |
+| **安全评审** | 公司隔离、认证、审批级工具、提示词注入、密钥。只在改到这些路径时运行 | 单独运行，单独的提示词 |
+| **QA 红队**（`pnpm redteam`） | 编写对抗对话，让真实 agent 运行，再由另一个评审模型打分 | 生成者 ≠ 评审者 |
+| **Eval 运行器**（`eval.yml`） | 每晚跑 83 个实测场景，结果按提交保存 | 确定性评分 + 规则 |
+
+**按路径分风险等级。** A：文档和测试。B：应用代码，一个人批准。C：迁移、RLS、认证、工具、状态机、提示词、金额、CI，两个人批准。
+agent 永远不能修改约束自己的东西（CI、`CODEOWNERS`、`CLAUDE.md` 都属于 C 级）。
+
+评审 agent 第一次运行，评审本项目自己的两个提交（46 秒，0.33 美元）：
+
+```text
+## AI review: risk tier C
+### Reviewer
+| medium | evals/demo-data.ts:152 | ensureRentData writes directly to tables outside src/domain,
+|        |                        | without org scoping or audit rows |
+| low    | evals/demo-data.ts:232 | The 'demo.populated' marker is written even when scenarios failed |
+| low    | src/domain/agent-trace.db.test.ts:52 | The cross-org isolation test row has jobId null,
+|        |                        | so it never exercises the organisation filter |
+### Security reviewer
+| low    | src/domain/agent-trace.db.test.ts:48 | The cross-org isolation case in the test cannot fail ... |
+```
+
+这些都是作者漏掉的。两个评审各自独立发现了那个不可能失败的测试；现在它改为证明数据库本身会拒绝把另一家公司的数据挂到这个工单上。
+账本检查已经按公司限定，“已填充”标记也只在运行真正做了事情之后才写入。这个脚本仍然直接写入演示数据，对一个造数据的工具来说是合理的。
+
+**分阶段把工作交给 agent**，适用于五人左右的团队（[`docs/ai-delivery.zh-CN.md`](docs/ai-delivery.zh-CN.md)）：
+
+| 阶段 | agent 接管 | 人保留 | 状态 |
+|---|---|---|---|
+| 0 | 在规则约束下用 Claude Code 写代码；CI；每晚 eval | 评审、合并、发布 | ✅ |
+| 1 | 每个 PR 有 AI 评审和安全评审；风险等级标签；翻译检查 | 合并；给每个问题打分 | ✅ 已实现 |
+| 2 | 独立的测试编写 agent；变异测试；eval 作为 PR 关口 | 合并 | ◐ eval 每晚跑，还不是关口 |
+| 3 | 规划 agent 把需求整理成 issue；编码 agent 在沙箱里开草稿 PR | **批准计划**和结果 | 计划中 |
+| 4 | 发布 agent：迁移 → 部署 → Inngest 同步 → 健康检查 → 回滚；A 级自动合并 | C 级改动、迁移 | 计划中 |
+| 5 | 告警或 Sentry → 分诊 agent 用失败测试复现 → 修复 PR；PM 的纠正 → eval | 值班批准、事故处理 | 计划中 |
+
+每个阶段都要数据达标才往下走：评审准确率超过 60%，回滚率不高于人写的 PR，`main` 上的 eval 不退化。
+
+运行中的系统也能自己维持：持久化工作流可以等几天，没人回复会去催；失败会升级给 PM，而不是悄悄失败；每次调用都计费，并有每日预算。
+GenAI 追踪进 Langfuse，错误进 Sentry；迁移没执行完时，健康检查会返回失败（[`docs/operations.zh-CN.md`](docs/operations.zh-CN.md)）。
 
 ## 扩展路线
 
