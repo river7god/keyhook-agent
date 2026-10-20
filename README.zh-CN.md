@@ -20,6 +20,7 @@
 
 <p align="center">
   <a href="https://keyhook-agent.vercel.app"><b>在线演示</b></a>（登录方式可索取）·
+  <a href="https://www.youtube.com/watch?v=IPhBs-RCQtk"><b>讲解视频</b></a> ·
   <a href="#agent-工程化生产级-agent-怎么做">Agent 工程化</a> ·
   <a href="#devops-与自动化">DevOps 与 AI 交付</a> ·
   <a href="#安全与-ai-安全">安全与 AI 安全</a> ·
@@ -34,6 +35,11 @@
 <p align="center">
   <img src="docs/media/demo-flow.gif" alt="租客报告没有热水；agent 分诊、联系供应商、拿到报价、提交审批并预约上门" width="900">
   <br><sub>真实运行录屏（本地，Kimi K2.6，已加速）：租客报修 → 分诊 → 供应商报价 → PM 审批 → 预约上门。</sub>
+</p>
+
+<p align="center" id="video-walkthrough">
+  <a href="https://www.youtube.com/watch?v=IPhBs-RCQtk"><img src="https://img.youtube.com/vi/IPhBs-RCQtk/maxresdefault.jpg" alt="Keyhook-agent 项目讲解视频（YouTube）" width="720"></a>
+  <br><sub>▶ <b><a href="https://www.youtube.com/watch?v=IPhBs-RCQtk">观看项目讲解视频</a></b>（YouTube）</sub>
 </p>
 
 > 这是为应聘 Keyhook **AI Product Engineer** 岗位做的作品项目。它是独立项目，与 Keyhook 没有隶属关系，也未经 Keyhook 认可。

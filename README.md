@@ -19,6 +19,7 @@ English | [简体中文](README.zh-CN.md)
 
 <p align="center">
   <a href="https://keyhook-agent.vercel.app"><b>Live demo</b></a> (login on request) ·
+  <a href="https://www.youtube.com/watch?v=IPhBs-RCQtk"><b>Video walkthrough</b></a> ·
   <a href="#engineering-a-production-agent">Agent engineering</a> ·
   <a href="#devops-and-automation">DevOps & AI delivery</a> ·
   <a href="#security-and-ai-safety">Security & AI safety</a> ·
@@ -33,6 +34,11 @@ English | [简体中文](README.zh-CN.md)
 <p align="center">
   <img src="docs/media/demo-flow.gif" alt="A tenant reports no hot water; the agent triages, briefs a supplier, gets a quote, sends it for approval and books the visit" width="900">
   <br><sub>A real run (local, Kimi K2.6, sped up): tenant report → triage → supplier quote → PM approval → visit booked.</sub>
+</p>
+
+<p align="center" id="video-walkthrough">
+  <a href="https://www.youtube.com/watch?v=IPhBs-RCQtk"><img src="https://img.youtube.com/vi/IPhBs-RCQtk/maxresdefault.jpg" alt="Keyhook-agent video walkthrough on YouTube" width="720"></a>
+  <br><sub>▶ <b><a href="https://www.youtube.com/watch?v=IPhBs-RCQtk">Watch the video walkthrough</a></b> (YouTube)</sub>
 </p>
 
 > Built as a portfolio project for the **AI Product Engineer** role at Keyhook. It is an independent
