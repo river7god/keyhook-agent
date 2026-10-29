@@ -50,7 +50,7 @@
 
 ### K1 Agent vs Workflow
 - **是什么**：Workflow = 代码定好步骤，模型只做某一步；Agent = 模型自己决定下一步做什么、调什么工具。
-- **怎么做**：Keyhook 是**"workflow 外壳 + 每一步里有界的 agent"**。流程由状态机定；每个状态里，模型在一个最多 6 步的工具循环里决定怎么回复、调哪个工具。
+- **怎么做**：Keyhook 是**"workflow 外壳 + 每一步里有界的 agent"**。流程由状态机定；每个状态里，模型在一个最多 8 轮的工具循环里决定怎么回复、调哪个工具（`MAX_TOOL_TURNS = 8`）。
 - **为什么**：业务流程固定且涉及钱和安全，不能让模型规划流程；但每一步的理解和沟通需要模型的灵活性。
 - **一句话**："流程固定的地方用 workflow，需要理解和判断的地方用 agent——Keyhook 是两者结合，AI 负责理解和写，代码负责决定。"
 
@@ -62,7 +62,7 @@
 
 ### K3 Agent 循环 / 最大步数
 - **是什么**：模型 → 调工具 → 拿结果 → 再调模型……直到模型给出最终回答。
-- **怎么做**：`src/agent/advance.ts` 的 `advanceJob`，`MAX_STEPS = 6`；`pickHandler` 按当前状态选处理器（`src/agent/handlers/`：triage、quote、scheduling、visit、follow-up、media、general）。超过步数 → 升级给人。
+- **怎么做**：`src/agent/advance.ts` 的 `advanceJob`，`MAX_STEPS = 6`（一次推进最多走 6 个状态步骤）；每步工具调用最多 8 轮（`MAX_TOOL_TURNS`，如 `handlers/quote.ts`）；`pickHandler` 按当前状态选处理器（`src/agent/handlers/`：triage、quote、scheduling、visit、follow-up、media、general）。超过步数 → 升级给人。
 - **为什么**：防止无限循环烧钱；每个状态的 prompt 和可用工具不同，更准。
 - **一句话**："循环有上限，按状态分处理器，模型每次只看到当前这一步需要的东西。"
 
@@ -177,8 +177,8 @@
 ### K22 评测三层 / 假模型 / 红队
 - **是什么**：AI 输出不确定，不能像普通代码那样写固定断言，要分层测。
 - **怎么做**：
-  1. **代码测试**：假模型 `src/test/fake-llm.ts` 按剧本回答，测状态机、金额、幂等、隔离；290+ 个测试，每次提交跑。
-  2. **场景评测**：`evals/scenarios/` 84 个 YAML（如 `emergency-gas-smell.yaml`），真模型跑完整流程，查紧急程度、工种、该不该升级（召回率/精确率），**禁止动作必须为 0**。`pnpm eval`；冒烟集 17 个（`pnpm eval:smoke`）；每晚 03:00（NZ）全量。
+  1. **代码测试**：假模型 `src/test/fake-llm.ts` 按剧本回答，测状态机、金额、幂等、隔离；360+ 个测试，每次提交跑。
+  2. **场景评测**：`evals/scenarios/` 83 个场景（如 `emergency-gas-smell.yaml`），真模型跑完整流程，查紧急程度、工种、该不该升级（召回率/精确率），**禁止动作必须为 0**。`pnpm eval`；冒烟集 17 个（`pnpm eval:smoke`）；每晚 03:00（NZ）全量。
   3. **发现没想到的**：`pnpm redteam`（AI 扮演坏租客，另一个 AI 打分；真实抓到过"谎称已安排 tradie"）+ 经理在后台标记错误 → `pnpm eval:harvest` 生成草稿场景，**人工审核**后加入第 2 层。
 - **为什么**：每一层测不同的东西；错误只犯一次。
 - **一句话**："假模型测代码，真模型测判断，红队和线上纠错找盲区，新问题审核后永久加入题库。"（口诀"假真红"）

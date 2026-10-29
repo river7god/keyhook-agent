@@ -32,11 +32,11 @@ low confidence go to the manager.
 Access      Next.js: manager dashboard + message simulator + API
 Workflow    Inngest: event wake-ups, 3 retries, one run per job, timed follow-ups
             State machine: allowed next states (source of truth)
-AI          advanceJob: handler per state, tool loop of at most 6 steps
+AI          advanceJob: handler per state, up to 6 steps per run, 8 tool turns per step
             Claude / DeepSeek / Kimi with failover + circuit breaker
 Tools       executeTool: validate → permission → idempotency → audit
 Domain+DB   Postgres + Drizzle, RLS per organization, money in integer cents
-Quality     Fake-LLM tests · 84 eval scenarios · red team · CI + AI code review · Langfuse/Sentry
+Quality     Fake-LLM tests · 83 eval scenarios · red team · CI + AI code review · Langfuse/Sentry
 ```
 
 **Core principle**: the AI understands and writes; code decides.

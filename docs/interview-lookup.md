@@ -53,7 +53,7 @@ English | [简体中文](interview-lookup.zh-CN.md)
 
 ### K1 Agent vs workflow
 - **What**: a workflow has its steps fixed in code and the model does one step; an agent lets the model decide what to do next and which tools to call.
-- **How**: Keyhook is **a workflow shell with a bounded agent inside each step**. The state machine fixes the flow; within each state the model runs a tool loop of at most 6 steps to decide how to reply and which tool to call.
+- **How**: Keyhook is **a workflow shell with a bounded agent inside each step**. The state machine fixes the flow; within each state the model runs a tool loop of at most 8 turns (`MAX_TOOL_TURNS = 8`) to decide how to reply and which tool to call.
 - **Why**: the process is fixed and involves money and safety, so the model must not plan it; understanding and talking to people still needs the model's flexibility.
 - **One-liner**: "Workflow where the process is fixed, agent where judgement is needed. In Keyhook the AI understands and writes; code decides."
 
@@ -65,7 +65,7 @@ English | [简体中文](interview-lookup.zh-CN.md)
 
 ### K3 Agent loop / max steps
 - **What**: model → tool call → result → model again … until the model gives a final answer.
-- **How**: `advanceJob` in `src/agent/advance.ts`, `MAX_STEPS = 6`; `pickHandler` chooses a handler for the current state (`src/agent/handlers/`: triage, quote, scheduling, visit, follow-up, media, general). Out of steps → escalate to a human.
+- **How**: `advanceJob` in `src/agent/advance.ts`, `MAX_STEPS = 6` (at most 6 state steps per run); at most 8 tool turns per step (`MAX_TOOL_TURNS`, e.g. `handlers/quote.ts`); `pickHandler` chooses a handler for the current state (`src/agent/handlers/`: triage, quote, scheduling, visit, follow-up, media, general). Out of steps → escalate to a human.
 - **Why**: no runaway loops burning money; each state has its own prompt and tools, which is more accurate.
 - **One-liner**: "The loop is capped and split by state, so the model only sees what the current step needs."
 
@@ -180,8 +180,8 @@ English | [简体中文](interview-lookup.zh-CN.md)
 ### K22 Three eval layers / fake LLM / red team
 - **What**: AI output is non-deterministic, so fixed assertions don't work; test in layers.
 - **How**:
-  1. **Code tests**: a scripted fake model `src/test/fake-llm.ts` tests the state machine, money, idempotency and isolation; 290+ tests on every commit.
-  2. **Scenario evals**: 84 YAML files in `evals/scenarios/` (e.g. `emergency-gas-smell.yaml`) run end to end on the real model, checking urgency, trade, and escalation recall/precision; **forbidden actions must be 0**. `pnpm eval`; smoke set of 17 (`pnpm eval:smoke`); full run nightly at 03:00 NZ.
+  1. **Code tests**: a scripted fake model `src/test/fake-llm.ts` tests the state machine, money, idempotency and isolation; 360+ tests on every commit.
+  2. **Scenario evals**: 83 scenarios in `evals/scenarios/` (e.g. `emergency-gas-smell.yaml`) run end to end on the real model, checking urgency, trade, and escalation recall/precision; **forbidden actions must be 0**. `pnpm eval`; smoke set of 17 (`pnpm eval:smoke`); full run nightly at 03:00 NZ.
   3. **Finding what you didn't think of**: `pnpm redteam` (one AI plays a bad tenant, another scores; it really caught the agent falsely claiming a tradie was booked) + mistakes managers flag on the dashboard → `pnpm eval:harvest` drafts scenarios, **a human reviews them**, then they join layer 2.
 - **Why**: each layer tests something different; each mistake happens only once.
 - **One-liner**: "Fake model tests code, real model tests judgement, red team and production corrections find blind spots, and reviewed cases join the set for good." (Fake·Real·Red)

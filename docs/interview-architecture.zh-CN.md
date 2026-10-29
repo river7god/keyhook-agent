@@ -31,11 +31,11 @@
 接入层     Next.js：经理后台 + 消息模拟器 + API
 流程层     Inngest：事件唤醒、重试 3 次、每个工单同时只跑一个、定时跟进
            状态机：决定下一步能去哪（真相来源）
-AI 层      advanceJob：按状态选处理器，最多 6 步工具循环
+AI 层      advanceJob：按状态选处理器，每次最多 6 个步骤，每步最多 8 轮工具调用
            Claude / DeepSeek / Kimi，失败自动切换 + 熔断
 工具层     executeTool：校验 → 权限 → 幂等 → 审计
 领域+数据  Postgres + Drizzle，RLS 按公司隔离，金额用整数分
-质量保障   假模型测试 · 84 个评测场景 · 红队 · CI + AI 代码审查 · Langfuse/Sentry
+质量保障   假模型测试 · 83 个评测场景 · 红队 · CI + AI 代码审查 · Langfuse/Sentry
 ```
 
 **核心原则**：AI 负责理解和写，代码负责决定。
