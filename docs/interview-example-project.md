@@ -7,6 +7,20 @@
 
 ---
 
+## 0. 一分钟总结 · One-minute summary
+
+| | 中文 | English |
+|---|---|---|
+| **做什么 · What** | 电商 AI 客服：答产品问题、查订单、办退换货，70% 自动闭环，难的转人工，大额退款等主管批 | AI support for an online store: product questions, order tracking, returns; 70% resolved automatically, hard cases go to staff, large refunds wait for a supervisor |
+| **架构 · Architecture** | 渠道 → LangGraph 多 Agent 对话 → Temporal 长流程 → MCP 工具网关 + RAG 知识 + 记忆 → LLM 网关 | Channels → LangGraph multi-agent chat → Temporal long-running flows → MCP tool gateway + RAG knowledge + memory → LLM gateway |
+| **技术 · Tech** | LangGraph、Temporal、MCP、RAG（pgvector + 重排序）、长期记忆、LLM 网关（路由/缓存/降级）、结构化输出、微调、护栏、Agent SDK + Skills、Computer Use、A2A、追踪与评测 | LangGraph, Temporal, MCP, RAG (pgvector + reranking), long-term memory, LLM gateway (routing/caching/failover), structured output, fine-tuning, guardrails, Agent SDK + Skills, Computer Use, A2A, tracing and evals |
+| **亮点 · Highlights** | 对话用图（灵活），流程用 Temporal（可靠）；有副作用的操作都经网关，带权限、幂等、审计；人在回路可暂停再续 | Graphs for chat (flexible), Temporal for processes (reliable); every side effect goes through a gateway with permissions, idempotency and audit; human-in-the-loop pauses and resumes |
+
+🇨🇳 **30 秒讲法**：ShopAssist 是电商 AI 客服。LangGraph 管对话，路由给售前、订单、售后三个专家 Agent；退货这种要等几天的事交给 Temporal；查订单、退款走 MCP 工具网关，带权限和幂等；政策靠 RAG 查；大额退款暂停等主管批。
+🇬🇧 **30-second version**: ShopAssist is AI support for an online store. LangGraph runs the conversation and routes to pre-sales, orders and after-sales agents; work that waits days, like returns, goes to Temporal; orders and refunds go through an MCP tool gateway with permissions and idempotency; policies come from RAG; large refunds pause for a supervisor.
+
+---
+
 ## 1. 项目是什么 · What the project is
 
 🇨🇳 **ShopAssist**：一家卖电子产品的电商公司的 AI 客服。每天 5 万条咨询、2000 件商品、几百页政策和说明书；目标是 70% 由 AI 闭环解决。
