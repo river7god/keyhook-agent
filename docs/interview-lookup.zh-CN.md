@@ -5,7 +5,7 @@
 > **用法**：不用背。面试时被问到某个词，**Ctrl+F 搜关键词或编号**（如 `K7`、`幂等`、`RAG`），找到那一条直接照着说。
 >
 > - **A 部分（K 编号）**：Keyhook-agent 里**真实用到**的知识点，每条都有代码位置和数字。
-> - **B 部分（S 编号）**：示例项目 ShopAssist（[示例项目文档](interview-example-project.zh-CN.md)）用到、Keyhook **没用**的知识点。
+> - **B 部分（S 编号）**：示例项目 ShopAssist（[示例项目文档](interview-example-project.md)）用到、Keyhook **没用**的知识点。
 > - **C 部分**："为什么 Keyhook 不用 X"的对照表。
 > - **D 部分**：系统设计题 8 步模板。
 >
@@ -212,7 +212,7 @@
 
 # B 部分：示例项目 ShopAssist 用到的知识点
 
-> ShopAssist 是虚构的电商客服平台，用来覆盖 Keyhook 没用到的技术。详见 [示例项目文档](interview-example-project.zh-CN.md)。
+> ShopAssist 是虚构的电商客服平台，用来覆盖 Keyhook 没用到的技术。详见 [示例项目文档](interview-example-project.md)。
 
 ### S1 LLM 网关 / 模型路由
 - **是什么**：所有模型调用的统一入口，负责路由、降级、预算、缓存。
