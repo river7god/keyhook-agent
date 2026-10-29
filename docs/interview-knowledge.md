@@ -5,6 +5,7 @@ English | [简体中文](interview-knowledge.zh-CN.md)
 > Companions: [Quickstart](interview-quickstart.md) · [Full guide](interview-guide.md).
 > This project deliberately does **not** use LangGraph, a vector database or RAG. In an interview,
 > explaining "what it is + why not here + when I would use it" is a strength, not a gap.
+> Short on time? Start with section 19, "One table for all the concepts".
 
 Format for every topic:
 **What** → **How it works** → **One-line answer** → **Link to this project** → **Likely follow-ups**
@@ -134,6 +135,39 @@ updatable, and supports permission filtering.
 **Likely follow-ups**:
 - *"Nothing relevant retrieved?"* → similarity threshold; below it, say "don't know" or escalate.
 - *"Multi-tenant RAG without leaks?"* → filter by organization_id (metadata filter), or pgvector + RLS.
+
+### 3.1 "People are moving away from RAG" — true? (a common discussion question)
+
+**Short answer: RAG isn't dead; *naive* RAG is no longer the default, and retrieval has become a
+tool the agent uses.**
+
+Three forces are changing it:
+
+| Change | What it replaces | Example |
+|---|---|---|
+| **Long context + prompt caching** | For small corpora (up to a few hundred pages), put the whole thing in context; with caching it's cheap; no chunking or index | A product manual in the system prompt |
+| **Agentic search** | The fixed "embed → top-k → stuff into prompt" pipeline. The model searches over several turns with grep, file reads, SQL or search APIs, refining as it goes | Claude Code finds code with grep/glob-style tools over several turns rather than a pre-built vector index |
+| **Stronger models** | Many reasoning gaps retrieval used to patch | The model decides "I'm missing X, search again" |
+
+**Retrieval (including vector search) is still needed when:**
+- the corpus is far bigger than the context window (tens of thousands of documents, a company wiki)
+- results must be **permission-filtered** (different tenants or users see different things)
+- the data **changes often**, so you can't paste it all every time
+- **cost and latency** matter; huge contexts on every call are slow and expensive
+- you need **citations** and auditability
+
+**The new name is agentic RAG**: retrieval is no longer a fixed first step but a tool the agent
+calls as often as needed (vector search, keyword search, SQL, web search), with reranking and
+self-checks.
+
+**One-line answer**:
+> "What's fading is the one-size-fits-all vector pipeline, not retrieval. Small corpus → put it in
+> context with caching; large, permissioned or changing data still needs retrieval, increasingly
+> as a tool the agent uses itself."
+
+**Link to this project**: it is essentially "agentic + structured retrieval" — each step fetches
+exact facts from the database in code (SQL is the most precise retrieval there is), so the model
+needs no semantic search.
 
 ---
 
@@ -369,6 +403,191 @@ Key items:
 
 ---
 
+## 14. Tools in depth ⭐⭐⭐
+
+Section 2 covers the basics; these are the advanced points interviewers ask about.
+
+**Three parts of a tool definition**: `name`, `description` (the most important — the model
+decides from it), `input_schema` (JSON Schema).
+
+**Two kinds of tools**:
+| Kind | Who runs it | Example |
+|---|---|---|
+| Client tools (custom) | **Your code** | This project's `search_tradies`, `request_quote` |
+| Server tools (platform-provided) | **The model provider's servers** | Web search, code execution, web fetch |
+
+**Controlling calls**:
+- `tool_choice`: let the model decide / force a specific tool / force any tool / no tools
+- **Parallel tool calls**: the model returns several calls at once; code runs them in parallel
+- **Many tools**: don't send them all at once (wastes context, more wrong picks) — load on demand
+  ("tool search": a catalogue first, full definitions when needed), or give each step only the
+  few it needs
+- **Programmatic tool calling**: the model writes code that calls tools in bulk and processes the
+  intermediate results; only the final result returns to the context, saving tokens
+
+**Tool design principles (ACI: agent-computer interface)** — Anthropic's view: design tools for an
+agent with the same care as a UI for a person:
+- Obvious names and parameters; document edge cases
+- Make parameters hard to misuse (absolute paths, enums instead of free text)
+- Return information useful to the model, not raw dumps
+- Verify with evals that the model uses them correctly
+
+**One-line answer**:
+> "Tools are the agent's hands. Design them like an API and a UI: clear descriptions, parameters
+> that are hard to misuse, actionable errors, few and focused."
+
+**Link to this project**:
+- All client tools, all through `executeTool`
+- **Only relevant tools per state**: only the TRIAGED step gives the model a small set
+  (`TRIAGED_TOOLS`); other steps don't let the model call tools
+- Hard to misuse: slot ids must be ones offered, tradie ids must come from search results, money
+  is integer cents
+- Structured errors (`VALIDATION`, `APPROVAL_REQUIRED`) the model can act on
+
+---
+
+## 15. Agent Skills ⭐⭐⭐
+
+**What**: a format introduced by Anthropic in 2025, later published as an open standard, for
+**packaging "how to do something"**. A skill is a folder:
+```
+my-skill/
+├── SKILL.md        ← required: metadata header (name, description) + instructions
+├── reference.md    ← optional: detailed reference
+└── scripts/        ← optional: executable scripts (e.g. Python to fill a PDF form)
+```
+
+**Core mechanism: progressive disclosure**
+```
+Level 1: at start-up only each skill's name + description enter the context (tens of tokens each)
+Level 2: when the model decides a task is relevant, it reads the full SKILL.md
+Level 3: reference files are read, or scripts run, only when needed (script code needn't enter context)
+```
+So you can install many skills without flooding the context.
+
+**Tool vs Skill vs MCP — the most-asked distinction**:
+| | Tool | Skill | MCP |
+|---|---|---|---|
+| Essence | A **capability** (what it can do) | **Know-how** (how to do it well) | A **connection protocol** |
+| Form | Function + JSON Schema | Folder: instructions + scripts + resources | A server exposing tools/resources |
+| Analogy | A screwdriver | An operating manual | A standard toolbox socket |
+| How it enters context | Definition always present (or loaded on demand) | Summary only, full text when used | Server supplies tool definitions |
+| Example | `send_message` | "Write the weekly report our way" | Connect GitHub / Google Drive |
+
+They are **complementary**: MCP brings external systems in as tools; a skill teaches the agent how
+to combine those tools for a type of task.
+
+**When to use a skill**:
+- A recurring task has a set way of doing it (document formats, code conventions, release steps)
+- Scripts are needed to do it reliably (Excel/PDF handling)
+- You don't want to repeat long instructions in every prompt
+
+**Security**: skills can contain scripts — installing one is installing code. Use trusted sources
+and review them first.
+
+**One-line answer**:
+> "Tools give an agent abilities; skills give it experience. Skills use progressive disclosure —
+> one line of summary until needed, then the full instructions and scripts — so you can install
+> many without wasting context."
+
+**Link to this project**:
+- The product's agents **don't use skills**: the maintenance process is fixed, and the "how" lives
+  in the state machine and handlers, which is more controllable
+- Useful in development: this project is built with Claude Code, and the "new agent checklist" in
+  `docs/agent-design.md` §13 is a natural skill, so the coding agent follows it every time it adds
+  a workflow
+- For future open-ended work (an incident-triage agent), a skill could package "how to investigate
+  a job stuck in Inngest"
+
+---
+
+## 16. Parts of an agent harness ⭐⭐
+
+**Harness** = everything outside the model: loop, tools, context, memory, permissions, sub-agents.
+Claude Code, the Claude Agent SDK and the OpenAI Agents SDK are harnesses.
+
+| Part | Purpose | Example |
+|---|---|---|
+| **Agent loop** | Call model → run tools → return results → call model | ReAct loop |
+| **Tools** | What the agent can do | Read/write files, shell, search |
+| **Context management / compaction** | Summarise early content when the conversation gets long, keep going | Auto-summary on long tasks |
+| **Memory files** | Project instructions and preferences across sessions | `CLAUDE.md`, `AGENTS.md` |
+| **Subagents** | Hand a sub-task to an agent with its own context; only the conclusion returns, keeping the main context clean; can run in parallel | "Find every place that uses X" |
+| **Hooks** | Scripts run automatically on events (before/after a tool call, session end), **enforced by the program**, not left to the model | Auto-format after every file edit |
+| **Permission modes** | Which actions need human confirmation | Ask before running a command |
+| **Sandbox** | Isolated environment for executing code | Containers, microVMs |
+| **Skills / MCP** | Extend knowledge and connections | See sections 7 and 15 |
+
+**One-line answer**:
+> "The model is the engine; the harness is the whole car. The same model performs very differently
+> depending on the harness — that's harness engineering."
+
+**Link to this project**:
+- The **product** has a narrow domain harness: `executeTool` (tools + permissions), `RoutingLlm`
+  (model layer), state machine + Inngest (loop), context rebuilt from the DB each step, evals
+  (feedback)
+- **Development** uses a general harness (Claude Code): `CLAUDE.md` is the memory file (with 8
+  hard rules), and the PR-review agents follow the same idea
+- Contrast: in a general harness, "permission" is a person clicking allow; here it is a stored
+  approval record plus money rules
+
+---
+
+## 17. Agent protocols: MCP vs A2A ⭐
+
+| Protocol | Connects | From |
+|---|---|---|
+| **MCP** | Agent ↔ **tools/data** | Anthropic |
+| **A2A (Agent2Agent)** | Agent ↔ **agent** (agents from different vendors/frameworks discover and work with each other) | Google |
+
+**One-line answer**:
+> "MCP is how an agent uses tools; A2A is how agents work with each other. They're complementary."
+
+**Link to this project**: today the agents live in one codebase and hand off via the inbox router,
+so A2A isn't needed. It becomes relevant for collaboration with the Keyhook platform's or other
+companies' agents.
+
+---
+
+## 18. Computer use / browser agents ⭐
+
+**What**: the model looks at screenshots and outputs actions ("click (x, y)", type, scroll),
+operating a computer or browser like a person.
+
+**Good for**: legacy systems with no API; tasks that need a web UI.
+
+**Limits**: slow, expensive, error-prone, risky (text on a page can be a prompt injection too).
+
+**One-line answer**:
+> "Use an API when there is one; computer use only when there isn't — in a sandbox, with an
+> allowlist of sites, and human confirmation for key actions."
+
+**Link to this project**: not used. All external systems connect through APIs and adapters, which
+is far more reliable than driving a UI.
+
+---
+
+## 19. One table for all the concepts ⭐⭐⭐
+
+| Concept | One line | Solves | Analogy |
+|---|---|---|---|
+| **Prompt** | Instructions to the model | Telling it what to do | Verbal briefing |
+| **Context engineering** | What goes into context at each step | Not too much, not too little | The pack prepared before a meeting |
+| **Tool** | A function the model can call | Lets the model **act** | A tool |
+| **Skill** | Packaged know-how + scripts + resources, loaded on demand | Lets the model **act well** | An operating manual |
+| **MCP** | Standard protocol for connecting tools | Connect once, use anywhere | USB-C |
+| **A2A** | Protocol for agents to collaborate | Cross-system agent collaboration | Phone / email |
+| **RAG** | Retrieve, then answer | Knowledge the model **doesn't have** | Open-book exam |
+| **Agentic search** | The agent searches over several turns | Flexible information finding | Going to the library yourself |
+| **Memory** | Information kept across steps/sessions | Remembering earlier work | A notebook |
+| **Subagent** | Sub-task agent with its own context | Splitting work, clean context | Sending an intern to research |
+| **Hook** | Enforced script triggered by events | Rules that must run, not left to the model | A security gate |
+| **Harness** | Everything around the model | Reliable task completion | The whole car |
+| **Fine-tuning** | Further training on data | Fixed style/behaviour | Specialist training |
+| **Eval** | Automated evaluation | Proving quality, preventing regressions | An exam |
+
+---
+
 ## Appendix: one-week study plan
 
 | Day | Topic | Outcome |
@@ -376,7 +595,7 @@ Key items:
 | 1 | Anthropic *Building Effective Agents* + tool-use docs | Explain workflow vs agent |
 | 2–3 | Build a small RAG: pgvector + embeddings + retrieval + generation (~100 lines) | Explain chunking, hybrid search, rerank |
 | 4 | LangGraph tutorial: a small agent with human approval | Compare LangGraph vs state machine + Inngest |
-| 5 | MCP + prompt caching + eval methods | Explain LLM-as-judge limits |
+| 5 | MCP + Skills + prompt caching + eval methods | Explain Tool / Skill / MCP and LLM-as-judge limits |
 | 6–7 | Practise "why X / why not Y" against this project | A 30-second answer per technology |
 
 ## Appendix: a universal answer frame
