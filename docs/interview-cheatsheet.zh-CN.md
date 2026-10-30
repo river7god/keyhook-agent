@@ -3,7 +3,7 @@
 # 面试速记卡 + 题库
 
 > 把 5 份面试文档浓缩成**能背下来**的内容。每条后面的 → 指向原文，想深挖时再看。
-> [速学版](interview-quickstart.zh-CN.md) · [详细版](interview-guide.zh-CN.md) · [扩展知识](interview-knowledge.zh-CN.md) · [CI/CD](interview-cicd.zh-CN.md) · [示例项目](interview-example-project.md)
+> [速学版](interview-quickstart.zh-CN.md) · [详细版](interview-guide.zh-CN.md) · [扩展知识](interview-knowledge.zh-CN.md) · [CI/CD](interview-cicd.md) · [示例项目](interview-example-project.md)
 
 **用法**：第一部分每天过一遍（10 分钟）；第二部分遮住答案自测；第三部分面试前一晚看。
 
