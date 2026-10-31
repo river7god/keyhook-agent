@@ -7,6 +7,25 @@
 
 ---
 
+## 速记：要讲的 10 个知识点 · Cheat sheet: 10 points to say
+
+| # | 关键词 · Keyword | 记住这句 · Remember this |
+|---|---|---|
+| 1 | **多 Agent + LangGraph** | 路由分给售前/订单/售后专家；每步存档，可暂停再续 · Router → specialists; every step saved, pause and resume |
+| 2 | **Temporal** | LangGraph 管对话，Temporal 管几天后办完的事 · LangGraph for chat, Temporal for work that finishes days later |
+| 3 | **工具三级权限** | read / auto / approval；模型只提议，代码执行 · Model proposes, code executes |
+| 4 | **MCP** | 连工具的标准接口；权限和审计靠自己的网关 · Standard tool plug; permissions and audit in our gateway |
+| 5 | **知识按量放** | 政策几页 → prompt + 缓存；说明书、工单海量 → RAG · Few pages → cached prompt; huge corpora → RAG |
+| 6 | **记忆三种** | 短期对话、长期画像、语义相似案例 · Short-term chat, long-term profile, semantic cases |
+| 7 | **LLM 网关** | 按难度选模型、缓存、故障切换、控成本 · Route by difficulty, cache, fail over, control cost |
+| 8 | **人在回路** | ¥500 以上退款暂停等主管批 · Refunds over ¥500 pause for a supervisor |
+| 9 | **幂等** | 退款带幂等键，重试不退两次 · Idempotency key: retries never refund twice |
+| 10 | **安全 + 评测** | 消息不可信、脱敏、引用原文；场景 → 评委 → 红队 → 5% A/B · Untrusted input, redaction, citations; scenarios → judge → red team → 5% A/B |
+
+> 一句话记住 · One line：**LangGraph 聊，Temporal 办，工具要权限，知识按量放，底线全都有。LangGraph talks, Temporal finishes, tools need permissions, knowledge by size, baseline always.**
+
+---
+
 ## 0. 一分钟总结 · One-minute summary
 
 | | 中文 | English |

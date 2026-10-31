@@ -7,6 +7,25 @@
 
 ---
 
+## 速记：要讲的 10 个知识点 · Cheat sheet: 10 points to say
+
+| # | 关键词 · Keyword | 记住这句 · Remember this |
+|---|---|---|
+| 1 | **固定标签** | PASS + L01–L10，多标签，有严重度，有版本 · Fixed taxonomy, multi-label, severity, versioned |
+| 2 | **多模态预处理** | 视频 → 帧 + 语音文字（ASR）+ 画面文字（OCR）· Video → frames + transcript + on-screen text |
+| 3 | **自适应抽帧** | 最多 30 帧给大模型；小模型逐秒扫；超 5 分钟转人工 · Max 30 frames; small models scan every second; over 5 min → human |
+| 4 | **三层漏斗** | 规则/哈希 → 小模型 → 多模态大模型，只有 30% 到大模型 · Rules → small models → LLM; only 30% reach the LLM |
+| 5 | **不微调** | 用现成模型 + 政策 + 相似案例；政策改了当天生效 · Off-the-shelf + policy + similar cases; same-day policy changes |
+| 6 | **结构化输出** | 标签是枚举，模型编不了 · Labels are enums; the model can't invent them |
+| 7 | **理由带证据** | 时间点/原文 + 政策条款，代码校验 · Timestamp/quote + clause, checked by code |
+| 8 | **按标签设阈值** | 高风险重召回多给人，低风险重准确少误杀 · High risk → recall, low risk → precision |
+| 9 | **知识按行业放** | 行业政策整章放 prompt + 缓存；相似旧案向量检索 · Cached industry chapter; vector search for cases |
+| 10 | **人工 + 评测** | 低置信/高风险/申诉给人；黄金集、混淆矩阵、影子模式、红队；人工改判回流 · Humans for unsure cases; golden set, shadow mode, red team; corrections flow back |
+
+> 一句话记住 · One line：**拆成帧和字，漏斗先筛，枚举出标签，证据要校验，阈值按标签。Break into frames and text, filter by funnel, enum labels, checked evidence, per-label thresholds.**
+
+---
+
 ## 0. 一分钟总结 · One-minute summary
 
 | | 中文 | English |
