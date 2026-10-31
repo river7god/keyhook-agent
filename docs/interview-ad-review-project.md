@@ -13,7 +13,7 @@
 |---|---|---|
 | **做什么 · What** | 广告平台的审核 Agent：看视频、图片、文字，判断是否违规，给出**通过 / 不通过**、**固定分类标签**和**带证据的原因**；没把握的交给人工 | Review agent for an ad platform: checks video, images and text, returns **pass / reject**, **labels from a fixed taxonomy** and **reasons with evidence**; unsure cases go to human reviewers |
 | **架构 · Architecture** | 上传 → 预处理（抽帧、语音转文字、OCR）→ 三层漏斗：规则/哈希 → 小模型分类器 → 多模态大模型 → 按置信度分流：自动通过 / 自动拒绝 / 人工 | Upload → preprocessing (frames, speech-to-text, OCR) → three-layer funnel: rules/hashes → small classifiers → multimodal LLM → route by confidence: auto pass / auto reject / human |
-| **技术 · Tech** | 多模态 LLM、结构化输出（标签用枚举）、ASR、OCR、感知哈希、自适应抽帧、现成分类器、政策 RAG、相似案例检索、Temporal、消息队列、Batch API、Prompt 缓存、人工审核台、评测（按标签算准确率/召回率）、追踪与审计 | Multimodal LLM, structured output (labels as enums), ASR, OCR, perceptual hashing, adaptive frame sampling, off-the-shelf classifiers, policy RAG, similar-case retrieval, Temporal, message queue, Batch API, prompt caching, review console, evals (precision/recall per label), tracing and audit |
+| **技术 · Tech** | 多模态 LLM、结构化输出（标签用枚举）、ASR、OCR、感知哈希、自适应抽帧、现成分类器、按行业整章放入政策 + Prompt 缓存、相似案例检索、Temporal、消息队列、Batch API、Prompt 缓存、人工审核台、评测（按标签算准确率/召回率）、追踪与审计 | Multimodal LLM, structured output (labels as enums), ASR, OCR, perceptual hashing, adaptive frame sampling, off-the-shelf classifiers, whole industry policy chapter in the cached prompt, similar-case retrieval, Temporal, message queue, Batch API, prompt caching, review console, evals (precision/recall per label), tracing and audit |
 | **亮点 · Highlights** | 便宜的先跑、贵的后跑（漏斗省 80% 成本）；标签是枚举，模型不能编；每个"不通过"必须指出时间点/位置/原文和政策条款；每个标签单独设阈值；人工结果回流到评测集和相似案例库 | Cheap checks first, expensive ones last (funnel saves 80% of cost); labels are enums, the model can't invent them; every reject points to a timestamp/region/quote and a policy clause; thresholds per label; human decisions feed the eval set and the similar-case library |
 
 🇨🇳 **30 秒讲法**：AdReview 是广告审核 Agent。素材先预处理成"帧 + 语音文字 + 画面文字"，再过三层漏斗：规则和哈希挡掉明显的，小模型筛掉干净的，剩下的交给多模态大模型。大模型按 JSON 输出通过/不通过、固定标签、证据和政策条款。高置信度自动处理，没把握或高风险类别进人工；人工结果回流做评测。
@@ -67,7 +67,7 @@
    ↓
 第 1 层 Layer 1      规则 rules：关键词库 keyword lists + 已知违规哈希 known-bad hashes   （毫秒级 ms, 挡 10%）
 第 2 层 Layer 2      小模型 small models：色情/暴力分类器 NSFW/violence + Logo 检测 + 文本审核 API text moderation API （放行 60% 明显干净的 clear 60%）
-第 3 层 Layer 3      多模态大模型 multimodal LLM + 政策 RAG policy RAG + 相似案例 similar cases   （剩下 30%）
+第 3 层 Layer 3      多模态大模型 multimodal LLM + 行业政策（缓存）industry policy (cached) + 相似案例 similar cases   （剩下 30%）
    ↓
 分流 Router          高置信通过 → 上线 go live │ 高置信违规 → 拒绝 + 原因 reject + reason │ 其他 → 人工 human
    ↓
@@ -99,7 +99,7 @@ submitted → preprocessing → auto_review ─┬→ approved
 | 2 | 30 秒视频：每秒 1 帧 + 场景切换帧；语音转文字；帧上 OCR · 30 s video: 1 frame/s + scene changes; transcript; OCR | 自适应抽帧、ASR、OCR · Adaptive frames, ASR, OCR |
 | 3 | 关键词"瘦 10 斤"命中 → 标记可疑（不直接判）· Keyword hit → flagged, not decided | 规则层 · Rules layer |
 | 4 | 色情 0.01、暴力 0.00、无商标 → 继续 · NSFW 0.01, violence 0.00, no logos → continue | 分类器 · Classifiers |
-| 5 | 按类目"保健品"检索政策条款 §4.2、§4.5 和 3 个相似旧案 · Retrieve health-product clauses and 3 similar past cases | 政策 RAG、相似案例 · Policy RAG, similar cases |
+| 5 | 载入"保健品"整章政策（已缓存）+ 检索 3 个相似旧案 · Load the cached health-product chapter + retrieve 3 similar past cases | 长上下文 + 缓存、相似案例 · Long context + caching, similar cases |
 | 6 | 大模型输出 JSON：拒绝，`[L02, L01]`，证据 00:12 字幕、00:20 语音，置信度 0.94 · LLM returns JSON: reject, `[L02, L01]`, evidence at 00:12 and 00:20, confidence 0.94 | 多模态 LLM、结构化输出 · Multimodal LLM, structured output |
 | 7 | 代码校验：标签在枚举里、证据时间点存在 → 0.94 ≥ L02 阈值 0.90 → 自动拒绝 · Code checks labels and timestamps → above the L02 threshold → auto reject | 校验、按标签阈值 · Validation, per-label thresholds |
 | 8 | 通知广告主："00:12 字幕'三天瘦 10 斤'违反 §4.2 疗效承诺"· Advertiser told exactly what and where | 可解释的原因 · Explainable reasons |
@@ -107,8 +107,8 @@ submitted → preprocessing → auto_review ─┬→ approved
 
 整个过程记录模型版本、Prompt 版本、政策版本。Every step records the model, prompt and policy versions.
 
-🇨🇳 **完整过程**：视频上传后先算感知哈希，确认不是重复提交的旧素材。然后预处理：视频只有 30 秒，所以每秒抽 1 帧，再加上场景切换帧，语音转成文字，帧上的字用 OCR 识别出来。第 1 层规则发现"瘦 10 斤"命中关键词库，但只标记可疑，不直接判。第 2 层小模型确认没有色情、暴力和侵权商标，继续往下。第 3 层先按"保健品"类目检索相关政策条款和 3 个人工判过的相似案例，再和帧、文字一起交给多模态大模型。大模型输出 JSON：不通过，标签 L02 医疗健康和 L01 虚假夸大，证据是 00:12 的字幕和 00:20 的语音，置信度 0.94。代码校验标签都在枚举里、证据时间点真实存在，置信度也超过 L02 的阈值 0.90，于是自动拒绝，并告诉广告主具体哪一秒、违反哪一条。广告主申诉后，换一个审核员复核，维持原判，这条广告进入评测集。
-🇬🇧 **The whole flow**: After upload, a perceptual hash confirms it isn't a resubmitted creative. The video is only 30 seconds, so preprocessing takes 1 frame per second plus scene-change frames, transcribes the audio, and runs OCR on the frames. Layer 1's keyword list matches "lose 5 kg" but only flags it; rules don't decide. Layer 2's small models find no nudity, violence or infringing logos, so it moves on. Layer 3 retrieves the health-product policy clauses and 3 similar human-judged cases, and sends them with the frames and text to the multimodal LLM. The LLM returns JSON: reject, labels L02 (health) and L01 (exaggeration), evidence at 00:12 (subtitle) and 00:20 (speech), confidence 0.94. Code checks that the labels are in the enum and the timestamps really exist, and 0.94 is above L02's 0.90 threshold, so it auto-rejects and tells the advertiser exactly which second broke which clause. The advertiser appeals, a second reviewer upholds the decision, and the ad joins the eval set.
+🇨🇳 **完整过程**：视频上传后先算感知哈希，确认不是重复提交的旧素材。然后预处理：视频只有 30 秒，所以每秒抽 1 帧，再加上场景切换帧，语音转成文字，帧上的字用 OCR 识别出来。第 1 层规则发现"瘦 10 斤"命中关键词库，但只标记可疑，不直接判。第 2 层小模型确认没有色情、暴力和侵权商标，继续往下。第 3 层把"保健品"这一整章政策放进 prompt（同行业的广告共用缓存），再检索 3 个人工判过的相似案例，再和帧、文字一起交给多模态大模型。大模型输出 JSON：不通过，标签 L02 医疗健康和 L01 虚假夸大，证据是 00:12 的字幕和 00:20 的语音，置信度 0.94。代码校验标签都在枚举里、证据时间点真实存在，置信度也超过 L02 的阈值 0.90，于是自动拒绝，并告诉广告主具体哪一秒、违反哪一条。广告主申诉后，换一个审核员复核，维持原判，这条广告进入评测集。
+🇬🇧 **The whole flow**: After upload, a perceptual hash confirms it isn't a resubmitted creative. The video is only 30 seconds, so preprocessing takes 1 frame per second plus scene-change frames, transcribes the audio, and runs OCR on the frames. Layer 1's keyword list matches "lose 5 kg" but only flags it; rules don't decide. Layer 2's small models find no nudity, violence or infringing logos, so it moves on. Layer 3 puts the whole health-product policy chapter in the prompt (cached and shared by ads in that industry), retrieves 3 similar human-judged cases, and sends them with the frames and text to the multimodal LLM. The LLM returns JSON: reject, labels L02 (health) and L01 (exaggeration), evidence at 00:12 (subtitle) and 00:20 (speech), confidence 0.94. Code checks that the labels are in the enum and the timestamps really exist, and 0.94 is above L02's 0.90 threshold, so it auto-rejects and tells the advertiser exactly which second broke which clause. The advertiser appeals, a second reviewer upholds the decision, and the ad joins the eval set.
 
 ---
 
@@ -136,7 +136,7 @@ submitted → preprocessing → auto_review ─┬→ approved
 | **小模型分类器 · Small classifiers** | 只做一件事的专用模型 · Single-purpose models | 色情、暴力、Logo · NSFW, violence, logos | 快、便宜，挡掉大部分 · Fast, cheap, handle most |
 | **文本审核 API · Text moderation API** | 现成的文字违规检测 · Ready-made text checks | 文案、OCR 和语音文字先过一遍 · Copy, OCR and transcripts | 不用自己训练 · No training needed |
 | **结构化输出 · Structured output** | 按 JSON Schema 回答 · Answer in a JSON schema | `labels` 是枚举 `L01–L10` · `labels` is an enum | 模型不能编标签 · Model can't invent labels |
-| **Prompt 缓存 · Prompt caching** | 固定开头缓存 · Cache the fixed start | 标签定义 + 政策总则 · Taxonomy + general policy | 每次都一样，省钱 · Same every call, cheaper |
+| **Prompt 缓存 · Prompt caching** | 固定开头缓存 · Cache the fixed start | 标签定义 + 政策总则 + 行业章节 · Taxonomy + general policy + industry chapter | 每次都一样，省钱 · Same every call, cheaper |
 | **Batch API** | 批量异步调用，约半价 · Async bulk calls, ~half price | 政策改了，重审存量广告 · Re-review live ads after policy change | 不急的活用便宜通道 · Cheap lane for non-urgent work |
 
 输出格式 · Output shape：
@@ -169,11 +169,11 @@ submitted → preprocessing → auto_review ─┬→ approved
 
 ### 知识层 · Knowledge
 
-🇨🇳 广告政策有几百页，每个行业不一样，还经常改，所以不全塞进 prompt，而是按广告的行业检索相关条款，比如保健品只取保健品那几条。同时用向量检索找 3 个以前人工判过的相似广告，作为例子放进 prompt，边界案例看先例最准。每版政策都有版本号，和审核结果一起存下来，申诉或审计时能复现当时为什么这样判。
-🇬🇧 The ad policy runs to hundreds of pages, differs by industry and changes often, so instead of putting it all in the prompt, only the clauses for the ad's industry are retrieved, such as the health-product rules. Vector search also finds 3 similar ads that humans judged before, which go into the prompt as examples, because precedent is the best guide on edge cases. Every policy version is numbered and stored with the decision, so an appeal or audit can reproduce why it was judged that way.
+🇨🇳 广告政策总共几百页，但分成"总则 + 行业章节"，每章只有几千到两万 token。所以不切块检索，而是按广告的行业把整章放进 prompt，比如保健品广告就放总则加保健品章节。prompt 开头按"标签定义 → 总则 → 行业章节"排好，同一行业的广告共用一份缓存，既便宜，又不会漏掉条款。同时用向量检索找 3 个以前人工判过的相似广告，作为例子放进 prompt，边界案例看先例最准。每版政策都有版本号，和审核结果一起存下来，申诉或审计时能复现当时为什么这样判。
+🇬🇧 The ad policy runs to hundreds of pages in total, but it is split into general rules plus industry chapters of a few thousand to twenty thousand tokens each. So instead of chunking and retrieving, the whole chapter for the ad's industry goes into the prompt, such as the general rules plus the health-product chapter. The prompt starts with taxonomy → general rules → industry chapter, so ads in the same industry share one cache: cheap, and no clause is missed. Vector search also finds 3 similar ads that humans judged before, which go into the prompt as examples, because precedent is the best guide on edge cases. Every policy version is numbered and stored with the decision, so an appeal or audit can reproduce why it was judged that way.
 | 技术 · Tech | 是什么 · What | 这里怎么用 · Used for | 为什么 · Why |
 |---|---|---|---|
-| **政策 RAG · Policy RAG** | 按需检索政策条款 · Retrieve clauses on demand | 按行业取条款（保健品、金融、游戏）· By industry | 政策几百页，各行业不同，常改 · Long, per-industry, changes often |
+| **按行业整章 + 缓存 · Industry chapter + caching** | 只放这个行业的整章政策 · Only that industry's whole chapter | 保健品、金融、游戏各一章 · One chapter per industry | 每章不长，整章放进去不漏条款，同行业共用缓存 · Short chapters; nothing missed; shared cache |
 | **相似案例 · Similar cases** | 向量找以前判过的类似广告 · Find similar past decisions | 3 个人工判过的例子当 few-shot · 3 human-judged examples | 边界案例看先例最准 · Precedent works best on edge cases |
 | **政策版本 · Policy versions** | 每版政策有号 · Every policy version numbered | 决定里记录用哪一版 · Stored with each decision | 申诉和审计要能复现 · Appeals and audits must reproduce |
 
@@ -226,7 +226,7 @@ submitted → preprocessing → auto_review ─┬→ approved
 | 任务类型 · Task | 大量分类判断 · High-volume classification | 多步骤办事 · Multi-step job | 开放对话 · Open conversation |
 | 输入 · Input | 视频、图片、文字 · Video, image, text | 短信文字 + 照片 · Messages + photos | 聊天文字 · Chat text |
 | 编排 · Orchestration | 状态机 + Temporal + 漏斗 · State machine + Temporal + funnel | 状态机 + Inngest · State machine + Inngest | LangGraph + Temporal |
-| 知识 · Knowledge | 政策 RAG + 相似案例 · Policy RAG + cases | 结构化数据 · Structured data | RAG |
+| 知识 · Knowledge | 行业政策整章 + 缓存，相似案例检索 · Cached industry chapter + case retrieval | 结构化数据 · Structured data | RAG |
 | 关键指标 · Key metric | 每个标签的准确率/召回率 · Per-label precision/recall | 闭环率、升级率 · Closure, escalation | 解决率 · Resolution rate |
 | 人在回路 · HITL | 低置信 + 申诉 · Low confidence + appeals | 审批类动作 · Approval actions | 大额退款 · Large refunds |
 | 共同底线 · Shared baseline | 结构化输出 · 校验 · 幂等 · 审计 · 评测 · 注入防护 | 同 · Same | 同 · Same |

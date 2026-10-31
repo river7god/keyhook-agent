@@ -25,7 +25,7 @@
 | **结构化输出 · Structured output** | `{intent, confidence}` | `{decision, labels[], evidence, confidence}`，标签是枚举 · enum labels |
 | **人在回路 · Human in the loop** | ¥500 以上退款等主管批 · Refunds over ¥500 wait for a supervisor | 低置信、高风险、申诉给人 · Low confidence, high risk, appeals |
 | **长流程 · Durable workflow** | Temporal：等 7 天寄回 · wait 7 days for the parcel | Temporal：等人工几小时 · wait hours for a reviewer |
-| **RAG** | 政策、说明书、工单 · Policies, manuals, tickets | 按行业取政策条款 + 相似案例 · Policy clauses by industry + similar cases |
+| **知识 · Knowledge** | 政策放 prompt + 缓存；说明书、工单用 RAG · Policy in the cached prompt; RAG for manuals and tickets | 行业政策整章放 prompt + 缓存；相似案例用向量检索 · Cached industry chapter; vector search for similar cases |
 | **幂等 · Idempotency** | 退款不退两次 · Never refund twice | 素材哈希 + 政策版本，不重复通知 · Hash + policy version, no double notices |
 | **注入防护 · Injection** | 顾客消息不可信 · Customer messages untrusted | 广告文案不可信 · Ad copy untrusted |
 | **防编造 · Anti-hallucination** | 必须引用政策原文 · Must quote the policy | 证据时间点/原文代码校验 · Code checks cited evidence |

@@ -12,19 +12,19 @@
 | | 中文 | English |
 |---|---|---|
 | **做什么 · What** | 电商 AI 客服：答产品问题、查订单、办退换货，70% 自动闭环，难的转人工，大额退款等主管批 | AI support for an online store: product questions, order tracking, returns; 70% resolved automatically, hard cases go to staff, large refunds wait for a supervisor |
-| **架构 · Architecture** | 渠道 → LangGraph 多 Agent 对话 → Temporal 长流程 → MCP 工具网关 + RAG 知识 + 记忆 → LLM 网关 | Channels → LangGraph multi-agent chat → Temporal long-running flows → MCP tool gateway + RAG knowledge + memory → LLM gateway |
-| **技术 · Tech** | LangGraph、Temporal、MCP、RAG（pgvector + 重排序）、长期记忆、LLM 网关（路由/缓存/降级）、结构化输出、微调、护栏、Agent SDK + Skills、Computer Use、A2A、追踪与评测 | LangGraph, Temporal, MCP, RAG (pgvector + reranking), long-term memory, LLM gateway (routing/caching/failover), structured output, fine-tuning, guardrails, Agent SDK + Skills, Computer Use, A2A, tracing and evals |
+| **架构 · Architecture** | 渠道 → LangGraph 多 Agent 对话 → Temporal 长流程 → MCP 工具网关 + 知识（政策放 prompt，说明书/工单用 RAG）+ 记忆 → LLM 网关 | Channels → LangGraph multi-agent chat → Temporal long-running flows → MCP tool gateway + knowledge (policy in the prompt, RAG for manuals/tickets) + memory → LLM gateway |
+| **技术 · Tech** | LangGraph、Temporal、MCP、长上下文 + Prompt 缓存、RAG（pgvector + 重排序）、长期记忆、LLM 网关（路由/缓存/降级）、结构化输出、微调、护栏、Agent SDK + Skills、Computer Use、A2A、追踪与评测 | LangGraph, Temporal, MCP, long context + prompt caching, RAG (pgvector + reranking), long-term memory, LLM gateway (routing/caching/failover), structured output, fine-tuning, guardrails, Agent SDK + Skills, Computer Use, A2A, tracing and evals |
 | **亮点 · Highlights** | 对话用图（灵活），流程用 Temporal（可靠）；有副作用的操作都经网关，带权限、幂等、审计；人在回路可暂停再续 | Graphs for chat (flexible), Temporal for processes (reliable); every side effect goes through a gateway with permissions, idempotency and audit; human-in-the-loop pauses and resumes |
 
-🇨🇳 **30 秒讲法**：ShopAssist 是电商 AI 客服。LangGraph 管对话，路由给售前、订单、售后三个专家 Agent；退货这种要等几天的事交给 Temporal；查订单、退款走 MCP 工具网关，带权限和幂等；政策靠 RAG 查；大额退款暂停等主管批。
-🇬🇧 **30-second version**: ShopAssist is AI support for an online store. LangGraph runs the conversation and routes to pre-sales, orders and after-sales agents; work that waits days, like returns, goes to Temporal; orders and refunds go through an MCP tool gateway with permissions and idempotency; policies come from RAG; large refunds pause for a supervisor.
+🇨🇳 **30 秒讲法**：ShopAssist 是电商 AI 客服。LangGraph 管对话，路由给售前、订单、售后三个专家 Agent；退货这种要等几天的事交给 Temporal；查订单、退款走 MCP 工具网关，带权限和幂等；退货政策直接放在 prompt 里并缓存；大额退款暂停等主管批。
+🇬🇧 **30-second version**: ShopAssist is AI support for an online store. LangGraph runs the conversation and routes to pre-sales, orders and after-sales agents; work that waits days, like returns, goes to Temporal; orders and refunds go through an MCP tool gateway with permissions and idempotency; the return policy sits in the cached prompt; large refunds pause for a supervisor.
 
 ---
 
 ## 1. 项目是什么 · What the project is
 
-🇨🇳 **ShopAssist**：一家卖电子产品的电商公司的 AI 客服。每天 5 万条咨询、2000 件商品、几百页政策和说明书；目标是 70% 由 AI 闭环解决。
-🇬🇧 **ShopAssist**: AI customer support for an online electronics retailer. 50,000 enquiries a day, 2,000 products, hundreds of pages of policies and manuals; goal: 70% resolved by the AI end to end.
+🇨🇳 **ShopAssist**：一家卖电子产品的电商公司的 AI 客服。每天 5 万条咨询、2000 件商品、几页退货政策、几百页说明书；目标是 70% 由 AI 闭环解决。
+🇬🇧 **ShopAssist**: AI customer support for an online electronics retailer. 50,000 enquiries a day, 2,000 products, a few pages of return policy, hundreds of pages of manuals; goal: 70% resolved by the AI end to end.
 
 | 角色 · Role | 需求 · Needs |
 |---|---|
@@ -45,7 +45,8 @@
 流程层 Process       Temporal：等寄回 wait for parcel → 质检 inspect → 退款 refund
    ↓
 工具层 Tools         MCP Servers（订单 orders · 物流 shipping · 支付 payments）+ 权限 / 幂等 / 审计网关 gateway
-知识层 Knowledge     RAG：pgvector + 关键词检索 keyword search + 重排序 reranking
+知识层 Knowledge     政策 policy：放 prompt + 缓存 in prompt + cached
+                     说明书/工单 manuals/tickets：RAG（pgvector + 关键词 keyword + 重排序 reranking）
 记忆层 Memory        用户画像 profile + 对话摘要 summaries
 模型层 Models        LLM 网关 gateway：路由 routing · 缓存 caching · 降级 failover · 预算 budgets
 
@@ -66,14 +67,14 @@
 | 2 | 意图 = 退货，交给售后 Agent · Intent = return → after-sales agent | 多 Agent、微调小模型 · Multi-agent, fine-tuned small model |
 | 3 | 读到是 VIP，喜欢换货 · A VIP who prefers exchanges | 长期记忆 · Long-term memory |
 | 4 | 查订单：7 天前签收，¥899 · Order: delivered 7 days ago, ¥899 | 工具调用、MCP · Tool calling, MCP |
-| 5 | 查政策：15 天内质量问题可退 · Policy: faulty within 15 days can be returned | RAG |
+| 5 | 对照 prompt 里的退货政策：15 天内质量问题可退 · Check the policy in the prompt: faulty within 15 days can be returned | 长上下文 + Prompt 缓存 · Long context + prompt caching |
 | 6 | ¥899 > 上限 ¥500 → 暂停等主管 · Over the ¥500 limit → pause for a supervisor | 人在回路 · Human in the loop |
 | 7 | 主管批准 → 从断点继续 · Approved → resume from the same point | LangGraph checkpoint |
 | 8 | 启动退货，等 7 天寄回 → 退款 · Start return, wait 7 days → refund | Temporal、幂等 · idempotency |
 | 9 | 全程记录每次调用 · Every call recorded | 追踪、审计 · Tracing, audit |
 
-🇨🇳 **完整过程**：消息进来先过护栏，检查有没有注入，把手机号遮掉。路由用微调小模型判断意图是"退货"，交给售后 Agent。售后 Agent 先读长期记忆，知道这是 VIP、以前喜欢换货；再通过 MCP 调订单工具，查到 7 天前签收、金额 ¥899；然后用 RAG 查退货政策，确认 15 天内质量问题可退。因为 ¥899 超过自动退款上限 ¥500，流程在这里暂停，等主管审批；LangGraph 把状态存进 checkpoint，主管批准后从断点继续。接着交给 Temporal 启动退货流程，等顾客 7 天内寄回、质检通过后再退款，退款带幂等键，重试也不会退两次。整个过程每次模型和工具调用都有追踪和审计记录。
-🇬🇧 **The whole flow**: The message first passes guardrails, which check for injection and mask the phone number. The router, a fine-tuned small model, classifies the intent as "return" and hands it to the after-sales agent. That agent reads long-term memory (a VIP who prefers exchanges), calls the order tool through MCP (delivered 7 days ago, ¥899), and checks the return policy with RAG (faulty items can be returned within 15 days). Because ¥899 is over the ¥500 auto-refund limit, the flow pauses for a supervisor; LangGraph saves the state in a checkpoint and resumes from the same point once approved. Temporal then runs the return: it waits up to 7 days for the parcel, inspects it, and refunds with an idempotency key so a retry never refunds twice. Every model and tool call along the way is traced and audited.
+🇨🇳 **完整过程**：消息进来先过护栏，检查有没有注入，把手机号遮掉。路由用微调小模型判断意图是"退货"，交给售后 Agent。售后 Agent 先读长期记忆，知道这是 VIP、以前喜欢换货；再通过 MCP 调订单工具，查到 7 天前签收、金额 ¥899；然后对照 prompt 里的退货政策（政策只有几页，直接放在 prompt 开头并缓存，不用检索），确认 15 天内质量问题可退。因为 ¥899 超过自动退款上限 ¥500，流程在这里暂停，等主管审批；LangGraph 把状态存进 checkpoint，主管批准后从断点继续。接着交给 Temporal 启动退货流程，等顾客 7 天内寄回、质检通过后再退款，退款带幂等键，重试也不会退两次。整个过程每次模型和工具调用都有追踪和审计记录。
+🇬🇧 **The whole flow**: The message first passes guardrails, which check for injection and mask the phone number. The router, a fine-tuned small model, classifies the intent as "return" and hands it to the after-sales agent. That agent reads long-term memory (a VIP who prefers exchanges), calls the order tool through MCP (delivered 7 days ago, ¥899), and checks the return policy already in its prompt (faulty items can be returned within 15 days); the policy is only a few pages, so it sits at the start of the prompt and is cached instead of retrieved. Because ¥899 is over the ¥500 auto-refund limit, the flow pauses for a supervisor; LangGraph saves the state in a checkpoint and resumes from the same point once approved. Temporal then runs the return: it waits up to 7 days for the parcel, inspects it, and refunds with an idempotency key so a retry never refunds twice. Every model and tool call along the way is traced and audited.
 
 ---
 
@@ -90,7 +91,7 @@
 | **结构化输出 · Structured output** | 按 JSON 格式回答 · Answer in a JSON shape | `{intent, confidence}`，失败转人工 · invalid → human | 代码能可靠地用 · Code can rely on it |
 | **微调 · Fine-tuning** | 用自己的数据再训练 · Train further on own data | 只用于意图分类（30 类）· Intent classification only (30 classes) | 高频固定任务才值得 · Only for high-volume fixed tasks |
 
-> 口诀 · Rule：**知识用 RAG，行为用 prompt，高频固定才微调。Knowledge in RAG, behaviour in prompts, fine-tune only high-volume fixed tasks.**
+> 口诀 · Rule：**少量知识放 prompt 缓存，海量知识用 RAG，高频固定才微调。Little knowledge in the cached prompt, huge corpora in RAG, fine-tune only high-volume fixed tasks.**
 
 ### 编排层 · Orchestration
 
@@ -121,17 +122,20 @@ LangGraph 5 个词 · in 5 words：**State** 共享状态 shared data · **Node*
 
 ### 知识层 · Knowledge
 
-🇨🇳 政策、说明书和历史工单有几百页，还经常更新，没法都塞进 prompt，所以用 RAG。文档先切成约 500 token 一段，转成向量存进 pgvector。检索时同时用向量（按意思）和关键词（按字面）：耳机型号这种编号必须精确匹配，只靠向量会搜不准。搜出 50 条后再重排序，挑最相关的 5 条给模型。检索本身也做成工具，复杂问题 Agent 可以自己决定搜几次。
-🇬🇧 Policies, manuals and past tickets run to hundreds of pages and change often, so they can't all go in the prompt; RAG is used instead. Documents are split into ~500-token chunks, embedded and stored in pgvector. Search combines vectors (meaning) and keywords (exact text), because product codes need exact matches that vectors miss. The top 50 results are reranked down to the 5 most relevant. Search is also a tool, so for hard questions the agent decides how many times to search.
+🇨🇳 知识按量分两种放法。退货、保修这些政策只有几页，几乎每次都要用，就直接放在 prompt 开头并做 Prompt 缓存：命中缓存后比每次检索还便宜，也不会因为切块或检索漏掉条款。2000 个商品的说明书和几十万条历史工单太多，每次只用到一小部分，才用 RAG。文档先切成约 500 token 一段，转成向量存进 pgvector。检索时同时用向量（按意思）和关键词（按字面）：耳机型号这种编号必须精确匹配，只靠向量会搜不准。搜出 50 条后再重排序，挑最相关的 5 条给模型。检索本身也做成工具，复杂问题 Agent 可以自己决定搜几次。
+🇬🇧 Knowledge is handled two ways, by size. Return and warranty policies are only a few pages and needed on almost every call, so they sit at the start of the prompt with prompt caching: a cache hit is cheaper than retrieving every time, and no clause is lost to chunking or a missed search. Manuals for 2,000 products and hundreds of thousands of past tickets are too large and only a small part is needed each time, so they use RAG. Documents are split into ~500-token chunks, embedded and stored in pgvector. Search combines vectors (meaning) and keywords (exact text), because product codes need exact matches that vectors miss. The top 50 results are reranked down to the 5 most relevant. Search is also a tool, so for hard questions the agent decides how many times to search.
 | 技术 · Tech | 是什么 · What | 这里怎么用 · Used for | 为什么 · Why |
 |---|---|---|---|
-| **RAG** | 先检索再回答 · Retrieve, then answer | 政策、说明书、历史工单 · Policies, manuals, tickets | 资料多、常更新 · Too much, changes often |
+| **长上下文 + 缓存 · Long context + caching** | 整份放进 prompt，缓存起来 · Whole document in the prompt, cached | 退货、保修政策（几页）· Return and warranty policy (a few pages) | 更便宜、不漏条款、更简单 · Cheaper, nothing missed, simpler |
+| **RAG** | 先检索再回答 · Retrieve, then answer | 说明书、历史工单 · Manuals, past tickets | 资料多、每次只用一点 · Huge; only a little needed each time |
 | **切块 + 向量 · Chunks + vectors** | 文档切段转成向量 · Split and embed documents | 约 500 token 一段，存 pgvector · ~500-token chunks in pgvector | 按意思搜 · Search by meaning |
 | **混合检索 · Hybrid search** | 向量（意思）+ 关键词（字面）· Vectors + keywords | 型号"WH-1000XM5"要精确匹配 · Exact model numbers | 向量搜不准型号 · Vectors miss exact codes |
 | **重排序 · Reranking** | 再挑最相关的 · Pick the most relevant | 50 条挑 5 条 · Top 5 of 50 | 更准 · More accurate |
-| **Agentic RAG** | 检索变成工具，自己决定搜几次 · Search as a tool | 搜政策、说明书、工单 · Policies, manuals, tickets | 复杂问题要多次搜 · Hard questions need several searches |
+| **Agentic RAG** | 检索变成工具，自己决定搜几次 · Search as a tool | 搜说明书、工单 · Manuals, tickets | 复杂问题要多次搜 · Hard questions need several searches |
 
 > 口诀 · Rule：**资料少直接放上下文；多、常变、要过滤才用 RAG。Little material → context; lots, changing, filtered → RAG.**
+>
+> 算笔账 · The maths：2 万 token 政策命中缓存 ≈ $0.004/次；RAG 每次 2 千 token 不能缓存 ≈ $0.008/次（按输入 $4/M、缓存读 $0.2/M）。20k cached tokens ≈ $0.004 a call; 2k uncached RAG tokens ≈ $0.008 (at $4/M input, $0.2/M cache read).
 
 ### 记忆 · Memory
 
@@ -192,7 +196,7 @@ LangGraph 5 个词 · in 5 words：**State** 共享状态 shared data · **Node*
 |---|---|---|---|
 | LangGraph | 用 · Yes | 不用 · No | 对话开放 vs 流程固定 · Open vs fixed |
 | 等几天 · Multi-day | Temporal | Inngest | 都需要，看团队选 · Both needed; pick by team |
-| RAG | 用 · Yes | 不用 · No | 大量文档 vs 结构化数据 · Documents vs structured data |
+| RAG | 用（说明书、工单）· Yes (manuals, tickets) | 不用 · No | 海量文档 vs 结构化数据 · Huge corpora vs structured data |
 | MCP | 用 · Yes | 计划中 · Planned | 多 Agent 共用 vs 单一代码库 · Shared tools vs one codebase |
 | Skills / Agent SDK | 用 · Yes | 不用 · No | 开放任务 vs 固定流程 · Open-ended vs fixed |
 | 微调 · Fine-tuning | 用 · Yes | 不用 · No | 每天 5 万次 vs 量小 · High vs low volume |
@@ -218,6 +222,6 @@ LangGraph 5 个词 · in 5 words：**State** 共享状态 shared data · **Node*
 
 **30 秒总结 · 30-second summary**
 
-🇨🇳 "我先划人机边界，再按任务选架构：固定流程用状态机，开放对话用 LangGraph，跨天流程用 Temporal 或 Inngest；文档多用 RAG，结构化数据用 SQL。无论哪种，权限、幂等、审计、护栏、评测、人在回路都必须有。Keyhook 就是这样选了状态机 + Inngest，没用 LangGraph 和 RAG。"
+🇨🇳 "我先划人机边界，再按任务选架构：固定流程用状态机，开放对话用 LangGraph，跨天流程用 Temporal 或 Inngest；资料少放 prompt 缓存，文档多用 RAG，结构化数据用 SQL。无论哪种，权限、幂等、审计、护栏、评测、人在回路都必须有。Keyhook 就是这样选了状态机 + Inngest，没用 LangGraph 和 RAG。"
 
-🇬🇧 "I draw the human/agent boundary first, then pick the architecture for the task: a state machine for fixed processes, LangGraph for open conversations, Temporal or Inngest for multi-day work; RAG for lots of documents, SQL for structured data. Whatever the choice, permissions, idempotency, audit, guardrails, evals and human in the loop are a must. That's how Keyhook ended up with a state machine plus Inngest, and no LangGraph or RAG."
+🇬🇧 "I draw the human/agent boundary first, then pick the architecture for the task: a state machine for fixed processes, LangGraph for open conversations, Temporal or Inngest for multi-day work; the cached prompt for a little material, RAG for lots of documents, SQL for structured data. Whatever the choice, permissions, idempotency, audit, guardrails, evals and human in the loop are a must. That's how Keyhook ended up with a state machine plus Inngest, and no LangGraph or RAG."
